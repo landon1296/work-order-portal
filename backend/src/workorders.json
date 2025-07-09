@@ -1,0 +1,1161 @@
+[
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "07:52",
+        "finishTime": "08:52",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "asdf",
+    "parts": [
+      {
+        "description": "",
+        "partNumber": "",
+        "unitPrice": "",
+        "quantity": "",
+        "amount": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "571",
+    "workDescription": "asdf",
+    "id": 571,
+    "status": "Closed",
+    "createdAt": "2025-07-08T12:52:02.577Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T12:52:02.577Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T12:52:13.497Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T12:52:41.562Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-08T12:53:01.219Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T14:09:37.872Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T14:09:41.543Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0.05
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "07:55",
+        "finishTime": "08:55",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "kjh",
+    "parts": [
+      {
+        "description": "",
+        "partNumber": "",
+        "unitPrice": "",
+        "quantity": "",
+        "amount": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "572",
+    "workDescription": "kujyh",
+    "id": 572,
+    "status": "Closed",
+    "createdAt": "2025-07-08T12:54:04.326Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T12:54:04.326Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T12:55:49.690Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T12:56:03.793Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T13:20:55.751Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0.02
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "60468",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "209 E Corning Ave",
+    "fieldCity": "Peotone",
+    "fieldState": "Illinois",
+    "fieldZipcode": "60468",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "Landon Perzee",
+    "contactPhone": "8159541453",
+    "contactEmail": "landon@greatlakeslifting.com",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "08:22",
+        "finishTime": "09:22",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "lkj",
+    "parts": [
+      {
+        "description": "",
+        "partNumber": "",
+        "unitPrice": "",
+        "quantity": "",
+        "amount": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "573",
+    "workDescription": "lkj",
+    "id": 573,
+    "status": "Closed",
+    "createdAt": "2025-07-08T13:22:23.256Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T13:22:23.256Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T13:22:31.749Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T13:22:32.892Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T13:22:45.757Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "08:51",
+        "finishTime": "08:51",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "asdf",
+    "parts": [
+      {
+        "description": "",
+        "partNumber": "",
+        "unitPrice": "",
+        "quantity": "",
+        "amount": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "574",
+    "workDescription": "asdf",
+    "id": 574,
+    "status": "Closed",
+    "createdAt": "2025-07-08T13:51:35.858Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T13:51:35.858Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T13:51:43.877Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T13:51:44.743Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-08T14:22:09.216Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T14:22:24.722Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T14:22:28.348Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0.02
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "Other",
+    "model": "Other",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "09:23",
+        "finishTime": "09:23",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "lkjhj",
+    "parts": [
+      {
+        "description": "",
+        "partNumber": "",
+        "unitPrice": "",
+        "quantity": "",
+        "amount": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "kjuh",
+    "workOrderNo": "575",
+    "workDescription": "lkhj",
+    "id": 575,
+    "status": "Closed",
+    "createdAt": "2025-07-08T14:23:36.187Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T14:23:36.187Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T14:23:46.800Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T14:23:51.230Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T14:24:04.834Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "09:29",
+        "finishTime": "09:29",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "asdf",
+    "parts": [
+      {
+        "description": "",
+        "partNumber": "",
+        "unitPrice": "",
+        "quantity": "",
+        "amount": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "576",
+    "workDescription": "asdf",
+    "id": 576,
+    "status": "Closed",
+    "createdAt": "2025-07-08T14:30:09.329Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T14:30:09.329Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T14:31:01.673Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T14:31:02.614Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T14:31:14.771Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T14:31:25.014Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T14:31:39.735Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T14:37:07.849Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL809 HL",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "09:32",
+        "finishTime": "09:32",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "asdf",
+    "parts": [
+      {
+        "description": "asdf",
+        "partNumber": "asdf",
+        "unitPrice": "",
+        "quantity": "1",
+        "amount": "",
+        "waiting": false
+      },
+      {
+        "description": "asdf",
+        "partNumber": "asdf",
+        "unitPrice": "",
+        "quantity": "2",
+        "amount": "",
+        "waiting": false
+      },
+      {
+        "description": "asdf",
+        "partNumber": "asdf",
+        "unitPrice": "",
+        "quantity": "3",
+        "amount": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "577",
+    "workDescription": "asdf",
+    "id": 577,
+    "status": "Closed",
+    "createdAt": "2025-07-08T14:30:52.846Z",
+    "statusHistory": [
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T14:31:05.838Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T14:36:50.899Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-08T14:37:12.751Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T14:39:04.093Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-08T14:40:24.937Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-08T14:40:51.994Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T14:41:08.148Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0.01
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "123",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "11:20",
+        "finishTime": "11:20",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "kjhg",
+    "parts": [
+      {
+        "partNumber": "part number",
+        "description": "part name/ description",
+        "quantity": "1",
+        "waiting": true
+      },
+      {
+        "description": "part name/ description",
+        "partNumber": "part number",
+        "quantity": "1",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "578",
+    "workDescription": "jhg",
+    "id": 578,
+    "status": "Closed",
+    "createdAt": "2025-07-08T15:46:35.880Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T15:46:35.880Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T15:46:46.744Z"
+      },
+      {
+        "status": "In Progress, Pending Parts",
+        "date": "2025-07-08T16:19:41.604Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T16:19:42.249Z"
+      },
+      {
+        "status": "In Progress, Pending Parts",
+        "date": "2025-07-08T16:20:00.759Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T16:20:03.955Z"
+      },
+      {
+        "status": "In Progress, Pending Parts",
+        "date": "2025-07-08T16:20:06.117Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T16:20:25.133Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-08T16:20:53.707Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T16:21:25.857Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0.02
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "14:07",
+        "finishTime": "14:07",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "sadf",
+    "parts": [
+      {
+        "partNumber": "12345",
+        "description": "landon",
+        "quantity": "1",
+        "waiting": true
+      },
+      {
+        "description": "landon",
+        "partNumber": "1296",
+        "quantity": "1",
+        "waiting": true
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "579",
+    "workDescription": "asdf",
+    "id": 579,
+    "status": "Closed",
+    "createdAt": "2025-07-08T18:51:31.163Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T18:51:31.163Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T18:51:40.803Z"
+      },
+      {
+        "status": "In Progress, Pending Parts",
+        "date": "2025-07-08T18:52:33.785Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T19:07:24.437Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-08T19:07:36.563Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T19:08:02.659Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0.01
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": false,
+    "billable": true,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "14:10",
+        "finishTime": "14:10",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "asdf",
+    "parts": [
+      {
+        "partNumber": "kirby=ugly",
+        "description": "kirby=lame",
+        "quantity": "1",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "580",
+    "workDescription": "asdf",
+    "id": 580,
+    "status": "Closed",
+    "createdAt": "2025-07-08T19:11:12.403Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T19:11:12.403Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T19:11:21.935Z"
+      },
+      {
+        "status": "In Progress, Pending Parts",
+        "date": "2025-07-08T19:11:25.603Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T19:11:31.069Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-08T19:11:34.102Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-08T19:11:47.511Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-08T19:11:57.462Z"
+      }
+    ],
+    "exportedToSheets": true,
+    "closedDays": 0
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL309",
+    "serialNumber": "",
+    "date": "2025-07-08",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-08",
+        "startTime": "14:43",
+        "finishTime": "14:44",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "asdf",
+    "parts": [
+      {
+        "partNumber": "test",
+        "description": "test",
+        "quantity": "1",
+        "waiting": true
+      },
+      {
+        "description": "test",
+        "partNumber": "test",
+        "quantity": "1",
+        "waiting": true
+      },
+      {
+        "description": "asd",
+        "partNumber": "asdf",
+        "quantity": "1",
+        "waiting": true
+      },
+      {
+        "description": "kirby=lame",
+        "partNumber": "kirby=ugly",
+        "quantity": "1",
+        "waiting": true
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "581",
+    "workDescription": "asdf",
+    "id": 581,
+    "status": "Closed",
+    "createdAt": "2025-07-08T19:44:13.680Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-08T19:44:13.680Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T19:44:21.974Z"
+      },
+      {
+        "status": "In Progress, Pending Parts",
+        "date": "2025-07-08T19:44:30.851Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-08T20:20:13.568Z"
+      },
+      {
+        "status": "In Progress, Pending Parts",
+        "date": "2025-07-08T20:20:16.577Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-09T19:35:03.273Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-09T20:09:46.700Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-09T20:09:56.101Z"
+      }
+    ],
+    "customerSignature": "data:image/png;base64,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",
+    "signatureTimestamp": "2025-07-09T19:34:44.424Z",
+    "closedDays": 1.02,
+    "exportedToSheets": true
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL809 HL",
+    "serialNumber": "",
+    "date": "2025-07-09",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-09",
+        "startTime": "14:24",
+        "finishTime": "14:24",
+        "travelTime": ""
+      },
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-09",
+        "startTime": "14:24",
+        "finishTime": "14:24",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Texas Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "asdfa soekr",
+    "parts": [
+      {
+        "partNumber": "kirby=ugly",
+        "description": "kirby=lame",
+        "quantity": "1",
+        "waiting": true
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "582",
+    "workDescription": "asdf",
+    "id": 582,
+    "status": "Closed",
+    "createdAt": "2025-07-09T15:34:02.352Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-09T15:34:02.352Z"
+      },
+      {
+        "status": "In Progress",
+        "date": "2025-07-09T19:23:47.612Z"
+      },
+      {
+        "status": "In Progress, Pending Parts",
+        "date": "2025-07-09T19:25:09.334Z"
+      },
+      {
+        "status": "Completed, Pending Approval",
+        "date": "2025-07-09T19:26:34.293Z"
+      },
+      {
+        "status": "Submitted for Billing",
+        "date": "2025-07-09T19:27:25.242Z"
+      },
+      {
+        "status": "Closed",
+        "date": "2025-07-09T19:33:13.740Z"
+      }
+    ],
+    "customerSignature": null,
+    "signatureTimestamp": null,
+    "closedDays": 0.17,
+    "exportedToSheets": true
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "",
+    "fieldCity": "",
+    "fieldState": "",
+    "fieldZipcode": "",
+    "PoNumber": "",
+    "make": "SmartLift",
+    "model": "SL809 HL",
+    "serialNumber": "",
+    "date": "2025-07-09",
+    "contactName": "",
+    "contactPhone": "",
+    "contactEmail": "",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-09",
+        "startTime": "",
+        "finishTime": "",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Florida Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "",
+    "parts": [
+      {
+        "partNumber": "",
+        "description": "",
+        "quantity": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "583",
+    "workDescription": "asdf",
+    "id": 583,
+    "status": "Assigned",
+    "createdAt": "2025-07-09T15:34:50.533Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-09T15:34:50.533Z"
+      }
+    ]
+  },
+  {
+    "companyName": "Great Lakes Lifting Solutions",
+    "companyStreet": "209 E Corning Ave",
+    "companyCity": "Peotone",
+    "companyState": "Illinois",
+    "companyZip": "60468",
+    "fieldContact": "Landon Perzee",
+    "fieldContactNumber": "8159541453",
+    "fieldStreet": "209 E Corning Ave",
+    "fieldCity": "Peotone",
+    "fieldState": "Illinois",
+    "fieldZipcode": "60468",
+    "PoNumber": "",
+    "make": "Wood's Powr-Grip",
+    "model": "P1 Lifter (IMP)",
+    "serialNumber": "",
+    "date": "2025-07-09",
+    "contactName": "Landon Perzee",
+    "contactPhone": "8159541453",
+    "contactEmail": "landon@greatlakeslifting.com",
+    "warranty": true,
+    "billable": false,
+    "maintenance": false,
+    "timeLogs": [
+      {
+        "technicianAssigned": "Joe",
+        "assignDate": "2025-07-09",
+        "startTime": "",
+        "finishTime": "",
+        "travelTime": ""
+      }
+    ],
+    "shop": "Peotone Shop",
+    "repairType": "In-House Repair",
+    "salesName": "",
+    "shippingCost": "",
+    "notes": "",
+    "parts": [
+      {
+        "partNumber": "",
+        "description": "",
+        "quantity": "",
+        "waiting": false
+      }
+    ],
+    "otherDesc": "",
+    "workOrderNo": "584",
+    "workDescription": "needs this",
+    "id": 584,
+    "status": "Assigned",
+    "createdAt": "2025-07-09T19:18:13.579Z",
+    "statusHistory": [
+      {
+        "status": "Assigned",
+        "date": "2025-07-09T19:18:13.579Z"
+      }
+    ]
+  }
+]
