@@ -6,16 +6,12 @@ import AssignWorkOrderForm from './components/AssignWorkOrderForm';
 import TechDashboard from './components/TechDashboard';
 import TechWorkOrderForm from './components/TechWorkOrderForm';
 import AccountingDashboard from './components/AccountingDashboard';
-import AnalyticsDashboard from './components/AnalyticsDashboard';
 import DashboardSwitcher from "./components/DashboardSwitcher";
 
-
-
-// A "guard" to require auth
+// Guard for auth
 function RequireAuth({ user, children }) {
   const location = useLocation();
   if (!user) {
-    // Redirect to login, but preserve where we tried to go
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   return children;
@@ -30,49 +26,57 @@ function App() {
         {/* Login Route */}
         <Route path="/login" element={<LoginForm onLogin={setUser} />} />
 
-        {/* Default route: redirect based on role */}
+        {/* Default Route */}
         <Route path="/" element={
           user
-            ? (user.role === 'manager'
+            ? (
+              ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
                 ? <Navigate to="/dashboard" replace />
-                : user.role === 'accounting'
-                  ? <Navigate to="/accounting-dashboard" replace />
-                  : (user.role === 'analytics' || user.role === 'owner')
-                    ? <Navigate to="/analytics" replace />
-                    : <Navigate to="/tech-dashboard" replace />
+                : <Navigate to="/tech-dashboard" replace />
               )
             : <Navigate to="/login" replace />
         } />
 
-
-
-        {/* Manager Routes */}
+        {/* Main Dashboard Route */}
         <Route path="/dashboard" element={
           <RequireAuth user={user}>
-            {user?.role === 'manager' || user?.role === 'analytics' || user?.role === 'owner'
- ? <ManagerDashboard token={user.token} /> : <Navigate to="/" />}
+            {user?.role === 'manager'
+              ? <ManagerDashboard user={user} />
+              : user?.role === 'accounting'
+              ? <AccountingDashboard user={user} />
+              : (user?.role === 'analytics' || user?.role === 'owner')
+              ? <DashboardSwitcher user={user} />
+              : <Navigate to="/" />
+            }
           </RequireAuth>
         } />
+
+        {/* Assign/Edit Work Order (Managers, Accounting, Analytics, Owner) */}
         <Route path="/dashboard/workorder/:id" element={
           <RequireAuth user={user}>
-            {(user?.role === 'manager' || user?.role === 'analytics' || user?.role === 'owner'
- || user?.role === 'accounting')
+            {(user?.role === 'manager' ||
+              user?.role === 'analytics' ||
+              user?.role === 'owner' ||
+              user?.role === 'accounting')
               ? <AssignWorkOrderForm token={user.token} editMode={true} />
               : <Navigate to="/" />
             }
           </RequireAuth>
         } />
+
+        {/* Assign New Work Order (Managers, Analytics, Owner) */}
         <Route path="/assign" element={
           <RequireAuth user={user}>
-            {user?.role === 'manager' || user?.role === 'analytics' || user?.role === 'owner'
-
+            {user?.role === 'manager' ||
+             user?.role === 'analytics' ||
+             user?.role === 'owner'
               ? <AssignWorkOrderForm token={user.token} />
               : <Navigate to="/" />
             }
           </RequireAuth>
         } />
 
-        {/* Technician Routes */}
+        {/* Technician Dashboard */}
         <Route path="/tech-dashboard" element={
           <RequireAuth user={user}>
             {user?.role === 'technician'
@@ -90,42 +94,16 @@ function App() {
           </RequireAuth>
         } />
 
-        <Route path="/accounting-dashboard" element={
-          <RequireAuth user={user}>
-            {user?.role === 'accounting' || user?.role === 'analytics' || user?.role === 'owner'
-
-              ? <AccountingDashboard token={user.token} />
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
-          <Route path="/analytics" element={
-            <RequireAuth user={user}>
-              {/* NEW */}
-              {user?.role === 'analytics' || user?.role === 'owner'
-                ? <DashboardSwitcher user={user} />
-                : <Navigate to="/" />
-              }
-            </RequireAuth>
-          } />
-
-
-
-        {/* Fallback: redirect unknown routes */}
+        {/* Fallback Route */}
         <Route path="*" element={
           user
-            ? (user.role === 'manager'
+            ? (
+              ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
                 ? <Navigate to="/dashboard" replace />
-                : user.role === 'accounting'
-                  ? <Navigate to="/accounting-dashboard" replace />
-                  : (user.role === 'analytics' || user.role === 'owner')
-                    ? <Navigate to="/analytics" replace />
-                    : <Navigate to="/tech-dashboard" replace />
+                : <Navigate to="/tech-dashboard" replace />
               )
             : <Navigate to="/login" replace />
         } />
-
-
       </Routes>
     </Router>
   );
