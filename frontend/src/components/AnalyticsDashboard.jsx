@@ -38,23 +38,60 @@ export default function AnalyticsDashboard({ user }) {
     ? orders
     : orders.filter(wo => wo.shop === shopFilter);
 
-  // If backend does not provide allWorkOrders yet, fallback to using counts (only filters shopCounts chart)
-  const showRawFilter = orders.length > 0;
+  // 💡 PASTE HERE: KPI calculations for filteredOrders
+  const closedOrdersCount = filteredOrders.filter(wo =>
+    wo.status && wo.status.toLowerCase().includes('closed')
+  ).length;
 
-  // KPIs - recalculate from filteredOrders if available
-  const kpiTotalOrders = showRawFilter ? filteredOrders.length : data.totalOrders;
-  const kpiClosedOrders = showRawFilter ? filteredOrders.filter(wo => wo.status && wo.status.toLowerCase().includes('closed')).length : data.closedOrders;
-  const kpiWaitingPartOrders = showRawFilter
-    ? filteredOrders.filter(wo => wo.status && (
+  const waitingPartOrdersCount = filteredOrders.filter(wo =>
+    wo.status && (
       wo.status.toLowerCase().includes('pending parts') ||
       wo.status.toLowerCase().includes('waiting on part') ||
       wo.status.toLowerCase().includes('pending part') ||
       wo.status.toLowerCase().includes('awaiting part')
-    )).length
-    : data.waitingPartOrders;
-  // You can add similar recalculation for ordersThisYear, ordersThisMonth, avgDaysToClose if you want!
+    )
+  ).length;
 
-  // For statusCounts and charts, you may want to build them from filteredOrders if available
+  // Orders This Year/Month
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const thisMonth = (now.getMonth() + 1).toString().padStart(2, '0');
+
+  const ordersThisYearCount = filteredOrders.filter(wo =>
+    wo.date && wo.date.startsWith(thisYear.toString())
+  ).length;
+
+  const ordersThisMonthCount = filteredOrders.filter(wo =>
+    wo.date && wo.date.startsWith(`${thisYear}-${thisMonth}`)
+  ).length;
+
+  // Avg Days to Close (filtered)
+  let avgDaysToCloseFiltered = null;
+  const closedFiltered = filteredOrders.filter(
+    wo => wo.closedDays && wo.status && wo.status.toLowerCase().includes('closed')
+  );
+  if (closedFiltered.length > 0) {
+    const totalClosedDays = closedFiltered.reduce((sum, wo) => sum + parseFloat(wo.closedDays || 0), 0);
+    avgDaysToCloseFiltered = (totalClosedDays / closedFiltered.length).toFixed(1);
+  }
+
+  // 💡 PASTE HERE: Technician workload filtered by shop
+  function countByTechnician(orders) {
+    const out = {};
+    orders.forEach(wo => {
+      if (Array.isArray(wo.timeLogs)) {
+        wo.timeLogs.forEach(log => {
+          if (log.technicianAssigned) {
+            out[log.technicianAssigned] = (out[log.technicianAssigned] || 0) + 1;
+          }
+        });
+      }
+    });
+    return out;
+  }
+  const techCountsFiltered = countByTechnician(filteredOrders);
+
+  // 💡 Your existing chart helpers are below, no change needed!
   function countByStatus(orders) {
     const out = {};
     orders.forEach(wo => {
@@ -64,7 +101,7 @@ export default function AnalyticsDashboard({ user }) {
     });
     return out;
   }
-  const activeStatusCounts = showRawFilter ? countByStatus(filteredOrders) : data.activeStatusCounts || {};
+  const activeStatusCounts = countByStatus(filteredOrders);
 
   function countByShop(orders) {
     const out = {};
@@ -73,8 +110,9 @@ export default function AnalyticsDashboard({ user }) {
     });
     return out;
   }
-  const shopCounts = showRawFilter ? countByShop(filteredOrders) : data.shopCounts || {};
+  const shopCounts = countByShop(filteredOrders);
 
+  // -- return section starts here! --
   return (
     <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
       <h1 style={{ fontSize: 36, fontWeight: 800, marginBottom: 18 }}>Analytics Dashboard</h1>
@@ -112,14 +150,14 @@ export default function AnalyticsDashboard({ user }) {
         </button>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs -- ALL filtered! */}
       <div style={{ display: "flex", gap: 30, marginBottom: 24, flexWrap: "wrap" }}>
-        <KPI label="Total Work Orders" value={kpiTotalOrders} />
-        <KPI label="Closed Work Orders" value={kpiClosedOrders} />
-        <KPI label="Waiting on Part" value={kpiWaitingPartOrders} />
-        <KPI label="Orders This Year" value={data.ordersThisYear} />
-        <KPI label="Orders This Month" value={data.ordersThisMonth} />
-        <KPI label="Avg Days to Close" value={data.avgDaysToClose} />
+        <KPI label="Total Work Orders" value={filteredOrders.length} />
+        <KPI label="Closed Work Orders" value={closedOrdersCount} />
+        <KPI label="Waiting on Part" value={waitingPartOrdersCount} />
+        <KPI label="Orders This Year" value={ordersThisYearCount} />
+        <KPI label="Orders This Month" value={ordersThisMonthCount} />
+        <KPI label="Avg Days to Close" value={avgDaysToCloseFiltered ?? data.avgDaysToClose} />
       </div>
 
       {/* Charts Row */}
@@ -191,7 +229,7 @@ export default function AnalyticsDashboard({ user }) {
       <div style={{ marginTop: 36 }}>
         <ChartCard title="Work Orders by Technician">
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={Object.entries(data.techCounts).map(([tech, count]) => ({ tech, count }))}>
+            <BarChart data={Object.entries(techCountsFiltered).map(([tech, count]) => ({ tech, count }))}>
               <XAxis dataKey="tech" />
               <YAxis />
               <Tooltip />
@@ -213,12 +251,24 @@ export default function AnalyticsDashboard({ user }) {
             </tr>
           </thead>
           <tbody>
-            {data.slowWOs.length === 0 && (
+            {filteredOrders.filter(wo => {
+              const status = (wo.status || '').toLowerCase();
+              if (status.includes('closed')) return false;
+              if (!wo.createdAt) return false;
+              const daysOpen = (now - new Date(wo.createdAt)) / (1000 * 60 * 60 * 24);
+              return daysOpen > 10;
+            }).length === 0 && (
               <tr>
                 <td colSpan={3} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>No slow movers!</td>
               </tr>
             )}
-            {data.slowWOs.map(wo => (
+            {filteredOrders.filter(wo => {
+              const status = (wo.status || '').toLowerCase();
+              if (status.includes('closed')) return false;
+              if (!wo.createdAt) return false;
+              const daysOpen = (now - new Date(wo.createdAt)) / (1000 * 60 * 60 * 24);
+              return daysOpen > 10;
+            }).map(wo => (
               <tr key={wo.workOrderNo}>
                 <td style={{ padding: 8 }}>{wo.workOrderNo}</td>
                 <td style={{ padding: 8 }}>{wo.status}</td>
@@ -231,8 +281,9 @@ export default function AnalyticsDashboard({ user }) {
     </div>
   );
 }
+
+// Your existing chart helpers below (no change needed!)
 function getOrdersByMonth(orders) {
-  // { '2025-06': 3, ... }
   const byMonth = {};
   orders.forEach(wo => {
     if (wo.date && /^\d{4}-\d{2}/.test(wo.date)) {
@@ -240,13 +291,11 @@ function getOrdersByMonth(orders) {
       byMonth[ym] = (byMonth[ym] || 0) + 1;
     }
   });
-  // Convert to array for the chart, sorted by month
   return Object.entries(byMonth)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([month, count]) => ({ month, count }));
 }
 function getTopParts(orders) {
-  // Gather all parts from filtered orders
   const partUse = {};
   orders.forEach(wo => {
     if (Array.isArray(wo.parts)) {
@@ -260,7 +309,6 @@ function getTopParts(orders) {
       });
     }
   });
-  // Top 5 by count
   return Object.entries(partUse)
     .sort((a, b) => b[1].count - a[1].count)
     .slice(0, 5)
@@ -270,8 +318,6 @@ function getTopParts(orders) {
       count: data.count,
     }));
 }
-
-
 
 function KPI({ label, value }) {
   return (
