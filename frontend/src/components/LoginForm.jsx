@@ -24,6 +24,8 @@ export default function LoginForm({ onLogin }) {
         navigate('/tech-dashboard');
       }
 
+      
+
     } catch {
       alert('Login failed');
     }
