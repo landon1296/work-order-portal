@@ -13,6 +13,12 @@ const SHOP_OPTIONS = [
 ];
 
 export default function ManagerDashboard({ user }) {
+  // Defensive: handle loading state to prevent crash
+  if (!user || !user.token) {
+    return <div>Loading dashboard...</div>;
+  }
+
+  // ...your existing code follows:
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
   const [closedSearch, setClosedSearch] = useState("");
@@ -23,6 +29,7 @@ export default function ManagerDashboard({ user }) {
     fetchOrders();
     // eslint-disable-next-line
   }, [user.token]);
+
 
   useEffect(() => {
     const defaultShop = localStorage.getItem('defaultShopFilter');
