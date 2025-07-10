@@ -24,7 +24,7 @@ export default function LoginForm({ onLogin }) {
         navigate('/tech-dashboard');
       }
 
-      
+
 
     } catch {
       alert('Login failed');
@@ -60,8 +60,9 @@ return (
         src={logo}
         alt="GLLS Company Logo"
         style={{
-          width: 260,
-          marginBottom: 24
+          width: 500,
+          marginBottom: -200,
+          marginTop: -200
         }}
       />
       <h2 className='=text-x1 mb-4' style={{ textAlign: 'center', width: '100%'}}> Great Lakes Lifting Work Order Portal</h2>

@@ -219,7 +219,7 @@ export default function AccountingDashboard({ user }) {
       }}>
         <h1 style={{ margin: 30 }}>Accounting Dashboard</h1>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginBottom: 8 }} />
+          <img src={GLLSLogo} alt="Company Logo" style={{ height: 500, marginBottom: -200, marginTop: -200 }} />
         </div>
       </div>
 

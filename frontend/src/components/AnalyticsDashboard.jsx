@@ -3,6 +3,7 @@ import API from "../api";
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line
 } from "recharts";
+import GLLSLogo from '../assets/GLLSLogo.png';
 
 const COLORS = ["#2563eb", "#facc15", "#10b981", "#ef4444", "#818cf8", "#f472b6", "#fb923c"];
 
@@ -113,9 +114,35 @@ export default function AnalyticsDashboard({ user }) {
   const shopCounts = countByShop(filteredOrders);
 
   // -- return section starts here! --
-  return (
-    <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ fontSize: 36, fontWeight: 800, marginBottom: 18 }}>Analytics Dashboard</h1>
+return (
+  <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 18,
+    }}>
+      <h1 style={{
+        fontSize: 36,
+        fontWeight: 800,
+        margin: 0,
+      }}>
+        Analytics Dashboard
+      </h1>
+      <img
+        src={GLLSLogo}
+        alt="Company Logo"
+        style={{
+          height: 500,
+          marginLeft: -250,
+          marginBottom: -250,
+          marginTop: -250,
+          objectFit: "contain"
+        }}
+      />
+    </div>
+    {/* ...rest of your dashboard... */}
+
 
       {/* Location Filter */}
       <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16 }}>
