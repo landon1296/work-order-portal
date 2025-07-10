@@ -88,7 +88,7 @@ function App() {
         <Route path="/tech-dashboard/workorder/:id" element={
           <RequireAuth user={user}>
             {user?.role === 'technician'
-              ? <TechWorkOrderForm token={user.token} />
+              ? <TechWorkOrderForm token={user.token} user= {user} />
               : <Navigate to="/" />
             }
           </RequireAuth>

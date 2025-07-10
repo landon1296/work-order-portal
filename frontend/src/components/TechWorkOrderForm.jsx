@@ -9,7 +9,7 @@ import { default as SignaturePad } from 'react-signature-canvas';
 
 
 
-export default function TechWorkOrderForm({ token }) {
+export default function TechWorkOrderForm({ token, user }) {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -333,14 +333,26 @@ const handlePartChange = (idx, field, value) => {
 
   // Save progress (draft)
   const handleSaveProgress = async () => {
-    try {
-      await API.put(`/workorders/${id}`, form);
-      alert('Progress saved!');
-    } catch (err) {
-      alert('Failed to save progress.');
-      console.error(err);
+  try {
+    await API.put(`/workorders/${id}`, form);
+    alert('Progress saved!');
+    // Send them back to their dashboard
+    if (user.role === "manager") {
+      navigate("/dashboard");
+    } else if (user.role === "accounting") {
+      navigate("/accounting-dashboard");
+    } else if (user.role === "technician") {
+      navigate("/tech-dashboard");
+    } else if (user.role === "analytics" || user.role === "owner") {
+      navigate("/analytics");
+    } else {
+      navigate("/");
     }
-  };
+  } catch (err) {
+    alert('Failed to save progress.');
+    console.error(err);
+  }
+};
 
   // SUBMIT FOR REVIEW (set status to "Completed, Pending Approval")
   const handleSubmit = async (e) => {
@@ -385,6 +397,22 @@ console.log("form", form);
 
   return (
     <form onSubmit={handleSubmit} style={{ padding: '8px', fontFamily: 'Arial' }}>
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        style={{
+          marginBottom: 18,
+          padding: "8px 20px",
+          background: "#ececec",
+          border: "1px solid #ccc",
+          borderRadius: 7,
+          fontWeight: 600,
+          cursor: "pointer"
+        }}
+      >
+        &larr; Back
+      </button>
+
       <table className="assign-table">
         <thead>
           <tr>
