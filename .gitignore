@@ -1,1 +1,11 @@
 node_modules
+.env
+.env.*
+# Google credentials
+service-account.json
+*.pem
+*.key
+*.cert
+# OS/Editor junk
+.DS_Store
+*.log
