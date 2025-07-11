@@ -9,6 +9,7 @@ import AccountingDashboard from './components/AccountingDashboard';
 import DashboardSwitcher from "./components/DashboardSwitcher";
 // 
 
+
 // Guard for auth
 function RequireAuth({ user, children }) {
   const location = useLocation();
