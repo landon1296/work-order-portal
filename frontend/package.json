@@ -12,6 +12,7 @@
     "react-scripts": "^5.0.1",
     "react-signature-canvas": "^1.1.0-alpha.2",
     "recharts": "^3.1.0",
+    "serve": "^14.2.4",
     "trim-canvas": "^0.1.2"
   },
   "scripts": {
