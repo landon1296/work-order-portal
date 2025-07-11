@@ -77,19 +77,21 @@ export default function AnalyticsDashboard({ user }) {
   }
 
   // 💡 PASTE HERE: Technician workload filtered by shop
-  function countByTechnician(orders) {
-    const out = {};
-    orders.forEach(wo => {
-      if (Array.isArray(wo.timeLogs)) {
-        wo.timeLogs.forEach(log => {
-          if (log.technicianAssigned) {
-            out[log.technicianAssigned] = (out[log.technicianAssigned] || 0) + 1;
-          }
-        });
-      }
+function countByTechnician(orders) {
+  const techOrders = {};
+  orders.forEach(wo => {
+    // Use a Set so each tech only gets counted once per work order
+    const techs = new Set();
+    (wo.timeLogs || []).forEach(log => {
+      if (log.technicianAssigned) techs.add(log.technicianAssigned);
     });
-    return out;
-  }
+    techs.forEach(tech => {
+      techOrders[tech] = (techOrders[tech] || 0) + 1;
+    });
+  });
+  return techOrders;
+}
+
   const techCountsFiltered = countByTechnician(filteredOrders);
 
   // 💡 Your existing chart helpers are below, no change needed!
