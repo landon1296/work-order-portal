@@ -7,6 +7,7 @@ import TechDashboard from './components/TechDashboard';
 import TechWorkOrderForm from './components/TechWorkOrderForm';
 import AccountingDashboard from './components/AccountingDashboard';
 import DashboardSwitcher from "./components/DashboardSwitcher";
+// 
 
 // Guard for auth
 function RequireAuth({ user, children }) {
