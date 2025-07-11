@@ -133,10 +133,10 @@ return (
         src={GLLSLogo}
         alt="Company Logo"
         style={{
-          height: 500,
-          marginLeft: -250,
-          marginBottom: -250,
-          marginTop: -250,
+          height: 100,
+          marginLeft: 0,
+          marginBottom: 0,
+          marginTop: 0,
           objectFit: "contain"
         }}
       />

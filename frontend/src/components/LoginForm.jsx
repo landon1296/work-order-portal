@@ -47,7 +47,9 @@ return (
       style={{
         maxWidth: 440,
         width: '100%',
-        padding: 40,
+        paddingTop: 0,
+        padding:40,
+        paddingBottom: 40,
         background: '#fff',
         borderRadius: 24,
         boxShadow: '0 4px 24px rgba(0,0,0,0.50)',
@@ -57,15 +59,13 @@ return (
       }}
     >
       <img
-        src={logo}
-        alt="GLLS Company Logo"
-        style={{
-          width: 500,
-          marginBottom: -200,
-          marginTop: -200
-        }}
+          src={logo}
+          alt="GLLS Company Logo"
+          className="login-logo"
+
+
       />
-      <h2 className='=text-x1 mb-4' style={{ textAlign: 'center', width: '100%'}}> Great Lakes Lifting Work Order Portal</h2>
+      <h2 className="login-header" style={{ textAlign: 'center', width: '100%', }}> Great Lakes Lifting Work Order Portal</h2>
       <h3 className='text-xl mb-4' style={{ textAlign: 'center', width: '100%' }}>Login</h3>
       <input
         name="username"

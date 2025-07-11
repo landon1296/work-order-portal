@@ -63,6 +63,22 @@
   padding: 8px;
 }
 
+.login-logo {
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 24px;
+  margin-top: 0;
+  display: block;
+  height: auto;
+  object-fit: contain;
+}
+.login-header {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+
+
 .manager-table th {
   background: #e3eafc;
   font-weight: bold;
@@ -110,5 +126,12 @@
     margin-bottom: 10px;
     font-size: 1em;
   }
-}
 
+
+@media (max-width: 600px) {
+  .login-logo {
+    max-width: 90px;
+    margin-bottom: 18px;
+  }
+}
+}
