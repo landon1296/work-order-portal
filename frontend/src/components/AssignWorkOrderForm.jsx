@@ -229,7 +229,10 @@ const handleSave = async () => {
   }
 };
 
-
+  const isInHouseRepair = form.repairType === "In-House Repair";
+  const disabledIfInHouse = isInHouseRepair
+    ? { disabled: true}
+    : {};
 
   const addTimeLog = () => {
   setForm(prev => {
@@ -306,6 +309,12 @@ const handleSave = async () => {
                 value={form.companyName}
                 onChange={handleChange}
                 placeholder="Company Name"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
             <td>
@@ -353,6 +362,12 @@ const handleSave = async () => {
                 value={form.companyStreet}
                 onChange={handleChange}
                 placeholder="Company Street"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
             <th className="assign-table-header" colSpan={2}>
@@ -371,6 +386,12 @@ const handleSave = async () => {
                 value={form.companyCity}
                 onChange={handleChange}
                 placeholder="Company City"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
             <td>
@@ -379,10 +400,14 @@ const handleSave = async () => {
               value={form.fieldContact}
               onChange={handleChange}
               placeholder="Field Contact Name"
-              style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
+              {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
               />
               </td>
               <td>
@@ -391,10 +416,14 @@ const handleSave = async () => {
                 value={form.fieldContactNumber}
                 onChange={handleChange}
                 placeholder="Field Contact Phone"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
                 />
               </td>
             <td>
@@ -415,6 +444,12 @@ const handleSave = async () => {
                 value={form.companyState}
                 onChange={handleChange}
                 placeholder="Company State"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
             <td>
@@ -423,10 +458,14 @@ const handleSave = async () => {
                 value={form.fieldStreet}
                 onChange={handleChange}
                 placeholder="Field Street"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
               />
             </td>
             <td>
@@ -435,10 +474,14 @@ const handleSave = async () => {
                 value={form.fieldCity}
                 onChange={handleChange}
                 placeholder="Field City"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
               />
             </td>
             <th className="assign-table-header">
@@ -452,6 +495,12 @@ const handleSave = async () => {
                 value={form.companyZip}
                 onChange={handleChange}
                 placeholder="Company ZIP"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
             <td>
@@ -460,10 +509,14 @@ const handleSave = async () => {
                 value={form.fieldState}
                 onChange={handleChange}
                 placeholder="Field State"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
               />
             </td>
             <td>
@@ -472,10 +525,14 @@ const handleSave = async () => {
                 value={form.fieldZipcode}
                 onChange={handleChange}
                 placeholder="Field ZIP"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
               />
             </td>
             <td>
@@ -519,6 +576,12 @@ const handleSave = async () => {
                 value={form.contactName}
                 onChange={handleChange}
                 placeholder="Contact Name"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
                 
             />
             </td> 
@@ -576,6 +639,12 @@ const handleSave = async () => {
                 value={form.contactPhone}
                 onChange={handleChange}
                 placeholder="Contact Phone"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
                   <td style={{ background: '#fff', padding: 0, position:'relative'}}>
@@ -624,6 +693,12 @@ const handleSave = async () => {
                 value={form.contactEmail}
                 onChange={handleChange}
                 placeholder="Contact Email"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
                   <td style={{ background: '#fff', padding: 0, position:'relative'}}>
@@ -738,7 +813,7 @@ const handleSave = async () => {
                 <th className="assign-table-header" colSpan={1}>
                   Shipping Cost
                 </th>
-            <td colSpan={3}></td>
+            <td colSpan={3} style={{background:"#808080"}}></td>
             </tr>
             <tr>
             <td>
@@ -746,7 +821,8 @@ const handleSave = async () => {
                 name="salesName"
                 value={form.salesName}
                 onChange={handleChange}
-                style={{ width: '100%' }}
+                {...disabledIfInHouse}
+                style={isInHouseRepair ? { backgroundColor: "#808080", color: "#808080" } : {}}
             >
                 <option value="">-- Select Sales Name --</option>
                 {salesNames.map(name => (
@@ -763,10 +839,15 @@ const handleSave = async () => {
                 type="number"
                 min="0"
                 step="0.01"
-                style={{width: '100%'}}
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
-            <td colSpan={3}></td>
+            <td colSpan={3} style={{background: "#808080"}}></td>
                
             </tr>
             <tr>
@@ -882,7 +963,7 @@ const handleSave = async () => {
             <td colSpan={1}>
               <button type="button" onClick={addPart}>Add Part</button>
             </td>
-            <td colSpan={4}></td>
+            <td colSpan={4} style={{background:"#808080"}}></td>
 
 
           </tr>

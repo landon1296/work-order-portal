@@ -331,6 +331,13 @@ const handlePartChange = (idx, field, value) => {
     });
   };
 
+  // Step 1: Set this up so we know when "In House Repair" is selected
+  const isInHouseRepair = form.repairType === "In-House Repair";
+  const disabledIfInHouse = isInHouseRepair
+    ? { disabled: true}
+    : {};
+
+
   // Save progress (draft)
   const handleSaveProgress = async () => {
   try {
@@ -432,7 +439,14 @@ console.log("form", form);
                 value={form.companyName}
                 onChange={handleChange}
                 placeholder="Company Name"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
+
             </td>
             <td>
             <select
@@ -479,7 +493,14 @@ console.log("form", form);
                 value={form.companyStreet}
                 onChange={handleChange}
                 placeholder="Company Street"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
+              
             </td>
             <th className="assign-table-header" colSpan={2}>
               Field Repair Point of Contact
@@ -497,6 +518,12 @@ console.log("form", form);
                 value={form.companyCity}
                 onChange={handleChange}
                 placeholder="Company City"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
             <td>
@@ -505,11 +532,15 @@ console.log("form", form);
               value={form.fieldContact}
               onChange={handleChange}
               placeholder="Field Contact Name"
-              style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
-              />
+              {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
+            />
               </td>
               <td>
                 <input
@@ -517,11 +548,15 @@ console.log("form", form);
                 value={form.fieldContactNumber}
                 onChange={handleChange}
                 placeholder="Field Contact Phone"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
-                />
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
+            />
               </td>
             <td>
               <input
@@ -541,6 +576,13 @@ console.log("form", form);
                 value={form.companyState}
                 onChange={handleChange}
                 placeholder="Company State"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
+              
               />
             </td>
             <td>
@@ -549,11 +591,15 @@ console.log("form", form);
                 value={form.fieldStreet}
                 onChange={handleChange}
                 placeholder="Field Street"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
-              />
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
+            />
             </td>
             <td>
               <input
@@ -561,11 +607,15 @@ console.log("form", form);
                 value={form.fieldCity}
                 onChange={handleChange}
                 placeholder="Field City"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
-              />
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
+            />
             </td>
             <th className="assign-table-header">
                 PO Number 
@@ -578,6 +628,12 @@ console.log("form", form);
                 value={form.companyZip}
                 onChange={handleChange}
                 placeholder="Company ZIP"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
             <td>
@@ -586,11 +642,15 @@ console.log("form", form);
                 value={form.fieldState}
                 onChange={handleChange}
                 placeholder="Field State"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
-              />
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
+            />
             </td>
             <td>
               <input
@@ -598,10 +658,15 @@ console.log("form", form);
                 value={form.fieldZipcode}
                 onChange={handleChange}
                 placeholder="Field ZIP"
-                style={{
-                backgroundColor:
-                form.repairType === "Field Repair" ? "#fff68f" : undefined
-              }}
+                {...disabledIfInHouse}
+              style={
+                isInHouseRepair
+                  ? { backgroundColor: "#808080", color: "#808080" }
+                  : form.repairType === "Field Repair"
+                  ? { backgroundColor: "#fff68f" }
+                  : {}
+              }
+            
               />
             </td>
             <td>
@@ -638,6 +703,12 @@ console.log("form", form);
                 value={form.contactName}
                 onChange={handleChange}
                 placeholder="Contact Name"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
             />
             </td> 
                   <td style={{ background: '#fff', padding: 0, position:'relative'}}>
@@ -692,6 +763,12 @@ console.log("form", form);
                 value={form.contactPhone}
                 onChange={handleChange}
                 placeholder="Contact Phone"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
                   <td style={{ background: '#fff', padding: 0, position:'relative'}}>
@@ -740,6 +817,12 @@ console.log("form", form);
                 value={form.contactEmail}
                 onChange={handleChange}
                 placeholder="Contact Email"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
                 />
             </td>
                   <td style={{ background: '#fff', padding: 0, position:'relative'}}>
@@ -854,7 +937,7 @@ console.log("form", form);
                 <th className="assign-table-header" colSpan={1}>
                   Shipping Cost
                 </th>
-            <td colSpan={3}></td>
+            <td colSpan={3} style={{background: "#808080"}}></td>
             </tr>
             <tr>
             <td>
@@ -862,7 +945,8 @@ console.log("form", form);
                 name="salesName"
                 value={form.salesName}
                 onChange={handleChange}
-                style={{ width: '100%' }}
+                {...disabledIfInHouse}
+                style={isInHouseRepair ? { backgroundColor: "#808080", color: "#808080" } : {}}
             >
                 <option value="">-- Select Sales Name --</option>
                 {salesNames.map(name => (
@@ -876,13 +960,19 @@ console.log("form", form);
                 value={form.shippingCost}
                 onChange={handleChange}
                 placeholder="Ex. 1234.00"
+              
                 type="number"
                 min="0"
                 step="0.01"
-                style={{width: '100%'}}
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
               />
             </td>
-            <td colSpan={3}></td>
+            <td colSpan={3} style={{background: "#808080"}}></td>
                
             </tr>
             <tr>
@@ -1000,7 +1090,7 @@ console.log("form", form);
             <td colSpan={1}>
               <button type="button" onClick={addPart}>Add Part</button>
             </td>
-            <td colSpan={4}></td>
+            <td colSpan={4} style={{background:"#808080"}}></td>
 
           </tr>
           <tr>
