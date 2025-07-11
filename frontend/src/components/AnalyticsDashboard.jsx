@@ -75,6 +75,7 @@ export default function AnalyticsDashboard({ user }) {
     const totalClosedDays = closedFiltered.reduce((sum, wo) => sum + parseFloat(wo.closedDays || 0), 0);
     avgDaysToCloseFiltered = (totalClosedDays / closedFiltered.length).toFixed(1);
   }
+  
 
   // 💡 PASTE HERE: Technician workload filtered by shop
 function countByTechnician(orders) {
