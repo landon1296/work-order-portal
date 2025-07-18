@@ -132,7 +132,7 @@ export default function ManagerDashboard({ user }) {
   // Button handlers (same as before)
   const handleRework = async (order) => {
     try {
-      await API.put(`/workorders/by-id/${order.workOrderNo}`, {
+      await API.put(`/workorders/${order.workOrderNo}`, {
         ...order,
         status: 'Assigned'
       });
@@ -333,7 +333,15 @@ export default function ManagerDashboard({ user }) {
           {regularOrders.map(o => (
             <tr key={o.workOrderNo}>
               <td>{o.workOrderNo}</td>
-              <td>{o.date}</td>
+              <td>
+  {o.date
+    ? new Date(o.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    : ''}
+</td>
               <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
               <td>{o.companyName}</td>
               <td>{o.shop}</td>
@@ -375,7 +383,15 @@ export default function ManagerDashboard({ user }) {
           {pendingReviewOrders.map(o => (
             <tr key={o.workOrderNo}>
               <td>{o.workOrderNo}</td>
-              <td>{o.date}</td>
+              <td>
+  {o.date
+    ? new Date(o.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    : ''}
+</td>
               <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
               <td>{o.companyName}</td>
               <td>{o.shop}</td>
@@ -459,7 +475,15 @@ export default function ManagerDashboard({ user }) {
             {filteredSubmittedForBilling.map(o => (
               <tr key={o.workOrderNo}>
                 <td>{o.workOrderNo}</td>
-                <td>{o.date}</td>
+                <td>
+  {o.date
+    ? new Date(o.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    : ''}
+</td>
                 <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
                 <td>{o.companyName}</td>
                 <td>{o.shop}</td>
@@ -522,7 +546,15 @@ export default function ManagerDashboard({ user }) {
             {filteredClosedOrders.map(o => (
               <tr key={o.workOrderNo}>
                 <td>{o.workOrderNo}</td>
-                <td>{o.date}</td>
+                <td>
+  {o.date
+    ? new Date(o.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    : ''}
+</td>
                 <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
                 <td>{o.companyName}</td>
                 <td>{o.shop}</td>

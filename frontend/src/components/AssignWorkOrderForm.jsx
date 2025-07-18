@@ -2,6 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api';
 import '../index.css';
+// Utility: Recursively converts all keys in object/arrays from snake_case to camelCase
+function toCamelCaseDeep(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(toCamelCaseDeep);
+  } else if (obj && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, val]) => [
+        key.replace(/_([a-z])/g, g => g[1].toUpperCase()),
+        toCamelCaseDeep(val)
+      ])
+    );
+  }
+  return obj;
+}
+
 
 export default function AssignWorkOrderForm({ token }) {
   const {id} = useParams();
@@ -23,7 +38,7 @@ export default function AssignWorkOrderForm({ token }) {
     fieldCity:'',
     fieldState:'',
     fieldZipcode:'',
-    PoNumber:'',
+    poNumber:'',
     make: '',
     model: '',
     serialNumber: '',
@@ -34,6 +49,7 @@ export default function AssignWorkOrderForm({ token }) {
     warranty: false,
     billable: false,
     maintenance: false,
+    nonBillableRepair: false,
     timeLogs: [
       { technicianAssigned: '', assignDate: new Date().toISOString().slice(0,10), startTime: '', finishTime: '', travelTime: '' }
     ],
@@ -44,19 +60,10 @@ export default function AssignWorkOrderForm({ token }) {
     notes: '',
     parts: [{ partNumber:'', description:'', quantity:'', waiting: false }],
     otherDesc:'',
+    workDescription: '',
   });
   const [technicians, setTechnicians] = useState([]);
-  useEffect(() => {
-  if (!id) return;
-  // Fetch existing work order by ID
-  API.get(`/workorders/${id}`)
-    .then(res => {
-      if (res.data) setForm(res.data);
-    })
-    .catch(() => {
-      // Optionally handle not found
-    });
-}, [id]);
+
 
 // Fetch Make/Model list from backend when component mounts
 useEffect(() => {
@@ -87,10 +94,8 @@ useEffect(() => {
   }
 }, [form.make, makeModelMap]);
 
-
-
-    useEffect(() => {
-  if (id) return; // <-- Only run if NOT editing!
+useEffect(() => {
+  if (id) return; // Only run if NOT editing!
   API.get('/workorders/next-number')
     .then(res => {
       setNextWorkOrderNo(res.data.nextWorkOrderNo);
@@ -103,7 +108,45 @@ useEffect(() => {
       setNextWorkOrderNo('');
       setForm(prev => ({ ...prev, workOrderNo: '' }));
     });
-}, [id]); // <-- Add [id] as a dependency here!
+}, [id]);
+
+
+
+
+useEffect(() => {
+  if (!id) return;
+  // Fetch existing work order by ID
+  API.get(`/workorders/${id}`)
+    .then(res => {
+      if (res.data) {
+        let formObj = toCamelCaseDeep(res.data);
+        if (formObj.date) formObj.date = String(formObj.date).slice(0, 10);
+        if (!formObj.fieldContact && formObj.fieldContactName)
+        formObj.fieldContact = formObj.fieldContactName
+        formObj.parts = Array.isArray(formObj.parts) ? formObj.parts : [{ partNumber: '', description: '', quantity: '', waiting: false }];
+        formObj.timeLogs = Array.isArray(formObj.timeLogs) ? formObj.timeLogs : [{ technicianAssigned: '', assignDate: '', startTime: '', finishTime: '', travelTime: '' }];
+        // Format all assignDate values for HTML <input type="date">
+formObj.timeLogs = formObj.timeLogs.map(log => ({
+  ...log,
+  assignDate: log.assignDate
+    ? String(log.assignDate).slice(0, 10)
+    : new Date().toISOString().slice(0, 10)
+}));
+
+        [
+          'companyName', 'companyStreet', 'companyCity', 'companyState', 'companyZip',
+          'fieldContact', 'fieldContactNumber', 'fieldStreet', 'fieldCity', 'fieldState', 'fieldZipcode',
+          'poNumber', 'make', 'model', 'serialNumber', 'date',
+          'contactName', 'contactPhone', 'contactEmail', 'salesName', 'shippingCost', 'notes', 'otherDesc', 'workDescription'
+        ].forEach(field => {
+          if (formObj[field] === undefined || formObj[field] === null) formObj[field] = '';
+        });
+        setForm(formObj);
+      }
+    })
+    .catch(() => { /* handle not found if you want */ });
+}, [id]);
+ // <-- Add [id] as a dependency here!
 
 
 
@@ -168,13 +211,15 @@ const handlePartChange = (idx, field, value) => {
 
 
   const handleSubmit = async (e) => {
+    console.log("Submitting this form to API:", form);
+
   e.preventDefault();
     if (!form.workDescription.trim()) {
     alert('Work Description is required.');
     return;
   }
-  if (!(form.warranty || form.billable || form.maintenance)) {
-    alert('At least one Work Type must be selected (Warranty, Billable, or Maintenance).');
+  if (!(form.warranty || form.billable || form.maintenance || form.nonBillableRepair)) {
+    alert('At least one Work Type must be selected (Warranty, Billable, Maintenance or Non-billabel Repair).');
     return;
   }
   // If "Field Repair" is selected, check for required field address info
@@ -195,10 +240,10 @@ const handlePartChange = (idx, field, value) => {
   }
   try {
     if (id) {
-      // Edit mode: update existing work order
-      await API.put(`/workorders/by-id/${id}`, form);
+      console.log('EDIT MODE: sending to API:', form); // <-- Add this
+      await API.put(`/workorders/${form.workOrderNo}`, form);
     } else {
-      // New mode: create new work order
+      console.log('NEW MODE: sending to API:', form); // <-- And this
       await API.post('/workorders', form);
     }
     navigate('/dashboard');
@@ -209,6 +254,7 @@ const handlePartChange = (idx, field, value) => {
 };
 const handleSave = async () => {
   try {
+    console.log('handleSave - sending to API:', form);
     await API.put(`/workorders/${id}`, form);
     alert('Progress saved!');
     // Send them back to their dashboard
@@ -306,7 +352,7 @@ const handleSave = async () => {
             <td>
               <input
                 name="companyName"
-                value={form.companyName}
+                value={form.companyName ?? ""}
                 onChange={handleChange}
                 placeholder="Company Name"
                 {...disabledIfInHouse}
@@ -320,7 +366,7 @@ const handleSave = async () => {
             <td>
               <select
                 name="make"
-                value={form.make}
+                value={form.make ?? ""}
                 onChange={handleChange}
                 required
                 style={{ width: '100%' }}
@@ -334,7 +380,7 @@ const handleSave = async () => {
             <td>
               <select
                 name="model"
-                value={form.model || ""}
+                value={form.model ?? ""}
                 onChange={handleChange}
                 required
                 disabled={!form.make}
@@ -347,10 +393,10 @@ const handleSave = async () => {
               </select>
             </td>
             <td>
-              <input name="serialNumber" value={form.serialNumber} onChange={handleChange} />
+              <input name="serialNumber" value={form.serialNumber ?? ""} onChange={handleChange} />
             </td>
             <td>
-              <input type="date" name="date" value={form.date} onChange={handleChange} />
+              <input type="date" name="date" value={form.date ?? ""} onChange={handleChange} />
             </td>
           </tr>
 
@@ -359,7 +405,7 @@ const handleSave = async () => {
             <td colSpan={2}>
               <input
                 name="companyStreet"
-                value={form.companyStreet}
+                value={form.companyStreet ?? ""}
                 onChange={handleChange}
                 placeholder="Company Street"
                 {...disabledIfInHouse}
@@ -383,7 +429,7 @@ const handleSave = async () => {
             <td colSpan={2}>
               <input
                 name="companyCity"
-                value={form.companyCity}
+                value={form.companyCity ?? ""}
                 onChange={handleChange}
                 placeholder="Company City"
                 {...disabledIfInHouse}
@@ -397,7 +443,7 @@ const handleSave = async () => {
             <td>
             <input
               name="fieldContact"
-              value={form.fieldContact}
+              value={form.fieldContact ?? ""}
               onChange={handleChange}
               placeholder="Field Contact Name"
               {...disabledIfInHouse}
@@ -413,7 +459,7 @@ const handleSave = async () => {
               <td>
                 <input
                 name="fieldContactNumber"
-                value={form.fieldContactNumber}
+                value={form.fieldContactNumber ?? ""}
                 onChange={handleChange}
                 placeholder="Field Contact Phone"
                 {...disabledIfInHouse}
@@ -429,7 +475,7 @@ const handleSave = async () => {
             <td>
               <input
                 name="workOrderNo"
-                value={form.workOrderNo}
+                value={form.workOrderNo ?? ""}
                 readOnly
                 className="assign-table-readonly"
               />
@@ -441,7 +487,7 @@ const handleSave = async () => {
             <td colSpan={2}>
               <input
                 name="companyState"
-                value={form.companyState}
+                value={form.companyState ?? ""}
                 onChange={handleChange}
                 placeholder="Company State"
                 {...disabledIfInHouse}
@@ -455,7 +501,7 @@ const handleSave = async () => {
             <td>
               <input
                 name="fieldStreet"
-                value={form.fieldStreet}
+                value={form.fieldStreet ?? ""}
                 onChange={handleChange}
                 placeholder="Field Street"
                 {...disabledIfInHouse}
@@ -471,7 +517,7 @@ const handleSave = async () => {
             <td>
               <input
                 name="fieldCity"
-                value={form.fieldCity}
+                value={form.fieldCity ?? ""}
                 onChange={handleChange}
                 placeholder="Field City"
                 {...disabledIfInHouse}
@@ -492,7 +538,7 @@ const handleSave = async () => {
             <td colSpan={2}>
               <input
                 name="companyZip"
-                value={form.companyZip}
+                value={form.companyZip ?? ""}
                 onChange={handleChange}
                 placeholder="Company ZIP"
                 {...disabledIfInHouse}
@@ -506,7 +552,7 @@ const handleSave = async () => {
             <td>
               <input
                 name="fieldState"
-                value={form.fieldState}
+                value={form.fieldState ?? ""}
                 onChange={handleChange}
                 placeholder="Field State"
                 {...disabledIfInHouse}
@@ -522,7 +568,7 @@ const handleSave = async () => {
             <td>
               <input
                 name="fieldZipcode"
-                value={form.fieldZipcode}
+                value={form.fieldZipcode ?? ""}
                 onChange={handleChange}
                 placeholder="Field ZIP"
                 {...disabledIfInHouse}
@@ -537,8 +583,8 @@ const handleSave = async () => {
             </td>
             <td>
               <input
-              name="PoNumber"
-              value={form.PoNumber}
+              name="poNumber"
+              value={form.poNumber ?? ""}
               onChange={handleChange}
               placeholder="PO Number"
               />
@@ -573,7 +619,7 @@ const handleSave = async () => {
             <td colSpan={2}>
               <input
                 name="contactName"
-                value={form.contactName}
+                value={form.contactName ?? ""}
                 onChange={handleChange}
                 placeholder="Contact Name"
                 {...disabledIfInHouse}
@@ -589,7 +635,7 @@ const handleSave = async () => {
                   <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Warranty</span>
                   <div style={{
                     position: 'absolute',
-                    left: '50%',
+                    left: '60%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)'
                   }}>
@@ -604,7 +650,7 @@ const handleSave = async () => {
                 <td>
                 <select
                     name="shop"
-                    value={form.shop}
+                    value={form.shop ?? ""}
                     onChange={handleChange}
                     style={{ width: '100%' }}
                     required
@@ -618,7 +664,7 @@ const handleSave = async () => {
                 <td>
                 <select
                   name="repairType"
-                  value={form.repairType}
+                  value={form.repairType ?? ""}
                   onChange={handleChange}
                   style={{ width: '100%'}}
                   required
@@ -636,7 +682,7 @@ const handleSave = async () => {
             <td colSpan={2}>
               <input
                 name="contactPhone"
-                value={form.contactPhone}
+                value={form.contactPhone ?? ""}
                 onChange={handleChange}
                 placeholder="Contact Phone"
                 {...disabledIfInHouse}
@@ -651,7 +697,7 @@ const handleSave = async () => {
                   <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Billable</span>
                   <div style={{
                     position: 'absolute',
-                    left: '50%',
+                    left: '60%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)'
                   }}>
@@ -672,7 +718,7 @@ const handleSave = async () => {
               {(form.make === "Other" || form.model === "Other") && (
                 <input
                 name="otherDesc"
-                value={form.otherDesc || ""}
+                value={form.otherDesc ?? ""}
                 onChange={handleChange}
                 placeholder="Please Specify 'Other' Make & Model"
                 required
@@ -690,7 +736,7 @@ const handleSave = async () => {
             <td colSpan={2}>
               <input
                 name="contactEmail"
-                value={form.contactEmail}
+                value={form.contactEmail ?? ""}
                 onChange={handleChange}
                 placeholder="Contact Email"
                 {...disabledIfInHouse}
@@ -705,7 +751,7 @@ const handleSave = async () => {
                   <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Maintenance</span>
                   <div style={{
                     position: 'absolute',
-                    left: '50%',
+                    left: '60%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)'
                   }}>
@@ -719,6 +765,28 @@ const handleSave = async () => {
                   </td>
                   <td colSpan={2}
                   style={{background: "#808080"}}></td>
+          </tr>
+          <tr>
+            <td colSpan={2} style={{background:"#808080"}}></td>
+            <td style={{ background: '#fff', padding: 0, position:'relative'}}>
+                  <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Non-billable Repair</span>
+                  <div style={{
+                    position: 'absolute',
+                    left: '60%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)'
+                  }}>
+                  <input
+                    type="checkbox"
+                    name="nonBillableRepair"
+                    checked={form.nonBillableRepair}
+                    onChange={handleChange}
+                  /> 
+                  </div>
+                  </td>
+                  <td colSpan={2}
+                  style={{background: "#808080"}}></td>
+          
           </tr>
           <tr>
             <th className="assign-table-header" colSpan={1}>
@@ -819,7 +887,7 @@ const handleSave = async () => {
             <td>
             <select
                 name="salesName"
-                value={form.salesName}
+                value={form.salesName ?? ""}
                 onChange={handleChange}
                 {...disabledIfInHouse}
                 style={isInHouseRepair ? { backgroundColor: "#808080", color: "#808080" } : {}}
@@ -833,7 +901,7 @@ const handleSave = async () => {
             <td>
               <input
                 name="shippingCost"
-                value={form.shippingCost}
+                value={form.shippingCost ?? ""}
                 onChange={handleChange}
                 placeholder="Ex. 1234.00"
                 type="number"
@@ -976,7 +1044,7 @@ const handleSave = async () => {
             <td colSpan={5}>
               <textarea
                 name="workDescription"
-                value={form.workDescription}
+                value={form.workDescription ?? ""}
                 onChange={handleChange}
                 rows={3}
                 style={{ width: '100%' }}
@@ -994,7 +1062,7 @@ const handleSave = async () => {
             <td colSpan={5}>
               <textarea
                 name="notes"
-                value={form.notes}
+                value={form.notes ?? ""}
                 onChange={handleChange}
                 rows={3}
                 style={{ width: '100%' }}

@@ -36,9 +36,24 @@ export default function AnalyticsDashboard({ user }) {
   // This will be filled with backend work orders in next step
   const orders = data.allWorkOrders || [];
   const filteredOrders = shopFilter === 'All Shops'
+
+
     ? orders
     : orders.filter(wo => wo.shop === shopFilter);
 
+    const slowMoversFiltered = filteredOrders.filter(wo => {
+  if (!wo.created_at || !wo.status_history) return false;
+  const lastStatus = wo.status_history.at(-1);
+  const isClosed = lastStatus && lastStatus.status && lastStatus.status.toLowerCase() === "closed";
+  if (isClosed) return false;
+  const createdAt = new Date(wo.created_at);
+  const now = new Date();
+  const daysOpen = (now - createdAt) / (1000 * 60 * 60 * 24);
+  return daysOpen > 10;
+});
+
+    
+console.log('filteredOrders:', filteredOrders, 'Current shopFilter:', shopFilter);
   // 💡 PASTE HERE: KPI calculations for filteredOrders
   const closedOrdersCount = filteredOrders.filter(wo =>
     wo.status && wo.status.toLowerCase().includes('closed')
@@ -67,14 +82,72 @@ export default function AnalyticsDashboard({ user }) {
   ).length;
 
   // Avg Days to Close (filtered)
-  let avgDaysToCloseFiltered = null;
-  const closedFiltered = filteredOrders.filter(
-    wo => wo.closedDays && wo.status && wo.status.toLowerCase().includes('closed')
+let avgDaysToCloseFiltered = null;
+
+console.log(
+  "filteredOrders full data:",
+  JSON.stringify(filteredOrders, null, 2)
+);
+
+
+console.log(
+  "filteredOrders:",
+  filteredOrders.map(wo => ({
+    shop: wo.shop,
+    status: wo.status,
+    createdAt: wo.createdAt,
+    statusHistory: wo.statusHistory,
+    status_history: wo.status_history
+  }))
+);
+
+
+
+
+
+const closedFiltered = filteredOrders.filter(
+  wo =>
+    wo.status &&
+    wo.status.toLowerCase().includes("closed") &&
+    Array.isArray(wo.status_history) &&
+    wo.created_at
+);
+console.log('closedFiltered:', closedFiltered.map(wo => ({
+  work_order_no: wo.work_order_no,
+  status: wo.status,
+  created_at: wo.created_at,
+  status_history: wo.status_history
+})));
+
+const closedDaysArray = closedFiltered.map(wo => {
+  const history = wo.status_history;
+  const createdAt = new Date(wo.created_at);
+  // Try to find an explicit "Closed" entry
+  const closedEntry = [...history].reverse().find(
+    entry => (entry.status || "").toLowerCase() === "closed"
   );
-  if (closedFiltered.length > 0) {
-    const totalClosedDays = closedFiltered.reduce((sum, wo) => sum + parseFloat(wo.closedDays || 0), 0);
-    avgDaysToCloseFiltered = (totalClosedDays / closedFiltered.length).toFixed(1);
+
+  let closedAt;
+  if (closedEntry && closedEntry.date) {
+    closedAt = new Date(closedEntry.date);
+  } else if (history.length > 0) {
+    // Fallback: use the last status_history date if current status is "Closed"
+    closedAt = new Date(history[history.length - 1].date);
+  } else {
+    // No history to use, bail
+    return null;
   }
+  return Math.max(0, (closedAt - createdAt) / (1000 * 60 * 60 * 24));
+}).filter(days => days !== null && !isNaN(days));
+
+
+if (closedDaysArray.length > 0) {
+  const totalClosedDays = closedDaysArray.reduce((sum, days) => sum + days, 0);
+  avgDaysToCloseFiltered = (totalClosedDays / closedDaysArray.length).toFixed(1);
+}
+
+
+
   
 
   // 💡 PASTE HERE: Technician workload filtered by shop
@@ -84,7 +157,7 @@ function countByTechnician(orders) {
     // Use a Set so each tech only gets counted once per work order
     const techs = new Set();
     (wo.timeLogs || []).forEach(log => {
-      if (log.technicianAssigned) techs.add(log.technicianAssigned);
+      if (log.technician_assigned) techs.add(log.technician_assigned);
     });
     techs.forEach(tech => {
       techOrders[tech] = (techOrders[tech] || 0) + 1;
@@ -93,18 +166,23 @@ function countByTechnician(orders) {
   return techOrders;
 }
 
+
   const techCountsFiltered = countByTechnician(filteredOrders);
 
   // 💡 Your existing chart helpers are below, no change needed!
-  function countByStatus(orders) {
-    const out = {};
-    orders.forEach(wo => {
-      if (wo.status && (!wo.status.toLowerCase().includes('closed'))) {
-        out[wo.status] = (out[wo.status] || 0) + 1;
-      }
-    });
-    return out;
-  }
+function countByStatus(orders) {
+  const out = {};
+  orders.forEach(wo => {
+    // Default to "Assigned" if missing/null
+    let status = wo.status || "Assigned";
+    // Normalize capitalization: first letter uppercase, rest lowercase
+    status = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+    if (!status.toLowerCase().includes("closed")) {
+      out[status] = (out[status] || 0) + 1;
+    }
+  });
+  return out;
+}
   const activeStatusCounts = countByStatus(filteredOrders);
 
   function countByShop(orders) {
@@ -115,6 +193,8 @@ function countByTechnician(orders) {
     return out;
   }
   const shopCounts = countByShop(filteredOrders);
+
+
 
   // -- return section starts here! --
 return (
@@ -184,10 +264,37 @@ return (
       <div style={{ display: "flex", gap: 30, marginBottom: 24, flexWrap: "wrap" }}>
         <KPI label="Total Work Orders" value={filteredOrders.length} />
         <KPI label="Closed Work Orders" value={closedOrdersCount} />
-        <KPI label="Waiting on Part" value={waitingPartOrdersCount} />
+        <KPI 
+            label="Waiting on Part" 
+            value={waitingPartOrdersCount} 
+            styleOverride={
+              waitingPartOrdersCount > 0
+                ? {
+                    background: "#fef9c3",
+                    color: "#a16207",
+                    border: "2px solid #facc15"
+                  } 
+                : {}
+            }
+         />
+<KPI
+  label="Slow Movers (>10d)"
+  value={slowMoversFiltered.length}
+  styleOverride={
+    slowMoversFiltered.length > 0
+      ? {
+          background: "#fee2e2",      // light red
+          color: "#b91c1c",           // deep red text
+          border: "2px solid #ef4444" // red border
+        }
+      : {}
+  }
+/>
+
         <KPI label="Orders This Year" value={ordersThisYearCount} />
         <KPI label="Orders This Month" value={ordersThisMonthCount} />
-        <KPI label="Avg Days to Close" value={avgDaysToCloseFiltered ?? data.avgDaysToClose} />
+        <KPI label="Avg Days to Close" value={closedDaysArray.length > 0 ? avgDaysToCloseFiltered : "N/A"} />
+
       </div>
 
       {/* Charts Row */}
@@ -280,32 +387,23 @@ return (
               <th style={{ textAlign: "left", padding: 8 }}>Created At</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredOrders.filter(wo => {
-              const status = (wo.status || '').toLowerCase();
-              if (status.includes('closed')) return false;
-              if (!wo.createdAt) return false;
-              const daysOpen = (now - new Date(wo.createdAt)) / (1000 * 60 * 60 * 24);
-              return daysOpen > 10;
-            }).length === 0 && (
-              <tr>
-                <td colSpan={3} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>No slow movers!</td>
-              </tr>
-            )}
-            {filteredOrders.filter(wo => {
-              const status = (wo.status || '').toLowerCase();
-              if (status.includes('closed')) return false;
-              if (!wo.createdAt) return false;
-              const daysOpen = (now - new Date(wo.createdAt)) / (1000 * 60 * 60 * 24);
-              return daysOpen > 10;
-            }).map(wo => (
-              <tr key={wo.workOrderNo}>
-                <td style={{ padding: 8 }}>{wo.workOrderNo}</td>
-                <td style={{ padding: 8 }}>{wo.status}</td>
-                <td style={{ padding: 8 }}>{wo.createdAt}</td>
-              </tr>
-            ))}
-          </tbody>
+            <tbody>
+{slowMoversFiltered.length === 0 && (
+  <tr>
+    <td colSpan={3} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>No slow movers!</td>
+  </tr>
+)}
+{slowMoversFiltered.map(wo => (
+  <tr key={wo.work_order_no}>
+    <td style={{ padding: 8 }}>{wo.work_order_no}</td>
+    <td style={{ padding: 8 }}>{wo.status}</td>
+    <td style={{ padding: 8 }}>
+      {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ""}
+    </td>
+  </tr>
+))}
+            </tbody>
+
         </table>
       </div>
     </div>
@@ -330,8 +428,9 @@ function getTopParts(orders) {
   orders.forEach(wo => {
     if (Array.isArray(wo.parts)) {
       wo.parts.forEach(part => {
-        const partNum = (part.partNumber || '').trim();
-        const desc = (part.description || '').trim();
+      const partNum = (part.part_number || '').trim();
+      const desc = (part.description || '').trim();
+
         if (partNum) {
           if (!partUse[partNum]) partUse[partNum] = { count: 0, description: desc };
           partUse[partNum].count += 1;
@@ -349,7 +448,7 @@ function getTopParts(orders) {
     }));
 }
 
-function KPI({ label, value }) {
+function KPI({ label, value, styleOverride = {} }) {
   return (
     <div style={{
       background: "#f8fafc",
@@ -359,13 +458,23 @@ function KPI({ label, value }) {
       fontWeight: 700,
       minWidth: 140,
       textAlign: "center",
-      fontSize: 22
+      fontSize: 22,
+      ...styleOverride     // 👈 allow overrides
     }}>
-      <div style={{ fontSize: 17, fontWeight: 500, color: "#64748b", marginBottom: 7 }}>{label}</div>
-      <div style={{ fontSize: 32, color: "#2563eb" }}>{value}</div>
+      <div style={{
+        fontSize: 17,
+        fontWeight: 500,
+        color: styleOverride.color || "#64748b", // let override or default
+        marginBottom: 7
+      }}>{label}</div>
+      <div style={{
+        fontSize: 32,
+        color: styleOverride.color || "#2563eb"  // let override or default
+      }}>{value}</div>
     </div>
   );
 }
+
 
 function ChartCard({ title, children }) {
   return (

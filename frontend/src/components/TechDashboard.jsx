@@ -2,6 +2,20 @@ import React, { useEffect, useState } from 'react';
 import API from '../api';
 import { useNavigate } from 'react-router-dom';
 import GLLSLogo from '../assets/GLLSLogo.png';
+function toCamelCaseDeep(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(toCamelCaseDeep);
+  } else if (obj && typeof obj === "object") {
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, val]) => [
+        key.replace(/_([a-z])/g, g => g[1].toUpperCase()),
+        toCamelCaseDeep(val)
+      ])
+    );
+  }
+  return obj;
+}
+
 
 export default function TechDashboard({ username }) {
   const [workOrders, setWorkOrders] = useState([]);
@@ -16,12 +30,18 @@ export default function TechDashboard({ username }) {
     navigate(`/tech-dashboard/workorder/${workOrderNo}`);
   };
 
-  useEffect(() => {
-    if (!username) return;
-    API.get(`/workorders/assigned/${username}`)
-      .then(res => setWorkOrders(res.data))
-      .catch(() => setWorkOrders([]));
-  }, [username]);
+useEffect(() => {
+  API.get(`/workorders/assigned/${username}`)
+    .then(res => {
+      console.log("API returned:", res.data); // <--- ADD THIS LINE
+      setWorkOrders(res.data.map(toCamelCaseDeep));
+    })
+    .catch(() => setWorkOrders([]));
+}, [username]);
+
+
+
+
 
 return (
   <div>
@@ -53,19 +73,43 @@ return (
               <td colSpan={5} style={{ textAlign: 'center' }}>No assigned work orders.</td>
             </tr>
           )}
-          {visibleWorkOrders.map(wo => (
-            <tr key={wo.id}>
-              <td>{wo.workOrderNo}</td>
-              <td>{wo.companyName}</td>
-              <td>{wo.status || 'assigned'}</td>
-              <td>{wo.timeLogs?.[0]?.assignDate || ''}</td>
-              <td>
-                <button onClick={() => handleOpenEdit(wo.workOrderNo)}>
-                  Open/Edit
-                </button>
-              </td>
-            </tr>
-          ))}
+          {visibleWorkOrders.map(wo => {
+console.log("assignDate raw value:", visibleWorkOrders.map(wo => wo.timeLogs?.[0]?.assignDate));
+console.log("assignDate typeof:", typeof visibleWorkOrders[0]?.timeLogs?.[0]?.assignDate);
+console.log("assignDate keys:", visibleWorkOrders[0]?.timeLogs?.[0]?.assignDate && Object.keys(visibleWorkOrders[0].timeLogs[0].assignDate));
+console.log("assignDate value:", visibleWorkOrders[0]?.timeLogs?.[0]?.assignDate);
+console.log('assignDate value:', wo.timeLogs?.[0]?.assignDate);
+
+            return (
+              <tr key={wo.id}>
+                <td>{String(wo.workOrderNo)}</td>
+                <td>{String(wo.companyName)}</td>
+                <td>{String(wo.status || 'Assigned')}</td>
+                <td>
+                  {wo.timeLogs?.[0]?.assignDate
+                    ? (
+                        typeof wo.timeLogs[0].assignDate === 'string'
+                          ? wo.timeLogs[0].assignDate.slice(0, 10)
+                          : (
+                            wo.timeLogs[0].assignDate instanceof Date
+                              ? wo.timeLogs[0].assignDate.toLocaleDateString()
+                              : ''
+                          )
+                      )
+                    : ''
+                  }
+                </td>
+
+                <td>
+                  <button onClick={() => handleOpenEdit(wo.workOrderNo)}>
+                    Open/Edit
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+
+
         </tbody>
       </table>
     </div>

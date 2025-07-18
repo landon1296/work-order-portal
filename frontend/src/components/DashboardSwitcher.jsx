@@ -9,10 +9,11 @@ export default function DashboardSwitcher({ user }) {
 
   // What dashboards can your boss see?
     const dashboards = [
-    { key: "analytics", name: "Analytics", component: <AnalyticsDashboard user={user} /> },
-    { key: "manager", name: "Manager", component: <ManagerDashboard user={user} token={user.token} /> },
-    { key: "accounting", name: "Accounting", component: <AccountingDashboard user={user} token={user.token} /> },
-    ];
+        { key: "analytics", name: "Analytics", component: <AnalyticsDashboard user={user} /> },
+        { key: "manager", name: "Manager", component: <ManagerDashboard user={user} /> },
+        { key: "accounting", name: "Accounting", component: <AccountingDashboard user={user} /> },
+      ];
+
 
 
   return (

@@ -103,7 +103,7 @@ export default function AccountingDashboard({ user }) {
   // Handlers
   const handleRework = async (order) => {
     try {
-      await API.put(`/workorders/by-id/${order.workOrderNo}`, {
+      await API.put(`/workorders/${order.workOrderNo}`, {
         ...order,
         status: 'Completed, Pending Approval'
       });
@@ -258,9 +258,9 @@ export default function AccountingDashboard({ user }) {
 
       {alerts.length > 0 && (
         <div style={{
-          background: '#fff900', color: '#111', borderRadius: 8,
+          background: '#fef9c3', color: '#a16207', borderRadius: 8,
           margin: '18px auto', padding: '16px 24px', fontSize: 19, fontWeight: 700,
-          maxWidth: 600, textAlign: 'center', border: '2px solid #ffd900',
+          maxWidth: 600, textAlign: 'center', border: '2px solid #facc15',
         }}>
           <ul style={{
             listStyle: 'none', margin: 0, padding: 0, display: 'flex',
@@ -328,7 +328,15 @@ export default function AccountingDashboard({ user }) {
             {filteredSubmittedForBilling.map(o => (
               <tr key={o.workOrderNo}>
                 <td>{o.workOrderNo}</td>
-                <td>{o.date}</td>
+                <td>
+  {o.date
+    ? new Date(o.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    : ''}
+</td>
                 <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
                 <td>{o.companyName}</td>
                 <td>{o.shop}</td>
@@ -398,7 +406,15 @@ export default function AccountingDashboard({ user }) {
             {regularOrders.map(o => (
               <tr key={o.workOrderNo}>
                 <td>{o.workOrderNo}</td>
-                <td>{o.date}</td>
+                <td>
+  {o.date
+    ? new Date(o.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    : ''}
+</td>
                 <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
                 <td>{o.companyName}</td>
                 <td>{o.shop}</td>
@@ -460,7 +476,15 @@ export default function AccountingDashboard({ user }) {
             {filteredClosedOrders.map(o => (
               <tr key={o.workOrderNo}>
                 <td>{o.workOrderNo}</td>
-                <td>{o.date}</td>
+                <td>
+  {o.date
+    ? new Date(o.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    : ''}
+</td>
                 <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
                 <td>{o.companyName}</td>
                 <td>{o.shop}</td>
