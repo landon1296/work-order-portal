@@ -219,7 +219,7 @@ const handlePartChange = (idx, field, value) => {
     return;
   }
   if (!(form.warranty || form.billable || form.maintenance || form.nonBillableRepair)) {
-    alert('At least one Work Type must be selected (Warranty, Billable, Maintenance or Non-billabel Repair).');
+    alert('At least one Work Type must be selected (Warranty, Billable, Maintenance or Non-billable Repair).');
     return;
   }
   // If "Field Repair" is selected, check for required field address info

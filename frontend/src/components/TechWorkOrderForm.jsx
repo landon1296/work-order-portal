@@ -38,7 +38,7 @@ export default function TechWorkOrderForm({ token, user }) {
     fieldCity: '',
     fieldState: '',
     fieldZipcode: '',
-    PoNumber: '',
+    poNumber: '',
     make: '',
     model: '',
     serialNumber: '',
@@ -497,7 +497,8 @@ console.log("form", form);
             <td>
               <input
                 name="companyName"
-                value={form.companyName || ""}                onChange={handleChange}
+                value={form.companyName || ""}                
+                onChange={handleChange}
                 placeholder="Company Name"
                 {...disabledIfInHouse}
                   style={
@@ -511,7 +512,8 @@ console.log("form", form);
             <td>
             <select
                 name="make"
-                value={form.make || ""}                onChange={handleChange}
+                value={form.make || ""}                
+                onChange={handleChange}
                 required
                 style={{ width: '100%' }}
             >
@@ -524,7 +526,8 @@ console.log("form", form);
             <td>
             <select
                 name="model"
-                value={form.model || ""}                onChange={handleChange}
+                value={form.model || ""}                
+                onChange={handleChange}
                 required
                 disabled={!form.make}
                 style={{ width: '100%' }}
@@ -548,7 +551,8 @@ console.log("form", form);
             <td colSpan={2}>
               <input
                 name="companyStreet"
-                value={form.companyStreet || ""}                onChange={handleChange}
+                value={form.companyStreet || ""}                
+                onChange={handleChange}
                 placeholder="Company Street"
                 {...disabledIfInHouse}
                   style={
@@ -572,7 +576,8 @@ console.log("form", form);
             <td colSpan={2}>
               <input
                 name="companyCity"
-                value={form.companyCity || ""}                onChange={handleChange}
+                value={form.companyCity || ""}                
+                onChange={handleChange}
                 placeholder="Company City"
                 {...disabledIfInHouse}
                   style={
@@ -585,7 +590,8 @@ console.log("form", form);
             <td>
             <input
               name="fieldContact"
-              value={form.fieldContact || ""}              onChange={handleChange}
+              value={form.fieldContact || ""}              
+              onChange={handleChange}
               placeholder="Field Contact Name"
               {...disabledIfInHouse}
               style={
@@ -600,7 +606,8 @@ console.log("form", form);
               <td>
                 <input
                 name="fieldContactNumber"
-                value={form.fieldContactNumber || ""}                onChange={handleChange}
+                value={form.fieldContactNumber || ""}                
+                onChange={handleChange}
                 placeholder="Field Contact Phone"
                 {...disabledIfInHouse}
               style={
@@ -615,7 +622,8 @@ console.log("form", form);
             <td>
               <input
                 name="workOrderNo"
-                value={form.workOrderNo || ""}                readOnly
+                value={form.workOrderNo || ""}                
+                readOnly
                 className="assign-table-readonly"
               />
             </td>
@@ -626,7 +634,8 @@ console.log("form", form);
             <td colSpan={2}>
               <input
                 name="companyState"
-                value={form.companyState || ""}                onChange={handleChange}
+                value={form.companyState || ""}                
+                onChange={handleChange}
                 placeholder="Company State"
                 {...disabledIfInHouse}
                   style={
@@ -640,7 +649,8 @@ console.log("form", form);
             <td>
               <input
                 name="fieldStreet"
-                value={form.fieldStreet || ""}                onChange={handleChange}
+                value={form.fieldStreet || ""}                
+                onChange={handleChange}
                 placeholder="Field Street"
                 {...disabledIfInHouse}
               style={
@@ -655,7 +665,8 @@ console.log("form", form);
             <td>
               <input
                 name="fieldCity"
-                value={form.fieldCity || ""}                onChange={handleChange}
+                value={form.fieldCity || ""}                
+                onChange={handleChange}
                 placeholder="Field City"
                 {...disabledIfInHouse}
               style={
@@ -675,7 +686,8 @@ console.log("form", form);
             <td colSpan={2}>
               <input
                 name="companyZip"
-                value={form.companyZip || ""}                onChange={handleChange}
+                value={form.companyZip || ""}                
+                onChange={handleChange}
                 placeholder="Company ZIP"
                 {...disabledIfInHouse}
                   style={
@@ -688,7 +700,8 @@ console.log("form", form);
             <td>
               <input
                 name="fieldState"
-                value={form.fieldState || ""}                onChange={handleChange}
+                value={form.fieldState || ""}                
+                onChange={handleChange}
                 placeholder="Field State"
                 {...disabledIfInHouse}
               style={
@@ -703,7 +716,8 @@ console.log("form", form);
             <td>
               <input
                 name="fieldZipcode"
-                value={form.fieldZipcode || ""}                onChange={handleChange}
+                value={form.fieldZipcode || ""}                
+                onChange={handleChange}
                 placeholder="Field ZIP"
                 {...disabledIfInHouse}
               style={
@@ -718,8 +732,9 @@ console.log("form", form);
             </td>
             <td>
               <input
-              name="PoNumber"
-              value={form.PoNumber || ""}              onChange={handleChange}
+              name="poNumber"
+              value={form.poNumber || ""}              
+              onChange={handleChange}
               placeholder="PO Number"
               />
             </td>
@@ -746,7 +761,8 @@ console.log("form", form);
             <td colSpan={2}>
               <input
                 name="contactName"
-                value={form.contactName || ""}                onChange={handleChange}
+                value={form.contactName || ""}                
+                onChange={handleChange}
                 placeholder="Contact Name"
                 {...disabledIfInHouse}
                   style={
@@ -775,7 +791,8 @@ console.log("form", form);
                 <td>
                 <select
                     name="shop"
-                    value={form.shop || ""}                    onChange={handleChange}
+                    value={form.shop || ""}                    
+                    onChange={handleChange}
                     style={{ width: '100%' }}
                     required
                 >
@@ -788,7 +805,8 @@ console.log("form", form);
                 <td>
                 <select
                   name="repairType"
-                  value={form.repairType || ""}                  onChange={handleChange}
+                  value={form.repairType || ""}                  
+                  onChange={handleChange}
                   style={{ width: '100%'}}
                   required
                 >
@@ -803,7 +821,8 @@ console.log("form", form);
             <td colSpan={2}>
               <input
                 name="contactPhone"
-                value={form.contactPhone || ""}                onChange={handleChange}
+                value={form.contactPhone || ""}                
+                onChange={handleChange}
                 placeholder="Contact Phone"
                 {...disabledIfInHouse}
                   style={
@@ -856,7 +875,8 @@ console.log("form", form);
             <td colSpan={2}>
                 <input
                 name="contactEmail"
-                value={form.contactEmail || ""}                onChange={handleChange}
+                value={form.contactEmail || ""}                
+                onChange={handleChange}
                 placeholder="Contact Email"
                 {...disabledIfInHouse}
                   style={
@@ -927,7 +947,8 @@ console.log("form", form);
                 <td>
                 <select
                     name="technicianAssigned"
-                    value={log.technicianAssigned || ""}                    onChange={e =>handleTimeLogChange(idx, e)}
+                    value={log.technicianAssigned || ""}                    
+                    onChange={e =>handleTimeLogChange(idx, e)}
                     style={{ width: '100%' }}
                     required
                 >
@@ -941,7 +962,8 @@ console.log("form", form);
                 <input
                     type="date"
                     name="assignDate"
-                    value={log.assignDate || ""}                    onChange={e => handleTimeLogChange(idx, e)}
+                    value={log.assignDate || ""}                   
+                    onChange={e => handleTimeLogChange(idx, e)}
                     style={{ width: '100%' }}
                     required
                 />
@@ -950,7 +972,8 @@ console.log("form", form);
                 <input
                     type="time"
                     name="startTime"
-                    value={log.startTime || ""}                    onChange={e => handleTimeLogChange(idx, e)}
+                    value={log.startTime || ""}                    
+                    onChange={e => handleTimeLogChange(idx, e)}
                     style={{ width: '100%' }}
                 />
                 </td>
@@ -958,7 +981,8 @@ console.log("form", form);
                 <input
                     type="time"
                     name="finishTime"
-                    value={log.finishTime || ""}                    onChange={e => handleTimeLogChange(idx, e)}
+                    value={log.finishTime || ""}                    
+                    onChange={e => handleTimeLogChange(idx, e)}
                     style={{ width: '100%' }}
                 />
                 </td>
@@ -966,7 +990,8 @@ console.log("form", form);
                 <input
                     type="text"
                     name="travelTime"
-                    value={log.travelTime || ""}                    onChange={e => handleTimeLogChange(idx, e)}
+                    value={log.travelTime || ""}                    
+                    onChange={e => handleTimeLogChange(idx, e)}
                     placeholder="hh:mm"
                     style={{ width: '70%', display: 'inline-block' }}
                 />
@@ -999,7 +1024,8 @@ console.log("form", form);
             <td>
             <select
                 name="salesName"
-                value={form.salesName || ""}                onChange={handleChange}
+                value={form.salesName || ""}                
+                onChange={handleChange}
                 {...disabledIfInHouse}
                 style={isInHouseRepair ? { backgroundColor: "#808080", color: "#808080" } : {}}
             >
@@ -1012,7 +1038,8 @@ console.log("form", form);
             <td>
               <input
                 name="shippingCost"
-                value={form.shippingCost ?? ""}                onChange={handleChange}
+                value={form.shippingCost ?? ""}                
+                onChange={handleChange}
                 placeholder="Ex. 1234.00"
               
                 type="number"
@@ -1055,7 +1082,8 @@ console.log("form", form);
                 <td>
                   <input
                     name="partNumber"
-                    value={part.partNumber || ""}                    onChange={e => handlePartChange(idx, 'partNumber', e.target.value)}
+                    value={part.partNumber || ""}                    
+                    onChange={e => handlePartChange(idx, 'partNumber', e.target.value)}
                     placeholder="Part Number"
                     list={`part-numbers-list-${idx}`}
                     autoComplete="off"
@@ -1071,14 +1099,16 @@ console.log("form", form);
                 <td colSpan={2}>
                   <input
                     name="description"
-                    value={part.description || ""}                    onChange={e => handlePartChange(idx, 'description', e.target.value)}
+                    value={part.description || ""}                    
+                    onChange={e => handlePartChange(idx, 'description', e.target.value)}
                     placeholder="Part Name/ Description"
                   />
                 </td>
                 <td>
                   <input
                     name="quantity"
-                    value={part.quantity || ""}                    onChange={e => handlePartChange(idx, 'quantity', e.target.value)}
+                    value={part.quantity || ""}                    
+                    onChange={e => handlePartChange(idx, 'quantity', e.target.value)}
                     placeholder="Quantity"
                     type="number"
                     min="0"
@@ -1153,7 +1183,8 @@ console.log("form", form);
             <td colSpan={5}>
               <textarea
                 name="workDescription"
-                value={form.workDescription || ""}                onChange={handleChange}
+                value={form.workDescription || ""}                
+                onChange={handleChange}
                 rows={3}
                 style={{ width: '100%' }}
                 placeholder="Brief Description of Work To Be Completed"
@@ -1169,7 +1200,8 @@ console.log("form", form);
                 <td colSpan={5}>
                 <textarea
                     name="notes"
-                    value={form.notes || ""}                    onChange={handleChange}
+                    value={form.notes || ""}                    
+                    onChange={handleChange}
                     rows={3}
                     style={{ width: '100%' }}
                     placeholder="Summary of Work Completed"
