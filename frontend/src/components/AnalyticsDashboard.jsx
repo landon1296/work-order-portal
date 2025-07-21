@@ -4,6 +4,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line
 } from "recharts";
 import GLLSLogo from '../assets/GLLSLogo.png';
+import racecarFive from '../assets/racecar5.png'; // 👈 import the image at the top
 
 const COLORS = ["#2563eb", "#facc15", "#10b981", "#ef4444", "#818cf8", "#f472b6", "#fb923c"];
 
@@ -448,7 +449,34 @@ function getTopParts(orders) {
     }));
 }
 
+
+
 function KPI({ label, value, styleOverride = {} }) {
+const renderValue = () => {
+  const valueStr = (value ?? "").toString();
+  return valueStr.split("").map((char, idx) => {
+  const style = { margin: "0 1px", verticalAlign: "middle" };
+
+  if (label === "Total Work Orders" && char === "5") {
+    return (
+      <img
+        key={idx}
+        src={racecarFive}
+        alt="5"
+        style={{ height: 40, ...style }}
+      />
+    );
+  }
+
+  return (
+    <span key={idx} style={{ fontSize: 40, ...style }}>
+      {char}
+    </span>
+  );
+})};
+
+
+
   return (
     <div style={{
       background: "#f8fafc",
@@ -459,21 +487,28 @@ function KPI({ label, value, styleOverride = {} }) {
       minWidth: 140,
       textAlign: "center",
       fontSize: 22,
-      ...styleOverride     // 👈 allow overrides
+      ...styleOverride
     }}>
       <div style={{
         fontSize: 17,
         fontWeight: 500,
-        color: styleOverride.color || "#64748b", // let override or default
+        color: styleOverride.color || "#64748b",
         marginBottom: 7
       }}>{label}</div>
       <div style={{
         fontSize: 32,
-        color: styleOverride.color || "#2563eb"  // let override or default
-      }}>{value}</div>
+        color: styleOverride.color || "#2563eb",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 2
+      }}>
+        {renderValue()}
+      </div>
     </div>
   );
 }
+
 
 
 function ChartCard({ title, children }) {

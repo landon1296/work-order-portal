@@ -94,9 +94,11 @@ async function add(order) {
 
 // Add a line item for a work order
 async function addLineItem(lineItem) {
-  // Ensure quantity is a valid integer, default to 0 if blank
-  let quantity = parseInt(lineItem.quantity, 10);
-  if (isNaN(quantity)) quantity = 0;
+  const partNumber = (lineItem.partNumber || '').trim();
+  const description = (lineItem.description || '').trim();
+  const quantity = Number(lineItem.quantity || 0);
+
+  if (!partNumber && !description && quantity === 0) return; // Skip if empty
 
   const result = await pool.query(
     `INSERT INTO line_items
@@ -106,14 +108,16 @@ async function addLineItem(lineItem) {
      RETURNING *`,
     [
       lineItem.workOrderNo,
-      lineItem.partNumber,
-      lineItem.description,
+      partNumber,
+      description,
       quantity,
       lineItem.waiting
     ]
   );
+
   return result.rows[0];
 }
+
 
 
 // Add a time entry for a work order

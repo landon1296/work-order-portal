@@ -131,6 +131,7 @@ useEffect(() => {
         // Patch statusHistory
         formObj.statusHistory = Array.isArray(formObj.statusHistory) ? formObj.statusHistory : [];
 
+if (!formObj.status) formObj.status = "Assigned";
 
         setForm(prev => ({
           ...prev,
@@ -178,6 +179,7 @@ useEffect(() => {
 
   // STATUS AUTOMATION LOGIC (only run after loaded)
   useEffect(() => {
+    console.log("STATUS AUTO-UPDATE useEffect fired!", { loaded, status: form.status, statusHistory: form.statusHistory });
     if (!loaded) return;
     // Only update if status is 'Assigned' and not already in history as In Progress
 if (
@@ -195,7 +197,10 @@ if (
           { status: 'In Progress', date: now }
         ]
       };
+      
+      console.log("AUTOMATION: sending status update:", updatedForm);
       setForm(updatedForm);
+
       API.put(`/workorders/${form.workOrderNo}`, updatedForm).catch(() => {});
     }
     // eslint-disable-next-line
@@ -217,7 +222,10 @@ statusHistory: [
   { status: 'In Progress, Pending Parts', date: now }
 ]
       };
+      
+      console.log("AUTOMATION: sending status update:", updatedForm);
       setForm(updatedForm);
+
       API.put(`/workorders/${form.workOrderNo}`, updatedForm).catch(() => {});
     } else if (!anyWaiting && form.status === 'In Progress, Pending Parts') {
       const updatedForm = {
@@ -259,11 +267,12 @@ statusHistory: [
       .then(res => setSalesNames(res.data))
       .catch(()=>setSalesNames([]));
   }, []);
-  useEffect(() => {
-  API.get('/api/parts/memory')
+useEffect(() => {
+  API.get('/api/parts/memory-live')
     .then(res => setPartsMemory(res.data))
     .catch(() => setPartsMemory([]));
-  }, []);
+}, []);
+
 
 
   // Form handlers
@@ -336,15 +345,19 @@ const handlePartChange = (idx, field, value) => {
   setForm(prev => {
     const updated = [...prev.parts];
     updated[idx][field] = value;
+
     if (field === 'partNumber') {
-      const found = partsMemory.find(mem => mem.partNumber === value);
-      if (found) {
-        updated[idx].description = found.description;
-      }
+      const inputVal = value.trim().toLowerCase();
+      const found = partsMemory.find(mem => mem.partNumber.toLowerCase() === inputVal);
+  if (found && !updated[idx].description?.trim()) {
+    updated[idx].description = found.description;
+  }
     }
+
     return { ...prev, parts: updated };
   });
 };
+
 
   const removePart = idx => {
     setForm(prev => {
@@ -439,16 +452,25 @@ const handlePartChange = (idx, field, value) => {
     }
     try {
       const now = new Date().toISOString();
-      const updatedForm = { 
-        ...form, 
-        status: "Completed, Pending Approval",
-        statusHistory: [
-        ...((Array.isArray(form.statusHistory) ? form.statusHistory : [])),
-        { status: "Completed, Pending Approval", date: now }
-      ]
+const cleanedParts = (form.parts || []).filter(part => {
+  const partNumber = (part.partNumber || '').trim();
+  const description = (part.description || '').trim();
+  const quantity = Number(part.quantity || 0);
+  return partNumber || description || quantity !== 0;
+});
 
-      };
-      await API.put(`/workorders/${form.workOrderNo}`, updatedForm);
+const updatedForm = { 
+  ...form, 
+  parts: cleanedParts,
+  status: "Completed, Pending Approval",
+  statusHistory: [
+    ...((Array.isArray(form.statusHistory) ? form.statusHistory : [])),
+    { status: "Completed, Pending Approval", date: now }
+  ]
+};
+
+await API.put(`/workorders/${form.workOrderNo}`, updatedForm);
+
       navigate('/tech-dashboard');
     } catch (err) {
       alert('Failed to update work order. Please try again.');
@@ -776,7 +798,7 @@ console.log("form", form);
                   <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Warranty</span>
                   <div style={{
                     position: 'absolute',
-                    left: '50%',
+                    left: '60%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)'
                   }}>
@@ -836,7 +858,7 @@ console.log("form", form);
                   <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Billable</span>
                   <div style={{
                     position: 'absolute',
-                    left: '50%',
+                    left: '60%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)'
                   }}>
@@ -890,7 +912,7 @@ console.log("form", form);
                   <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Maintenance</span>
                   <div style={{
                     position: 'absolute',
-                    left: '50%',
+                    left: '60%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)'
                   }}>
@@ -911,7 +933,7 @@ console.log("form", form);
                   <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Non-billable Repair</span>
                   <div style={{
                     position: 'absolute',
-                    left: '50%',
+                    left: '60%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)'
                   }}>

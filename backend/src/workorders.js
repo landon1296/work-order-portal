@@ -138,17 +138,21 @@ app.get('/workorders/assigned/:username', async (req, res) => {
       const savedOrder = await add(order);
 
       // 2. Add all parts (line items)
-      if (order.parts && Array.isArray(order.parts)) {
-        for (const part of order.parts) {
-          await addLineItem({
-            workOrderNo: order.workOrderNo,
-            partNumber: part.partNumber,
-            description: part.description,
-            quantity: part.quantity,
-            waiting: part.waiting
-          });
-        }
-      }
+for (const part of order.parts) {
+  const partNumber = (part.partNumber || '').trim();
+  const description = (part.description || '').trim();
+  const quantity = Number(part.quantity || 0);
+  if (!partNumber && !description && quantity === 0) continue;
+
+  await addLineItem({
+    workOrderNo: order.workOrderNo,
+    partNumber,
+    description,
+    quantity,
+    waiting: part.waiting
+  });
+}
+
 
       // 3. Add all time entries
       if (order.timeLogs && Array.isArray(order.timeLogs)) {
@@ -244,26 +248,31 @@ const toCamel = obj => {
     // You'll need to write an updateWorkOrderByNo function in your store!
 const updated = await updateWorkOrderByNo(workOrderNo, updates);
 
-// STEP 1: If there are parts in the request body, update the line_items table.
 if (updates.parts && Array.isArray(updates.parts)) {
   // 1. Delete existing line_items for this workOrderNo
   await pool.query('DELETE FROM line_items WHERE work_order_no = $1', [workOrderNo]);
-  // 2. Insert each part as new line_item
+
+  // 2. Insert valid parts
   for (const part of updates.parts) {
+    const partNumber = (part.partNumber || '').trim();
+    const description = (part.description || '').trim();
+    const quantity = Number(part.quantity || 0);
+    if (!partNumber && !description && quantity === 0) continue;
+
     await pool.query(
       `INSERT INTO line_items (work_order_no, part_number, description, quantity, waiting)
        VALUES ($1, $2, $3, $4, $5)`,
       [
         workOrderNo,
-        part.partNumber || '',
-        part.description || '',
-        part.quantity || '',
-
+        partNumber,
+        description,
+        quantity,
         part.waiting || false
       ]
     );
   }
 }
+
 
 if (!updated) return res.status(404).json({ error: 'Work order not found' });
 res.json({ message: 'Work order updated', workOrder: updated });

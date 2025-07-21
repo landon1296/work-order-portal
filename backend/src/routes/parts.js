@@ -26,5 +26,26 @@ router.get('/memory', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch parts memory.' });
   }
 });
+// GET /api/parts/memory-live
+router.get('/memory-live', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT part_number, description
+      FROM line_items
+      WHERE TRIM(part_number) <> ''
+      ORDER BY part_number ASC
+    `);
+
+    const memory = result.rows.map(r => ({
+      partNumber: r.part_number,
+      description: r.description,
+    }));
+
+    res.json(memory);
+  } catch (err) {
+    console.error('Error fetching live part memory:', err);
+    res.status(500).json({ error: 'Failed to fetch part memory' });
+  }
+});
 
 module.exports = router;

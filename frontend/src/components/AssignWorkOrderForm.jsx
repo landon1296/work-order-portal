@@ -239,13 +239,23 @@ const handlePartChange = (idx, field, value) => {
     }
   }
   try {
-    if (id) {
-      console.log('EDIT MODE: sending to API:', form); // <-- Add this
-      await API.put(`/workorders/${form.workOrderNo}`, form);
-    } else {
-      console.log('NEW MODE: sending to API:', form); // <-- And this
-      await API.post('/workorders', form);
-    }
+const cleanedParts = (form.parts || []).filter(part => {
+  const partNumber = (part.partNumber || '').trim();
+  const description = (part.description || '').trim();
+  const quantity = Number(part.quantity || 0);
+  return partNumber || description || quantity !== 0;
+});
+
+const cleanedForm = { ...form, parts: cleanedParts };
+
+if (id) {
+  console.log('EDIT MODE: sending to API:', cleanedForm);
+  await API.put(`/workorders/${form.workOrderNo}`, cleanedForm);
+} else {
+  console.log('NEW MODE: sending to API:', cleanedForm);
+  await API.post('/workorders', cleanedForm);
+}
+
     navigate('/dashboard');
   } catch (err) {
     alert('Failed to save work order.');
