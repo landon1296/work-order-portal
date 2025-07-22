@@ -4,7 +4,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line
 } from "recharts";
 import GLLSLogo from '../assets/GLLSLogo.png';
-import racecarFive from '../assets/racecar5.png'; // 👈 import the image at the top
+//import racecarFive from '../assets/racecar5.png'; // 👈 import the image at the top
 
 const COLORS = ["#2563eb", "#facc15", "#10b981", "#ef4444", "#818cf8", "#f472b6", "#fb923c"];
 
@@ -461,9 +461,9 @@ const renderValue = () => {
     return (
       <img
         key={idx}
-        src={racecarFive}
+        src="/sb5.svg"
         alt="5"
-        style={{ height: 40, ...style }}
+        style={{ height: 40, objectFit: "contain", ...style }}
       />
     );
   }
