@@ -343,7 +343,7 @@ export default function AccountingDashboard({ user }) {
                 <td>{o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Submitted for Billing'}</td>
                 <td>
                   <button
-                    onClick={() => navigate(`/dashboard/workorder/${o.id}`)}
+                    onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
                     style={{ padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4}}
                   >
                     View / Edit
@@ -421,7 +421,7 @@ export default function AccountingDashboard({ user }) {
                 <td>{o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Assigned'}</td>
                 <td>
                   <button
-                    onClick={() => navigate(`/dashboard/workorder/${o.id}`)}
+                    onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
                     style={{ padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4 }}
                   >
                     View / Edit
@@ -491,7 +491,7 @@ export default function AccountingDashboard({ user }) {
                 <td>{o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Closed'}</td>
                 <td>
                   <button
-                    onClick={() => navigate(`/dashboard/workorder/${o.id}`)}
+                    onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
                     style={{ padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4 }}
                   >
                     View / Edit

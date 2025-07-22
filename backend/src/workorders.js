@@ -272,6 +272,26 @@ if (updates.parts && Array.isArray(updates.parts)) {
     );
   }
 }
+if (updates.timeLogs && Array.isArray(updates.timeLogs)) {
+  // Delete existing time entries for this workOrderNo
+  await pool.query('DELETE FROM time_entries WHERE work_order_no = $1', [workOrderNo]);
+
+  // Insert updated time logs
+  for (const log of updates.timeLogs) {
+    await pool.query(
+      `INSERT INTO time_entries (work_order_no, technician_assigned, assign_date, start_time, finish_time, travel_time)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        workOrderNo,
+        log.technicianAssigned,
+        log.assignDate,
+        log.startTime,
+        log.finishTime,
+        log.travelTime
+      ]
+    );
+  }
+}
 
 
 if (!updated) return res.status(404).json({ error: 'Work order not found' });
