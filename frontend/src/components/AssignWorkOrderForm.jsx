@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api';
 import '../index.css';
+import { default as SignaturePad } from 'react-signature-canvas';
 // Utility: Recursively converts all keys in object/arrays from snake_case to camelCase
 function toCamelCaseDeep(obj) {
   if (Array.isArray(obj)) {
@@ -61,8 +62,12 @@ export default function AssignWorkOrderForm({ token }) {
     parts: [{ partNumber:'', description:'', quantity:'', waiting: false }],
     otherDesc:'',
     workDescription: '',
+    customerSignature: null,
+    signatureTimestamp: null
   });
   const [technicians, setTechnicians] = useState([]);
+  const sigPadRef= useRef();
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
 
 
 // Fetch Make/Model list from backend when component mounts
@@ -1111,6 +1116,176 @@ const handleSave = async () => {
 
         </tbody>
       </table>
+{form.customerSignature !== undefined && (
+
+
+  <div style={{ marginTop: 22, display: 'flex', alignItems: 'flex-start', gap: 24 }}>
+    <div>
+      <div style={{ fontWeight: 600, marginBottom: 5 }}>
+        Customer Acknowledgement Signature:
+      </div>
+{form.customerSignature ? (
+  <img
+    src={form.customerSignature}
+    alt="Customer Signature"
+    style={{
+      maxWidth: '100%',
+      maxHeight: 160,
+      border: '1px solid #ccc',
+      padding: 6,
+      background: '#f8f8f8',
+      borderRadius: 6,
+    }}
+  />
+) : null}
+
+      <div style={{ fontStyle: 'italic', fontSize: 12, marginTop: 20, marginLeft: 78, color: '#666' }}> No signature provided yet
+        {form.signatureTimestamp &&
+          `Signed on: ${new Date(form.signatureTimestamp).toLocaleString()}`}
+      </div>
+    </div>
+
+    <button
+      type="button"
+      style={{
+        height: 42,
+        padding: '10px 24px',
+        background: '#2563eb',
+        color: '#fff',
+        borderRadius: 7,
+        fontWeight: 600,
+        fontSize: 16,
+        border: 'none',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        marginTop: 24
+      }}
+      onClick={() => setSignatureModalOpen(true)}
+    >
+  Get Customer Signature
+</button>
+</div>
+)}
+{signatureModalOpen && (
+  <div
+    style={{
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      width: '100vw',
+      height: '100vh',
+      background: 'rgba(0,0,0,0.35)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+    }}
+  >
+    <div
+      style={{
+        background: '#fff',
+        padding: 28,
+        borderRadius: 14,
+        boxShadow: '0 6px 40px rgba(0,0,0,0.14)',
+        minWidth: 420,
+      }}
+    >
+      <h2 style={{ textAlign: 'center', marginBottom: 16 }}>
+        Customer Repair Acknowledgement
+      </h2>
+      <p style={{ textAlign: 'center', fontSize: 15, marginBottom: 10 }}>
+        Please sign below to acknowledge the repair was completed.
+      </p>
+      <SignaturePad
+        penColor="black"
+        ref={sigPadRef}
+        canvasProps={{
+          width: 370,
+          height: 140,
+          className: 'sigCanvas',
+          style: {
+            border: '2px solid #888',
+            borderRadius: 6,
+            background: '#fff',
+          },
+        }}
+      />
+      <div
+        style={{
+          display: 'flex',
+          gap: 16,
+          justifyContent: 'center',
+          marginTop: 16,
+        }}
+      >
+        <button
+          type="button"
+          style={{
+            background: '#f1f5f9',
+            border: 'none',
+            borderRadius: 7,
+            fontWeight: 600,
+            fontSize: 16,
+            padding: '9px 24px',
+            color: '#333',
+            cursor: 'pointer',
+          }}
+          onClick={() => sigPadRef.current.clear()}
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          style={{
+            background: '#2563eb',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 7,
+            fontWeight: 600,
+            fontSize: 16,
+            padding: '9px 24px',
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            if (sigPadRef.current.isEmpty()) {
+              alert('Please sign before saving.');
+              return;
+            }
+            const dataURL = sigPadRef.current
+              .getCanvas()
+              .toDataURL('image/png');
+
+            setForm(prev => ({
+              ...prev,
+              customerSignature: dataURL,
+              signatureTimestamp: new Date().toISOString()
+            }));
+            setSignatureModalOpen(false);
+          }}
+        >
+          Save Signature
+        </button>
+        <button
+          type="button"
+          style={{
+            background: '#aaa',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 7,
+            fontWeight: 600,
+            fontSize: 16,
+            padding: '9px 24px',
+            cursor: 'pointer',
+          }}
+          onClick={() => setSignatureModalOpen(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </form>
   );
 }

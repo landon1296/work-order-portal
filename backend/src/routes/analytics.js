@@ -183,6 +183,18 @@ woRows.forEach(row => {
       }));
 console.dir(woRows.slice(0, 2), { depth: 5 }); // Shows first 2 work orders and their nested arrays
 
+// 9. Extract work orders with at least one waiting part
+const pendingPartsWOs = woRows
+  .filter(wo => Array.isArray(wo.parts) && wo.parts.some(p => p.waiting === true))
+  .map(wo => ({
+    workOrderNo: wo.work_order_no,
+    companyName: wo.company_name,
+    status: wo.status,
+    shop: wo.shop,
+    createdAt: wo.created_at,
+  }));
+
+
     res.json({
       totalOrders,
       ordersThisYear,
@@ -197,6 +209,7 @@ console.dir(woRows.slice(0, 2), { depth: 5 }); // Shows first 2 work orders and 
       techCounts,
       ordersByMonth,
       slowWOs,
+      pendingPartsWOs,
       allWorkOrders: woRows, // This is what your frontend expects!
     });
   } catch (err) {

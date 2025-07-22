@@ -1,18 +1,18 @@
 {
   "files": {
     "main.css": "/static/css/main.da378655.css",
-    "main.js": "/static/js/main.886e3ba6.js",
+    "main.js": "/static/js/main.b19b72e4.js",
     "static/js/977.c0231062.chunk.js": "/static/js/977.c0231062.chunk.js",
     "static/js/455.8332d1e2.chunk.js": "/static/js/455.8332d1e2.chunk.js",
     "static/media/GLLSLogo.png": "/static/media/GLLSLogo.84b0d54446d0ce7e65ae.png",
     "index.html": "/index.html",
     "main.da378655.css.map": "/static/css/main.da378655.css.map",
-    "main.886e3ba6.js.map": "/static/js/main.886e3ba6.js.map",
+    "main.b19b72e4.js.map": "/static/js/main.b19b72e4.js.map",
     "977.c0231062.chunk.js.map": "/static/js/977.c0231062.chunk.js.map",
     "455.8332d1e2.chunk.js.map": "/static/js/455.8332d1e2.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.da378655.css",
-    "static/js/main.886e3ba6.js"
+    "static/js/main.b19b72e4.js"
   ]
 }

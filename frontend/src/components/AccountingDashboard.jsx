@@ -130,83 +130,124 @@ export default function AccountingDashboard({ user }) {
     }
   };
 
-  // PDF GENERATION HANDLER
-  const handleViewPDF = (order) => {
-    const container = document.createElement('div');
-    container.style.width = '600px';
-    container.style.padding = '24px';
-    container.style.fontFamily = 'Arial';
-    container.style.fontSize = '14px';
-    container.innerHTML = `
-      <h2 style="text-align:center; color:#3056d3;">Work Order #${order.workOrderNo}</h2>
-      <table style="width:100%; border-collapse:collapse;">
-        <tr><td><strong>Date:</strong></td><td>${order.date}</td></tr>
-        <tr><td><strong>Company:</strong></td><td>${order.companyName}</td></tr>
-        <tr><td><strong>Address:</strong></td><td>${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}</td></tr>
-        <tr><td><strong>Contact:</strong></td><td>${order.contactName || ""} (${order.contactPhone || ""})</td></tr>
-        <tr>
-          <td><strong>Technician:</strong></td>
-          <td>${
-            order.timeLogs
-              ? [...new Set(order.timeLogs.map(t => t.technicianAssigned).filter(Boolean))].join(', ')
-              : ""
-          }</td>
-        </tr>
-        <tr><td><strong>Make / Model / Serial:</strong></td><td>${order.make} / ${order.model} / ${order.serialNumber}</td></tr>
-        <tr><td><strong>Repair Type:</strong></td><td>${order.repairType}</td></tr>
-        <tr><td><strong>Shop:</strong></td><td>${order.shop}</td></tr>
-        <tr><td><strong>Status:</strong></td><td>${order.status}</td></tr>
-      </table>
-      <h3 style="margin-top:18px;">Work Description</h3>
-      <div style="border:1px solid #ccc; padding:6px; min-height:36px;">${order.workDescription || ""}</div>
-      <h3 style="margin-top:18px;">Tech Summary / Notes</h3>
-      <div style="border:1px solid #ccc; padding:6px; min-height:36px;">${order.notes || ""}</div>
-      <h3 style="margin-top:18px;">Parts</h3>
-      <table style="width:100%; border-collapse:collapse; border:1px solid #aaa;">
-        <tr style="background:#e3e3e3;"><th>Description</th><th>Part #</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr>
-        ${(order.parts || []).map(part =>
-          `<tr>
-            <td>${part.description || ""}</td>
-            <td>${part.partNumber || ""}</td>
-            <td>${part.quantity || ""}</td>
-            <td>${part.unitPrice || ""}</td>
-            <td>${part.amount || ""}</td>
-          </tr>`
-        ).join("")}
-      </table>
-      <h3 style="margin-top:18px;">Time Logs</h3>
-      <table style="width:100%; border-collapse:collapse; border:1px solid #aaa;">
-        <tr style="background:#e3e3e3;"><th>Tech</th><th>Date</th><th>Start</th><th>Finish</th><th>Travel</th></tr>
-        ${(order.timeLogs || []).map(log =>
-          `<tr>
-            <td>${log.technicianAssigned || ""}</td>
-            <td>${log.assignDate || ""}</td>
-            <td>${log.startTime || ""}</td>
-            <td>${log.finishTime || ""}</td>
-            <td>${log.travelTime || ""}</td>
-          </tr>`
-        ).join("")}
-      </table>
-    `;
+  // PDF GENERATION HANDLER (updated)
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return isNaN(date) ? '' : `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+}
 
-    document.body.appendChild(container); // Attach to DOM for rendering
+const handleViewPDF = (order) => {
+  const container = document.createElement('div');
+  container.style.width = '700px';
+  container.style.wordBreak = 'break-word';
+  container.style.padding = '12px';
+  container.style.fontFamily = 'monospace';
+  container.style.fontSize = '15px';
+  container.style.lineHeight = '1.6';
+  container.style.letterSpacing = '0.2px';
+  container.innerHTML = `
+    <h2 style="text-align:center; color:#3056d3;">Work Order #${order.workOrderNo}</h2>
+    <table style="width:100%; border-collapse:collapse; margin-left:50px">
+  <tr><td style="padding-bottom:3px;"><strong>Date:</strong></td><td style="padding-bottom:3px;">${formatDate(order.date)}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Company:</strong></td><td style="padding-bottom:3px;">${order.companyName}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Address:</strong></td><td style="padding-bottom:3px;">${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}</td></tr>
+  <tr>
+  <td><strong>Contact:</strong></td>
+  <td>
+    ${order.contactName || ""}
+    <span style="margin-left: 6px; font-family: monospace; font-size: 15px;">
+      (${order.contactPhone || ""})
+    </span>
+  </td>
+</tr>
 
-    html2canvas(container, { scale: 2 }).then(canvas => {
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'pt',
-        format: 'a4'
-      });
-      const imgWidth = 560;
-      const imgHeight = canvas.height * imgWidth / canvas.width;
+  <tr><td style="padding-bottom:3px;"><strong>Technician:</strong></td><td style="padding-bottom:3px;">${
+    order.timeLogs
+      ? [...new Set(order.timeLogs.map(t => t.technicianAssigned).filter(Boolean))].join(', ')
+      : ""
+  }</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Make / Model / Serial:</strong></td><td style="padding-bottom:3px;">${order.make} / ${order.model} / ${order.serialNumber}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Repair Type:</strong></td><td style="padding-bottom:3px;">${order.repairType}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Work Type:</strong></td><td style="padding-bottom:3px;">${[
+    order.warranty ? 'Warranty' : '',
+    order.billable ? 'Billable' : '',
+    order.maintenance ? 'Maintenance' : '',
+    order.nonBillableRepair ? 'Non-billable Repair' : ''
+  ].filter(Boolean).join(', ')}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Shop:</strong></td><td style="padding-bottom:3px;">${order.shop}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Status:</strong></td><td style="padding-bottom:3px;">${order.status}</td></tr>
+</table>
 
-      pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
-      window.open(pdf.output('bloburl'));
+    <h3 style="margin-top:18px;">Work Description</h3>
+    <div style="border:1px solid #ccc; padding:6px; min-height:36px;">${order.workDescription || ""}</div>
+    <h3 style="margin-top:18px;">Tech Summary / Notes</h3>
+    <div style="border:1px solid #ccc; padding:6px; min-height:36px;">${order.notes || ""}</div>
+    <h3 style="margin-top:18px;">Parts</h3>
+    <table style="width:100%; border-collapse:collapse; border:1px solid #aaa;">
+      <tr style="background:#e3e3e3;"><th>Part #</th><th>Description</th><th>Qty</th></tr>
+      ${(order.parts || []).map(part =>
+        `<tr>
+          <td>${part.partNumber || ""}</td>
+          <td>${part.description || ""}</td>
+          <td>${part.quantity || ""}</td>
+        </tr>`
+      ).join("")}
+    </table>
+    <h3 style="margin-top:18px;">Time Logs</h3>
+<table style="width:100%; border-collapse:collapse; border:1px solid #aaa; text-align:left;">
+  <thead>
+    <tr style="background:#e3e3e3;">
+      <th style="padding:6px;">Tech</th>
+      <th style="padding:6px;">Date</th>
+      <th style="padding:6px;">Start</th>
+      <th style="padding:6px;">Finish</th>
+      <th style="padding:6px;">Travel</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${(order.timeLogs || []).map(log =>
+      `<tr>
+        <td style="padding:6px;">${log.technicianAssigned || ""}</td>
+        <td style="padding:6px;">${formatDate(log.assignDate)}</td>
+        <td style="padding:6px;">${log.startTime || ""}</td>
+        <td style="padding:6px;">${log.finishTime || ""}</td>
+        <td style="padding:6px;">${log.travelTime || ""}</td>
+      </tr>`
+    ).join("")}
+  </tbody>
+</table>
 
-      document.body.removeChild(container); // Clean up DOM
+    ${
+      order.customerSignature
+        ? `
+          <div style="margin-top:24px;">
+            <div style="font-weight:600; margin-bottom:4px;">Customer Acknowledgement Signature:</div>
+            <img src="${order.customerSignature}" alt="Customer Signature" style="max-width:100%; height:auto; border:1px solid #aaa;" />
+            <div style="font-size:12px; color:#555;">${
+              order.signatureTimestamp
+                ? `Signed on: ${new Date(order.signatureTimestamp).toLocaleString()}`
+                : ""
+            }</div>
+          </div>
+        `
+        : ""
+    }
+  `;
+  document.body.appendChild(container);
+  html2canvas(container, { scale: 2 }).then(canvas => {
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4'
     });
-  };
+    const imgWidth = 560;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
+    window.open(pdf.output('bloburl'));
+    document.body.removeChild(container);
+  });
+};
 
   return (
     <div>

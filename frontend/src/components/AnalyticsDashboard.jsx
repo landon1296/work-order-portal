@@ -52,6 +52,10 @@ export default function AnalyticsDashboard({ user }) {
   const daysOpen = (now - createdAt) / (1000 * 60 * 60 * 24);
   return daysOpen > 10;
 });
+const waitingOnPartsFiltered = filteredOrders.filter(wo =>
+  (wo.status || '').toLowerCase().includes('part') ||
+  (Array.isArray(wo.parts) && wo.parts.some(p => p.waiting === true))
+);
 
     
 console.log('filteredOrders:', filteredOrders, 'Current shopFilter:', shopFilter);
@@ -406,6 +410,39 @@ return (
             </tbody>
 
         </table>
+        {/* Waiting on Parts Table */}
+<div style={{ marginTop: 48, maxWidth: 800 }}>
+  <h2 style={{ fontSize: 22, marginBottom: 8 }}>Work Orders Waiting on Parts</h2>
+  <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
+    <thead>
+      <tr style={{ background: "#e5e7eb" }}>
+        <th style={{ textAlign: "left", padding: 8 }}>Order #</th>
+        <th style={{ textAlign: "left", padding: 8 }}>Status</th>
+        <th style={{ textAlign: "left", padding: 8 }}>Created At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {waitingOnPartsFiltered.length === 0 ? (
+        <tr>
+          <td colSpan={3} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>
+            No work orders waiting on parts!
+          </td>
+        </tr>
+      ) : (
+        waitingOnPartsFiltered.map(wo => (
+          <tr key={wo.work_order_no}>
+            <td style={{ padding: 8 }}>{wo.work_order_no}</td>
+            <td style={{ padding: 8 }}>{wo.status}</td>
+            <td style={{ padding: 8 }}>
+              {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ""}
+            </td>
+          </tr>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
+
       </div>
     </div>
   );
