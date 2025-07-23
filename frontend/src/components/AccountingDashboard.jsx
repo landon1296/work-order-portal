@@ -4,6 +4,7 @@ import API from '../api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import GLLSLogo from '../assets/GLLSLogo.png';
+import { getStatusColor } from '../utils/statusColors';
 
 const SHOP_OPTIONS = [
   { value: 'All Shops', label: 'All Shops' },
@@ -381,7 +382,18 @@ const handleViewPDF = (order) => {
                 <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
                 <td>{o.companyName}</td>
                 <td>{o.shop}</td>
-                <td>{o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Submitted for Billing'}</td>
+                <td style={{ fontWeight: 600 }}>
+  <span style={{
+    display: "inline-block",
+    padding: "2px 10px",
+    borderRadius: "12px",
+    fontSize: "13px",
+    background: getStatusColor(o.status),
+    color: "#fff"
+  }}>
+    {o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Submitted for Billing'}
+  </span>
+</td>
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
@@ -459,7 +471,19 @@ const handleViewPDF = (order) => {
                 <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
                 <td>{o.companyName}</td>
                 <td>{o.shop}</td>
-                <td>{o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Assigned'}</td>
+                <td style={{ fontWeight: 600 }}>
+  <span style={{
+    display: "inline-block",
+    padding: "2px 10px",
+    borderRadius: "12px",
+    fontSize: "13px",
+    background: getStatusColor(o.status || 'Assigned'),
+    color: "#fff"
+  }}>
+    {o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Assigned'}
+  </span>
+</td>
+
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}

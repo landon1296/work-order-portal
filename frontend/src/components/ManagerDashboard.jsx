@@ -4,6 +4,8 @@ import API from '../api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import GLLSLogo from '../assets/GLLSLogo.png';
+import { getStatusColor } from '../utils/statusColors';
+
 
 const SHOP_OPTIONS = [
   { value: 'All Shops', label: 'All Shops' },
@@ -391,7 +393,19 @@ const handleViewPDF = (order) => {
               <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
               <td>{o.companyName}</td>
               <td>{o.shop}</td>
-              <td>{o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Assigned'}</td>
+              <td style={{ fontWeight: 600 }}>
+              <span style={{
+                display: "inline-block",
+                padding: "2px 10px",
+                borderRadius: "12px",
+                fontSize: "13px",
+                background: getStatusColor(o.status || 'Assigned'),
+                color: "#fff"
+              }}>
+                {o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Assigned'}
+              </span>
+            </td>
+
               <td>
                 <button
                   onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
@@ -407,7 +421,19 @@ const handleViewPDF = (order) => {
       </div>
 
       {/* Pending Review Work Orders */}
-      <h2 className="text-lg font-bold mb-2">Pending Review</h2>
+      <h2
+  className="text-lg font-bold mb-2"
+  style={{
+    color: pendingReviewOrders.length > 0 ? '#8b5cf6' : 'inherit',
+    backgroundColor: pendingReviewOrders.length > 0 ? '#f3e8ff' : 'transparent',
+    padding: pendingReviewOrders.length > 0 ? '6px 12px' : undefined,
+    borderRadius: pendingReviewOrders.length > 0 ? 6 : undefined,
+    textAlign: 'center'
+  }}
+>
+  Pending Review
+</h2>
+
       <div style={{overflowX: 'auto'}}>
       <table className='manager-table' style={{ minWidth: 900 }}>
         <thead>
@@ -533,7 +559,19 @@ const handleViewPDF = (order) => {
                 <td>{o.timeLogs?.[0]?.technicianAssigned || ''}</td>
                 <td>{o.companyName}</td>
                 <td>{o.shop}</td>
-                <td>{o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Submitted for Billing'}</td>
+                <td style={{ fontWeight: 600 }}>
+                <span style={{
+                  display: "inline-block",
+                  padding: "2px 10px",
+                  borderRadius: "12px",
+                  fontSize: "13px",
+                  background: getStatusColor(o.status),
+                  color: "#fff"
+                }}>
+                  {o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Submitted for Billing'}
+                </span>
+              </td>
+
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}

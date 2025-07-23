@@ -4,6 +4,8 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line
 } from "recharts";
 import GLLSLogo from '../assets/GLLSLogo.png';
+import { getStatusColor } from '../utils/statusColors';
+
 //import racecarFive from '../assets/racecar5.png'; // 👈 import the image at the top
 
 const COLORS = ["#2563eb", "#facc15", "#10b981", "#ef4444", "#818cf8", "#f472b6", "#fb923c"];
@@ -329,9 +331,10 @@ return (
                 outerRadius={80}
                 label
               >
-                {Object.entries(activeStatusCounts).map((_, idx) => (
-                  <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                {Object.entries(activeStatusCounts).map(([status], idx) => (
+                  <Cell key={idx} fill={getStatusColor(status)} />
                 ))}
+
               </Pie>
               <Tooltip />
               <Legend />
@@ -401,7 +404,20 @@ return (
 {slowMoversFiltered.map(wo => (
   <tr key={wo.work_order_no}>
     <td style={{ padding: 8 }}>{wo.work_order_no}</td>
-    <td style={{ padding: 8 }}>{wo.status}</td>
+    <td style={{ padding: 8 }}>
+  <span style={{
+    display: 'inline-block',
+    padding: '4px 10px',
+    background: getStatusColor(wo.status),
+    color: '#fff',
+    borderRadius: '12px',
+    fontWeight: 600,
+    fontSize: '13px'
+  }}>
+    {wo.status}
+  </span>
+</td>
+
     <td style={{ padding: 8 }}>
       {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ""}
     </td>
@@ -432,7 +448,20 @@ return (
         waitingOnPartsFiltered.map(wo => (
           <tr key={wo.work_order_no}>
             <td style={{ padding: 8 }}>{wo.work_order_no}</td>
-            <td style={{ padding: 8 }}>{wo.status}</td>
+            <td style={{ padding: 8 }}>
+            <span style={{
+              display: 'inline-block',
+              padding: '4px 10px',
+              background: getStatusColor(wo.status),
+              color: '#fff',
+              borderRadius: '12px',
+              fontWeight: 600,
+              fontSize: '13px'
+            }}>
+              {wo.status}
+            </span>
+          </td>
+
             <td style={{ padding: 8 }}>
               {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ""}
             </td>
