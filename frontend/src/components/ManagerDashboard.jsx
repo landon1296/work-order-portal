@@ -116,20 +116,36 @@ export default function ManagerDashboard({ user }) {
     o => o.status && o.status.toLowerCase() === 'closed'
   );
 
-  // Search filter (optional, affects both archives)
-  const filteredSubmittedForBilling = submittedForBillingOrders.filter(order =>
-    (order.companyName && order.companyName.toLowerCase().includes(search.toLowerCase())) ||
-    (order.workOrderNo && order.workOrderNo.toString().includes(search)) ||
-    (order.date && order.date.includes(search)) ||
-    (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(search.toLowerCase()))
-  );
 
-  const filteredClosedOrders = closedOrders.filter(order =>
-    (order.companyName && order.companyName.toLowerCase().includes(closedSearch.toLowerCase())) ||
-    (order.workOrderNo && order.workOrderNo.toString().includes(closedSearch)) ||
-    (order.date && order.date.includes(closedSearch)) ||
-    (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(closedSearch.toLowerCase()))
-  );
+
+  // Search filter (optional, affects both archives)
+
+
+const filteredSubmittedForBilling = submittedForBillingOrders.filter(order =>
+  (order.companyName && order.companyName.toLowerCase().includes(search.toLowerCase())) ||
+  (order.workOrderNo && order.workOrderNo.toString().includes(search)) ||
+  (order.date && order.date.includes(search)) ||
+  (order.serialNumber && order.serialNumber.toLowerCase().includes(search.toLowerCase())) ||
+  (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(search.toLowerCase()))
+);
+
+
+const filteredClosedOrders = closedOrders.filter(order =>
+  (order.companyName && order.companyName.toLowerCase().includes(closedSearch.toLowerCase())) ||
+  (order.workOrderNo && order.workOrderNo.toString().includes(closedSearch)) ||
+  (order.date && order.date.includes(closedSearch)) ||
+  (order.serialNumber && order.serialNumber.toLowerCase().includes(closedSearch.toLowerCase())) ||
+  (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(closedSearch.toLowerCase()))
+);
+
+const filteredActiveWorkOrders = regularOrders.filter(order =>
+
+  (order.companyName && order.companyName.toLowerCase().includes(search.toLowerCase())) ||
+  (order.workOrderNo && order.workOrderNo.toString().includes(search)) ||
+  (order.date && order.date.includes(search)) ||
+  (order.serialNumber && order.serialNumber.toLowerCase().includes(search.toLowerCase())) ||
+  (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(search.toLowerCase()))
+);
 
   // Button handlers (same as before)
   const handleRework = async (order) => {
@@ -359,6 +375,20 @@ const handleViewPDF = (order) => {
 
       {/* Active Work Orders */}
       <h2 className="text-lg font-bold mb-2">Active Work Orders</h2>
+            <input
+        type="text"
+        placeholder="Search by company, order #, serial #, tech, or date..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          marginBottom: 10,
+          padding: 6,
+          width: 400,
+          fontSize: 16,
+          border: "1px solid #ccc",
+          borderRadius: 5,
+        }}
+      />
       <div style={{overflowX: 'auto'}}>
       <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
         <thead>
@@ -378,7 +408,8 @@ const handleViewPDF = (order) => {
               <td colSpan={7} style={{ textAlign: 'center' }}>No active work orders.</td>
             </tr>
           )}
-          {regularOrders.map(o => (
+          {filteredActiveWorkOrders.map(o => (
+
             <tr key={o.workOrderNo}>
               <td>{o.workOrderNo}</td>
               <td>
@@ -513,13 +544,13 @@ const handleViewPDF = (order) => {
       <h2 className="text-lg font-bold mb-2" style={{ marginTop: 32 }}>Submitted for Billing Archive</h2>
       <input
         type="text"
-        placeholder="Search by company, order #, tech, or date..."
+        placeholder="Search by company, order #, serial #, tech, or date..."
         value={search}
         onChange={e => setSearch(e.target.value)}
         style={{
           marginBottom: 10,
           padding: 6,
-          width: 320,
+          width: 400,
           fontSize: 16,
           border: "1px solid #ccc",
           borderRadius: 5,
@@ -596,13 +627,13 @@ const handleViewPDF = (order) => {
       <h2 className="text-lg font-bold mb-2" style={{ marginTop: 32 }}>Closed Work Orders Archive</h2>
       <input
           type="text"
-          placeholder="Search by company, order #, tech, or date..."
+          placeholder="Search by company, order #, serial #, tech, or date..."
           value={closedSearch}
           onChange={e => setClosedSearch(e.target.value)}
           style={{
             marginBottom: 10,
             padding: 6,
-            width: 320,
+            width: 400,
             fontSize: 16,
             border: "1px solid #ccc",
             borderRadius: 5,

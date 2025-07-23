@@ -87,19 +87,22 @@ export default function AccountingDashboard({ user }) {
   );
 
   // Filters
-  const filteredSubmittedForBilling = submittedForBillingOrders.filter(order =>
-    (order.companyName && order.companyName.toLowerCase().includes(searchBilling.toLowerCase())) ||
-    (order.workOrderNo && order.workOrderNo.toString().includes(searchBilling)) ||
-    (order.date && order.date.includes(searchBilling)) ||
-    (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(searchBilling.toLowerCase()))
-  );
+const filteredSubmittedForBilling = submittedForBillingOrders.filter(order =>
+  (order.companyName && order.companyName.toLowerCase().includes(searchBilling.toLowerCase())) ||
+  (order.workOrderNo && order.workOrderNo.toString().includes(searchBilling)) ||
+  (order.date && order.date.includes(searchBilling)) ||
+  (order.serialNumber && order.serialNumber.toLowerCase().includes(searchBilling.toLowerCase())) ||
+  (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(searchBilling.toLowerCase()))
+);
 
-  const filteredClosedOrders = closedOrders.filter(order =>
-    (order.companyName && order.companyName.toLowerCase().includes(searchClosed.toLowerCase())) ||
-    (order.workOrderNo && order.workOrderNo.toString().includes(searchClosed)) ||
-    (order.date && order.date.includes(searchClosed)) ||
-    (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(searchClosed.toLowerCase()))
-  );
+const filteredClosedOrders = closedOrders.filter(order =>
+  (order.companyName && order.companyName.toLowerCase().includes(searchClosed.toLowerCase())) ||
+  (order.workOrderNo && order.workOrderNo.toString().includes(searchClosed)) ||
+  (order.date && order.date.includes(searchClosed)) ||
+  (order.serialNumber && order.serialNumber.toLowerCase().includes(searchClosed.toLowerCase())) ||
+  (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(searchClosed.toLowerCase()))
+);
+
 
   // Handlers
   const handleRework = async (order) => {
@@ -336,13 +339,13 @@ const handleViewPDF = (order) => {
       <h2 className="text-lg font-bold mb-2">Submitted for Billing (To Close)</h2>
       <input
         type="text"
-        placeholder="Search by company, order #, tech, or date..."
+        placeholder="Search by company, order #, serial #, tech, or date..."
         value={searchBilling}
         onChange={e => setSearchBilling(e.target.value)}
         style={{
           marginBottom: 10,
           padding: 6,
-          width: 320,
+          width: 400,
           fontSize: 16,
           border: "1px solid #ccc",
           borderRadius: 5,
@@ -507,13 +510,13 @@ const handleViewPDF = (order) => {
       <h2 className="text-lg font-bold mb-2" style={{ marginTop: 32 }}>Closed Work Orders Archive</h2>
       <input
         type="text"
-        placeholder="Search by company, order #, tech, or date..."
+        placeholder="Search by company, order #, serial #, tech, or date..."
         value={searchClosed}
         onChange={e => setSearchClosed(e.target.value)}
         style={{
           marginBottom: 10,
           padding: 6,
-          width: 320,
+          width: 400,
           fontSize: 16,
           border: "1px solid #ccc",
           borderRadius: 5,
