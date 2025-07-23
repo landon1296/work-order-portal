@@ -15,6 +15,7 @@ const SHOP_OPTIONS = [
 
 export default function AccountingDashboard({ user }) {
   const [orders, setOrders] = useState([]);
+  const [search, setSearch] = useState("");
   const [searchBilling, setSearchBilling] = useState("");
   const [searchClosed, setSearchClosed] = useState("");
   const [shopFilter, setShopFilter] = useState(() => localStorage.getItem('defaultShopFilter') || 'All Shops');
@@ -69,6 +70,8 @@ export default function AccountingDashboard({ user }) {
     : orders.filter(order => order.shop === shopFilter);
 
   // Status filters
+
+
   const submittedForBillingOrders = filteredOrders.filter(
     o => o.status && o.status.toLowerCase() === 'submitted for billing'
   );
@@ -86,7 +89,7 @@ export default function AccountingDashboard({ user }) {
     )
   );
 
-  // Filters
+  // Search Filters
 const filteredSubmittedForBilling = submittedForBillingOrders.filter(order =>
   (order.companyName && order.companyName.toLowerCase().includes(searchBilling.toLowerCase())) ||
   (order.workOrderNo && order.workOrderNo.toString().includes(searchBilling)) ||
@@ -103,6 +106,13 @@ const filteredClosedOrders = closedOrders.filter(order =>
   (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(searchClosed.toLowerCase()))
 );
 
+const filteredActiveWorkOrders = regularOrders.filter(order =>
+  (order.companyName && order.companyName.toLowerCase().includes(search.toLowerCase())) ||
+  (order.workOrderNo && order.workOrderNo.toString().includes(search)) ||
+  (order.date && order.date.includes(search)) ||
+  (order.serialNumber && order.serialNumber.toLowerCase().includes(search.toLowerCase())) ||
+  (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(search.toLowerCase()))
+);
 
   // Handlers
   const handleRework = async (order) => {
@@ -440,6 +450,20 @@ const handleViewPDF = (order) => {
       </div>
       {/* --- Active Work Orders --- */}
       <h2 className="text-lg font-bold mb-2" style={{ marginTop: 32 }}>Active Work Orders</h2>
+            <input
+        type="text"
+        placeholder="Search by company, order #, serial #, tech, or date..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          marginBottom: 10,
+          padding: 6,
+          width: 400,
+          fontSize: 16,
+          border: "1px solid #ccc",
+          borderRadius: 5,
+        }}
+      />
       <div style={{overflowX: 'auto'}}>
         <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
           <thead>
@@ -459,7 +483,7 @@ const handleViewPDF = (order) => {
                 <td colSpan={7} style={{ textAlign: 'center' }}>No active work orders.</td>
               </tr>
             )}
-            {regularOrders.map(o => (
+            {filteredActiveWorkOrders.map(o => (
               <tr key={o.workOrderNo}>
                 <td>{o.workOrderNo}</td>
                 <td>
