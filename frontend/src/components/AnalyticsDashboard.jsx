@@ -529,7 +529,7 @@ const renderValue = () => {
         key={idx}
         src="/sb5.svg"
         alt="5"
-        style={{ height: 40, objectFit: "contain", ...style }}
+        style={{ marginLeft: -10, height: 50, objectFit: "contain", ...style }}
       />
     );
   }
