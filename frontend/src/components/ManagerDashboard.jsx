@@ -171,7 +171,7 @@ export default function ManagerDashboard({ user }) {
     }
   };
 
-// PDF GENERATION HANDLER (updated)
+  // PDF GENERATION HANDLER (updated)
 function formatDate(dateStr) {
   const date = new Date(dateStr);
   return isNaN(date) ? '' : `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
@@ -179,32 +179,44 @@ function formatDate(dateStr) {
 
 const handleViewPDF = (order) => {
   const container = document.createElement('div');
-  container.style.width = '600px';
-  container.style.padding = '24px';
-  container.style.fontFamily = 'Arial';
-  container.style.fontSize = '14px';
+  container.style.width = '700px';
+  container.style.wordBreak = 'break-word';
+  container.style.padding = '12px';
+  container.style.fontFamily = 'monospace';
+  container.style.fontSize = '15px';
+  container.style.lineHeight = '1.6';
+  container.style.letterSpacing = '0.2px';
   container.innerHTML = `
     <h2 style="text-align:center; color:#3056d3;">Work Order #${order.workOrderNo}</h2>
-    <table style="width:100%; border-collapse:collapse;">
-  <tr><td style="padding-bottom:6px;"><strong>Date:</strong></td><td style="padding-bottom:6px;">${formatDate(order.date)}</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Company:</strong></td><td style="padding-bottom:6px;">${order.companyName}</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Address:</strong></td><td style="padding-bottom:6px;">${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Contact:</strong></td><td style="padding-bottom:6px;">${order.contactName || ""} (${order.contactPhone || ""})</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Technician:</strong></td><td style="padding-bottom:6px;">${
+    <table style="width:100%; border-collapse:collapse; margin-left:50px">
+  <tr><td style="padding-bottom:3px;"><strong>Date:</strong></td><td style="padding-bottom:3px;">${formatDate(order.date)}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Company:</strong></td><td style="padding-bottom:3px;">${order.companyName}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Address:</strong></td><td style="padding-bottom:3px;">${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}</td></tr>
+  <tr>
+  <td><strong>Contact:</strong></td>
+  <td>
+    ${order.contactName || ""}
+    <span style="margin-left: 6px; font-family: monospace; font-size: 15px;">
+      (${order.contactPhone || ""})
+    </span>
+  </td>
+</tr>
+
+  <tr><td style="padding-bottom:3px;"><strong>Technician:</strong></td><td style="padding-bottom:3px;">${
     order.timeLogs
       ? [...new Set(order.timeLogs.map(t => t.technicianAssigned).filter(Boolean))].join(', ')
       : ""
   }</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Make / Model / Serial:</strong></td><td style="padding-bottom:6px;">${order.make} / ${order.model} / ${order.serialNumber}</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Repair Type:</strong></td><td style="padding-bottom:6px;">${order.repairType}</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Work Type:</strong></td><td style="padding-bottom:6px;">${[
+  <tr><td style="padding-bottom:3px;"><strong>Make / Model / Serial:</strong></td><td style="padding-bottom:3px;">${order.make} / ${order.model} / ${order.serialNumber}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Repair Type:</strong></td><td style="padding-bottom:3px;">${order.repairType}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Work Type:</strong></td><td style="padding-bottom:3px;">${[
     order.warranty ? 'Warranty' : '',
     order.billable ? 'Billable' : '',
     order.maintenance ? 'Maintenance' : '',
     order.nonBillableRepair ? 'Non-billable Repair' : ''
   ].filter(Boolean).join(', ')}</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Shop:</strong></td><td style="padding-bottom:6px;">${order.shop}</td></tr>
-  <tr><td style="padding-bottom:6px;"><strong>Status:</strong></td><td style="padding-bottom:6px;">${order.status}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Shop:</strong></td><td style="padding-bottom:3px;">${order.shop}</td></tr>
+  <tr><td style="padding-bottom:3px;"><strong>Status:</strong></td><td style="padding-bottom:3px;">${order.status}</td></tr>
 </table>
 
     <h3 style="margin-top:18px;">Work Description</h3>
@@ -223,18 +235,29 @@ const handleViewPDF = (order) => {
       ).join("")}
     </table>
     <h3 style="margin-top:18px;">Time Logs</h3>
-    <table style="width:100%; border-collapse:collapse; border:1px solid #aaa;">
-      <tr style="background:#e3e3e3;"><th>Tech</th><th>Date</th><th>Start</th><th>Finish</th><th>Travel</th></tr>
-      ${(order.timeLogs || []).map(log =>
-        `<tr>
-          <td>${log.technicianAssigned || ""}</td>
-          <td>${formatDate(log.assignDate)}</td>
-          <td>${log.startTime || ""}</td>
-          <td>${log.finishTime || ""}</td>
-          <td>${log.travelTime || ""}</td>
-        </tr>`
-      ).join("")}
-    </table>
+<table style="width:100%; border-collapse:collapse; border:1px solid #aaa; text-align:left;">
+  <thead>
+    <tr style="background:#e3e3e3;">
+      <th style="padding:6px;">Tech</th>
+      <th style="padding:6px;">Date</th>
+      <th style="padding:6px;">Start</th>
+      <th style="padding:6px;">Finish</th>
+      <th style="padding:6px;">Travel</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${(order.timeLogs || []).map(log =>
+      `<tr>
+        <td style="padding:6px;">${log.technicianAssigned || ""}</td>
+        <td style="padding:6px;">${formatDate(log.assignDate)}</td>
+        <td style="padding:6px;">${log.startTime || ""}</td>
+        <td style="padding:6px;">${log.finishTime || ""}</td>
+        <td style="padding:6px;">${log.travelTime || ""}</td>
+      </tr>`
+    ).join("")}
+  </tbody>
+</table>
+
     ${
       order.customerSignature
         ? `
@@ -266,6 +289,7 @@ const handleViewPDF = (order) => {
     document.body.removeChild(container);
   });
 };
+
 
   return (
     <div>
