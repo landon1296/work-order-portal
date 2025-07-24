@@ -639,7 +639,7 @@ const handleSave = async () => {
             Shop Location
            </th>
            <th className="assign-table-header" colSpan={1}>
-            Glls / Customer Machine?
+            GLLS / Customer Machine?
             </th>
          
          
