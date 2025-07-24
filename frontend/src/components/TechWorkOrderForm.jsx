@@ -832,7 +832,7 @@ console.log("form", form);
             Shop Location
            </th>
            <th className="assign-table-header" colSpan={1}>
-            In-House/Field Repair?
+            GLLS / Customer Machine?
            </th>
          </tr>
 
