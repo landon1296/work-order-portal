@@ -86,12 +86,13 @@ res.json(toCamel(workOrders));
 app.get('/workorders/assigned/:username', async (req, res) => {
   try {
     const { username } = req.params;
-    const workOrders = await getAll();
-    const techOrders = workOrders.filter(
-      wo => (wo.timeLogs || []).some(log => log.technician_assigned === username)
-        && wo.status !== 'Closed'
-    );
-    res.json(toCamel(techOrders));
+const workOrders = toCamel(await getAll());
+const techOrders = workOrders.filter(
+  wo => (wo.timeLogs || []).some(log => log.technicianAssigned === username)
+    && wo.status !== 'Closed'
+);
+res.json(techOrders);
+
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch technician work orders.' });
   }
