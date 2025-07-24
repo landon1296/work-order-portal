@@ -27,6 +27,8 @@ app.use('/api/parts', partsRoutes);
 const analyticsRoutes = require('./routes/analytics');
 app.use('/api/analytics', analyticsRoutes);
 
+const photosRoutes = require('./routes/photos');
+app.use('/api/photos', photosRoutes);
 
 
 const PORT = process.env.PORT || 4000;

@@ -28,6 +28,7 @@ export default function AssignWorkOrderForm({ token }) {
   const [makeModelMap, setMakeModelMap] = useState({});
   const prevMakeRef = useRef();
   const [form, setForm] = useState({
+    
     companyName: '',
     companyStreet: '',
     companyCity: '',
@@ -68,6 +69,8 @@ export default function AssignWorkOrderForm({ token }) {
   const [technicians, setTechnicians] = useState([]);
   const sigPadRef= useRef();
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  const [workOrderPhotos, setWorkOrderPhotos] = useState([]);
+
 
 
 // Fetch Make/Model list from backend when component mounts
@@ -147,6 +150,10 @@ formObj.timeLogs = formObj.timeLogs.map(log => ({
           if (formObj[field] === undefined || formObj[field] === null) formObj[field] = '';
         });
         setForm(formObj);
+        // Fetch photos for this work order
+API.get(`/api/photos/${formObj.workOrderNo}`)
+  .then(photoRes => setWorkOrderPhotos(photoRes.data || []))
+  .catch(() => setWorkOrderPhotos([]));
       }
     })
     .catch(() => { /* handle not found if you want */ });
@@ -213,6 +220,18 @@ const handlePartChange = (idx, field, value) => {
     return { ...prev, parts: updated };
   });
   };
+const handleDeletePhoto = async (photoId) => {
+  if (!window.confirm('Are you sure you want to delete this photo?')) return;
+
+  try {
+    await API.delete(`/api/photos/${photoId}`);
+    const refreshed = await API.get(`/api/photos/${form.workOrderNo}`);
+    setWorkOrderPhotos(refreshed.data || []);
+  } catch (err) {
+    console.error('Delete failed:', err);
+    alert('Failed to delete photo.');
+  }
+};
 
 
   const handleSubmit = async (e) => {
@@ -1282,6 +1301,56 @@ const handleSave = async () => {
           Cancel
         </button>
       </div>
+    </div>
+  </div>
+)}
+{workOrderPhotos.length > 0 && (
+  <div style={{ marginTop: 32 }}>
+    <h3 style={{ marginBottom: 12 }}>Uploaded Photos</h3>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+      {workOrderPhotos.map(photo => (
+<div key={photo.id} style={{ width: 180, position: 'relative' }}>
+  <img
+    src={photo.url}
+    alt="Work Order"
+    style={{
+      width: '100%',
+      height: 120,
+      objectFit: 'cover',
+      borderRadius: 8,
+      border: '1px solid #ccc'
+    }}
+  />
+  {photo.description && (
+    <div style={{ marginTop: 6, fontSize: 13 }}>
+      {photo.description}
+    </div>
+  )}
+  <button
+    type="button"
+    onClick={() => handleDeletePhoto(photo.id)}
+    style={{
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      background: '#f44336',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '50%',
+      width: 24,
+      height: 24,
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      lineHeight: '24px',
+      textAlign: 'center'
+    }}
+    title="Delete photo"
+  >
+    ×
+  </button>
+</div>
+
+      ))}
     </div>
   </div>
 )}

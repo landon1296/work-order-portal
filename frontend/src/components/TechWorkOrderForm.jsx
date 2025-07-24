@@ -5,6 +5,7 @@ import '../index.css';
 import axios from 'axios';
 import { default as SignaturePad } from 'react-signature-canvas';
 
+
 function toCamelCaseDeep(obj) {
   if (Array.isArray(obj)) {
     return obj.map(toCamelCaseDeep);
@@ -24,6 +25,10 @@ function toCamelCaseDeep(obj) {
 export default function TechWorkOrderForm({ token, user }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [photoDescription, setPhotoDescription] = useState('');
+
 
 
   const [form, setForm] = useState({
@@ -72,6 +77,59 @@ export default function TechWorkOrderForm({ token, user }) {
     const [partsMemory, setPartsMemory] = useState([]);
     const [signatureModalOpen, setSignatureModalOpen] = useState(false);
     const sigPadRef = useRef();
+
+const [workOrderPhotos, setWorkOrderPhotos] = useState([]);
+
+useEffect(() => {
+  if (!form.workOrderNo) return;
+
+  API.get(`/api/photos/${form.workOrderNo}`)
+    .then(res => setWorkOrderPhotos(res.data || []))
+    .catch(() => setWorkOrderPhotos([]));
+}, [form.workOrderNo]);
+
+
+const handleUploadPhoto = async () => {
+  if (!selectedPhoto || !form.workOrderNo) {
+    alert('Please select a photo and ensure Work Order No is loaded.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('photo', selectedPhoto);
+  formData.append('description', photoDescription);
+  formData.append('workOrderNo', form.workOrderNo);
+
+  try {
+    await API.post('/api/photos/upload', formData);
+    alert('Photo uploaded!');
+    // Refresh the thumbnail list
+const refreshed = await API.get(`/api/photos/${form.workOrderNo}`);
+setWorkOrderPhotos(refreshed.data || []);
+    setSelectedPhoto(null);
+    setPhotoDescription('');
+    setPhotoModalOpen(false);
+  } catch (err) {
+    alert('Upload failed.');
+    console.error(err);
+  }
+};
+
+const handleDeletePhoto = async (photoId) => {
+  if (!window.confirm('Are you sure you want to delete this photo?')) return;
+
+  try {
+    await API.delete(`/api/photos/${photoId}`);
+
+    // Refresh photo list
+    const refreshed = await API.get(`/api/photos/${form.workOrderNo}`);
+    setWorkOrderPhotos(refreshed.data || []);
+  } catch (err) {
+    console.error('Delete failed:', err);
+    alert('Failed to delete photo.');
+  }
+};
+
 
   // Track if we have loaded work order from API yet
   const [loaded, setLoaded] = useState(false);
@@ -1304,6 +1362,162 @@ console.log("form", form);
 >
   Get Customer Signature
 </button>
+
+<button
+  type="button"
+  style={{
+    marginTop: 20,
+    marginLeft: 12,
+    padding: '10px 30px',
+    background: '#10b981',
+    color: '#fff',
+    borderRadius: 7,
+    fontWeight: 600,
+    fontSize: 18,
+    border: 'none',
+    cursor: 'pointer',
+  }}
+  onClick={() => setPhotoModalOpen(true)}
+>
+  Take Photo(s)
+</button>
+
+{workOrderPhotos.length > 0 && (
+  <div style={{ marginTop: 24 }}>
+    <h3 style={{ marginBottom: 12 }}>Uploaded Photos</h3>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+      {workOrderPhotos.map(photo => (
+<div key={photo.id} style={{ width: 180, position: 'relative' }}>
+  <img
+    src={photo.url}
+    alt="Work Order"
+    style={{
+      width: '100%',
+      height: 120,
+      objectFit: 'cover',
+      borderRadius: 8,
+      border: '1px solid #ccc'
+    }}
+  />
+  {photo.description && (
+    <div style={{ marginTop: 6, fontSize: 13 }}>
+      {photo.description}
+    </div>
+  )}
+  <button
+    type="button"
+    onClick={() => handleDeletePhoto(photo.id)}
+    style={{
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      background: '#f44336',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '50%',
+      width: 24,
+      height: 24,
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      lineHeight: '24px',
+      textAlign: 'center'
+    }}
+    title="Delete photo"
+  >
+    ×
+  </button>
+</div>
+
+      ))}
+    </div>
+  </div>
+)}
+
+
+{photoModalOpen && (
+  <div
+    style={{
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      width: '100vw',
+      height: '100vh',
+      background: 'rgba(0,0,0,0.4)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+    }}
+  >
+    <div
+      style={{
+        background: '#fff',
+        padding: 28,
+        borderRadius: 14,
+        boxShadow: '0 6px 40px rgba(0,0,0,0.14)',
+        maxWidth: 500,
+        width: '90%',
+      }}
+    >
+      <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Upload Photo</h2>
+
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setSelectedPhoto(e.target.files[0])}
+      />
+
+      <textarea
+        rows={2}
+        placeholder="Optional description..."
+        value={photoDescription}
+        onChange={(e) => setPhotoDescription(e.target.value)}
+        style={{ marginTop: 12, width: '100%' }}
+      />
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 16,
+          marginTop: 16,
+        }}
+      >
+        <button
+          type="button"
+          style={{
+            background: '#2563eb',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 7,
+            fontWeight: 600,
+            padding: '9px 24px',
+            cursor: 'pointer',
+          }}
+          onClick={handleUploadPhoto}
+        >
+          Upload
+        </button>
+        <button
+          type="button"
+          style={{
+            background: '#aaa',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 7,
+            fontWeight: 600,
+            padding: '9px 24px',
+            cursor: 'pointer',
+          }}
+          onClick={() => setPhotoModalOpen(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
 {signatureModalOpen && (
   <div
