@@ -70,6 +70,7 @@ export default function TechWorkOrderForm({ token, user }) {
     signatureTimestamp: null
   });
 
+    const [printedName, setPrintedName] = useState('');
     const [makes, setMakes] = useState([]);
     const [models, setModels] = useState([]);
     const [makeModelMap, setMakeModelMap] = useState({});
@@ -77,6 +78,7 @@ export default function TechWorkOrderForm({ token, user }) {
     const [partsMemory, setPartsMemory] = useState([]);
     const [signatureModalOpen, setSignatureModalOpen] = useState(false);
     const sigPadRef = useRef();
+
 
 const [workOrderPhotos, setWorkOrderPhotos] = useState([]);
 
@@ -520,6 +522,7 @@ const cleanedParts = (form.parts || []).filter(part => {
 const updatedForm = { 
   ...form, 
   parts: cleanedParts,
+  customerSignaturePrinted: printedName,
   status: "Completed, Pending Approval",
   statusHistory: [
     ...((Array.isArray(form.statusHistory) ? form.statusHistory : [])),
@@ -1336,14 +1339,20 @@ console.log("form", form);
     <img
       src={form.customerSignature}
       alt="Customer Signature"
-      style={{ /* … */ }}
+      style={{ maxWidth: 400, border: '1px solid #ccc', borderRadius: 6 }}
     />
+    {form.customerSignaturePrinted && (
+      <div style={{ fontSize: 15, marginTop: 4, fontWeight: 600 }}>
+        Printed Name: {form.customerSignaturePrinted}
+      </div>
+    )}
     <div style={{ fontSize: 12, marginTop: 2, color: '#666' }}>
       {form.signatureTimestamp &&
         `Signed on: ${new Date(form.signatureTimestamp).toLocaleString()}`}
     </div>
   </div>
 )}
+
 
 <button
   type="button"
@@ -1562,6 +1571,14 @@ console.log("form", form);
           },
         }}
       />
+      <input
+  type="text"
+  value={printedName}
+  onChange={(e) => setPrintedName(e.target.value)}
+  placeholder="Enter printed name"
+  className="mt-2 p-2 border border-gray-300 rounded w-full max-w-xs text-sm"
+/>
+
       <div
         style={{
           display: 'flex',
@@ -1613,7 +1630,8 @@ console.log("form", form);
             setForm(prev => ({
               ...prev,
               customerSignature: dataURL,
-              signatureTimestamp: new Date().toISOString()
+              signatureTimestamp: new Date().toISOString(),
+              customerSignaturePrinted: printedName
             }));
             setSignatureModalOpen(false);
           }}
