@@ -1367,7 +1367,6 @@ console.log("form", form);
   type="button"
   style={{
     marginTop: 20,
-    marginLeft: 12,
     padding: '10px 30px',
     background: '#10b981',
     color: '#fff',
@@ -1379,7 +1378,7 @@ console.log("form", form);
   }}
   onClick={() => setPhotoModalOpen(true)}
 >
-  Take Photo(s)
+  Add Photo(s)
 </button>
 
 {workOrderPhotos.length > 0 && (
