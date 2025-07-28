@@ -183,7 +183,7 @@ const handleViewPDF = (order) => {
   <tr><td style="padding-bottom:3px;"><strong>Make / Model / Serial:</strong></td><td style="padding-bottom:3px;">${order.make} / ${order.model} / ${order.serialNumber}</td></tr>
   <tr><td style="padding-bottom:3px;"><strong>Repair Type:</strong></td><td style="padding-bottom:3px;">${order.repairType}</td></tr>
   <tr><td style="padding-bottom:3px;"><strong>Work Type:</strong></td><td style="padding-bottom:3px;">${[
-    order.warranty ? 'Warranty' : '',
+    order.vendorWarranty ? 'Vendor Warranty' : '',
     order.billable ? 'Billable' : '',
     order.maintenance ? 'Maintenance' : '',
     order.nonBillableRepair ? 'Non-billable Repair' : ''
@@ -266,20 +266,41 @@ const handleViewPDF = (order) => {
   return (
     <div>
       {/* Header row: title left, logo right */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        marginBottom: 8
-      }}>
-        <h1 style={{ margin: 30 }}>Accounting Dashboard</h1>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <img src={GLLSLogo} alt="Company Logo" className= "login-logo"  />
-        </div>
-      </div>
+<div style={{
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  marginBottom: 8,
+  fontFamily: 'Ariel, sans-serif'
+}}>
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30, fontFamily: 'Ariel, sans-serif' }}>
+    <button
+      onClick={() => window.location.href = '/login'}
+      style={{
+        background: '#ef4444',
+        color: 'white',
+        fontWeight: 'bold',
+        padding: '6px 14px',
+        fontSize: 14,
+        borderRadius: 6,
+        border: 'none',
+        marginBottom: 10,
+        cursor: 'pointer',
+        fontFamily: 'Ariel, sans-serif'
+      }}
+    >
+      Log Out
+    </button>
+    <h1 style={{ margin: 0 }}>Accounting Dashboard</h1>
+  </div>
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginRight: 20, fontFamily: 'Ariel, sans-serif'}}>
+    <img src={GLLSLogo} alt="Company Logo" style={{ height: 100 }} />
+  </div>
+</div>
+
 
       {/* Location Filter */}
-      <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16, fontFamily: 'Ariel, sans-serif' }}>
         <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12 }}>Location Filter:</label>
         <select
           value={shopFilter}
@@ -299,7 +320,8 @@ const handleViewPDF = (order) => {
             color: "#334155",
             fontWeight: 600,
             border: "1px solid #cbd5e1",
-            cursor: "pointer"
+            cursor: "pointer",
+            fontFamily: 'Ariel, sans-serif'
           }}
           onClick={() => {
             localStorage.setItem('defaultShopFilter', shopFilter);
@@ -316,27 +338,28 @@ const handleViewPDF = (order) => {
           background: '#fef9c3', color: '#a16207', borderRadius: 8,
           margin: '18px auto', padding: '16px 24px', fontSize: 19, fontWeight: 700,
           maxWidth: 600, textAlign: 'center', border: '2px solid #facc15',
+          fontFamily: 'Ariel, sans-serif'
         }}>
           <ul style={{
             listStyle: 'none', margin: 0, padding: 0, display: 'flex',
-            flexDirection: 'column', gap: 15,
+            flexDirection: 'column', gap: 15, fontFamily: 'Ariel, sans-serif'
           }}>
             {alerts.map(alert => (
               <li key={alert.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: '#fffde4', borderRadius: 6, padding: '9px 12px', marginBottom: 4, fontSize: 17,
+                background: '#fffde4', borderRadius: 6, padding: '9px 12px', marginBottom: 4, fontSize: 17, fontFamily: 'Ariel, sans-serif'
               }}>
                 <span>
-                  Part Number <span style={{ fontWeight: 700 }}>{alert.partNumber}</span>
+                  Part Number <span style={{ fontWeight: 700, fontFamily: 'Ariel, sans-serif' }}>{alert.partNumber}</span>
                   {" "}marked pending for work order{" "}
-                  <span style={{ fontWeight: 700 }}>{alert.workOrderNo}</span>!
+                  <span style={{ fontWeight: 700, fontFamily: 'Ariel, sans-serif' }}>{alert.workOrderNo}</span>!
                 </span>
                 <button
                   onClick={() => clearAlert(alert.id)}
                   style={{
                     marginLeft: 18, background: '#fff', border: '2px solid #111',
                     color: '#111', padding: '4px 12px', borderRadius: 5, fontWeight: 700,
-                    fontSize: 15, cursor: 'pointer', transition: 'background 0.2s',
+                    fontSize: 15, cursor: 'pointer', transition: 'background 0.2s', fontFamily: 'Ariel, sans-serif'
                   }}
                 >Dismiss</button>
               </li>
@@ -346,7 +369,7 @@ const handleViewPDF = (order) => {
       )}
 
       {/* --- Submitted for Billing Table --- */}
-      <h2 className="text-lg font-bold mb-2">Submitted for Billing (To Close)</h2>
+      <h2 style={{fontFamily: 'Ariel, sans-serif'}}>Submitted for Billing (To Close)</h2>
       <input
         type="text"
         placeholder="Search by company, order #, serial #, tech, or date..."
@@ -359,10 +382,11 @@ const handleViewPDF = (order) => {
           fontSize: 16,
           border: "1px solid #ccc",
           borderRadius: 5,
+          fontFamily: 'Ariel, sans-serif'
         }}
       />
       <div style={{ overflowX: 'auto' }}>
-        <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
+        <table className='manager-table' style={{ minWidth: 900, marginBottom: 40, fontFamily: 'Ariel, sans-serif'}}>
           <thead>
             <tr>
               <th>Work Order Number</th>
@@ -377,7 +401,7 @@ const handleViewPDF = (order) => {
           <tbody>
             {filteredSubmittedForBilling.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center' }}>There are no work orders submitted for billing.</td>
+                <td colSpan={7} style={{ textAlign: 'center', fontFamily: 'Ariel, sans-serif' }}>There are no work orders submitted for billing.</td>
               </tr>
             )}
             {filteredSubmittedForBilling.map(o => (
@@ -402,7 +426,8 @@ const handleViewPDF = (order) => {
     borderRadius: "12px",
     fontSize: "13px",
     background: getStatusColor(o.status),
-    color: "#fff"
+    color: "#fff",
+    fontFamily: 'Ariel, sans-serif'
   }}>
     {o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Submitted for Billing'}
   </span>
@@ -410,7 +435,7 @@ const handleViewPDF = (order) => {
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
-                    style={{ padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4}}
+                    style={{ padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4, fontFamily: 'Ariel, sans-serif'}}
                   >
                     View / Edit
                   </button>
@@ -449,7 +474,7 @@ const handleViewPDF = (order) => {
         </table>
       </div>
       {/* --- Active Work Orders --- */}
-      <h2 className="text-lg font-bold mb-2" style={{ marginTop: 32 }}>Active Work Orders</h2>
+      <h2 style={{ marginTop: 32, fontFamily: 'Ariel, sans-serif' }}>Active Work Orders</h2>
             <input
         type="text"
         placeholder="Search by company, order #, serial #, tech, or date..."
@@ -462,10 +487,11 @@ const handleViewPDF = (order) => {
           fontSize: 16,
           border: "1px solid #ccc",
           borderRadius: 5,
+          fontFamily: 'Ariel, sans-serif'
         }}
       />
       <div style={{overflowX: 'auto'}}>
-        <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
+        <table className='manager-table' style={{ minWidth: 900, marginBottom: 40, fontFamily: 'Ariel, sans-serif' }}>
           <thead>
             <tr>
               <th>Work Order Number</th>
@@ -480,7 +506,7 @@ const handleViewPDF = (order) => {
           <tbody>
             {regularOrders.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center' }}>No active work orders.</td>
+                <td colSpan={7} style={{ textAlign: 'center', fontFamily: 'Ariel, sans-serif' }}>No active work orders.</td>
               </tr>
             )}
             {filteredActiveWorkOrders.map(o => (
@@ -531,7 +557,7 @@ const handleViewPDF = (order) => {
         </table>
       </div>
       {/* --- Closed Work Orders Archive --- */}
-      <h2 className="text-lg font-bold mb-2" style={{ marginTop: 32 }}>Closed Work Orders Archive</h2>
+      <h2 style={{ marginTop: 32, fontFamily: 'Ariel, sans-serif' }}>Closed Work Orders Archive</h2>
       <input
         type="text"
         placeholder="Search by company, order #, serial #, tech, or date..."
@@ -544,10 +570,11 @@ const handleViewPDF = (order) => {
           fontSize: 16,
           border: "1px solid #ccc",
           borderRadius: 5,
+          fontFamily: 'Ariel, sans-serif'
         }}
       />
       <div style={{ overflowX: 'auto' }}>
-        <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
+        <table className='manager-table' style={{ minWidth: 900, marginBottom: 40, fontFamily: 'Ariel, sans-serif' }}>
           <thead>
             <tr>
               <th>Work Order Number</th>

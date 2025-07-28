@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import API from '../api';
 import { useNavigate } from 'react-router-dom';
 import GLLSLogo from '../assets/GLLSLogo.png';
+
 function toCamelCaseDeep(obj) {
   if (Array.isArray(obj)) {
     return obj.map(toCamelCaseDeep);
@@ -16,7 +17,6 @@ function toCamelCaseDeep(obj) {
   return obj;
 }
 
-
 export default function TechDashboard({ username }) {
   const [workOrders, setWorkOrders] = useState([]);
   const navigate = useNavigate();
@@ -26,39 +26,50 @@ export default function TechDashboard({ username }) {
     wo => !wo.status || wo.status.toLowerCase() !== 'submitted for billing'
   );
 
-const handleOpenEdit = (workOrderNo, isPreview = false) => {
-  navigate(`/tech-dashboard/workorder/${workOrderNo}${isPreview ? '?preview=true' : ''}`);
-};
+  const handleOpenEdit = (workOrderNo, isPreview = false) => {
+    navigate(`/tech-dashboard/workorder/${workOrderNo}${isPreview ? '?preview=true' : ''}`);
+  };
 
+  useEffect(() => {
+    API.get(`/workorders/assigned/${username}`)
+      .then(res => {
+        setWorkOrders(res.data.map(toCamelCaseDeep));
+      })
+      .catch(() => setWorkOrders([]));
+  }, [username]);
 
-useEffect(() => {
-  API.get(`/workorders/assigned/${username}`)
-    .then(res => {
-      console.log("API returned:", res.data); // <--- ADD THIS LINE
-      setWorkOrders(res.data.map(toCamelCaseDeep));
-    })
-    .catch(() => setWorkOrders([]));
-}, [username]);
+  return (
+    <div>
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        marginBottom: 8
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30 }}>
+          <button
+            onClick={() => window.location.href = '/login'}
+            style={{
+              background: '#ef4444',
+              color: 'white',
+              fontWeight: 'bold',
+              padding: '6px 14px',
+              fontSize: 14,
+              borderRadius: 6,
+              border: 'none',
+              marginBottom: 10,
+              cursor: 'pointer'
+            }}
+          >
+            Log Out
+          </button>
+          <h1 style={{ margin: 0 }}>Technician Dashboard</h1>
+        </div>
+        <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 20 }} />
+      </div>
 
-
-
-
-
-return (
-  <div>
-    <div style={{
-      display: 'flex',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      marginBottom: 8
-    }}>
-      <h1 style={{ margin: 30 }}>Technician Dashboard</h1>
-      <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 20 }} />
-    </div>
-      <h2 style={{
-        textAlign: 'center'
-      }}>Your Assigned Work Orders</h2>
-    <table className="assign-table" style={{ width: '100%', marginTop: 8 }}>
+      <h2 style={{ textAlign: 'center' }}>Your Assigned Work Orders</h2>
+      <table className="assign-table" style={{ width: '100%', marginTop: 8 }}>
         <thead>
           <tr>
             <th>Work Order #</th>
@@ -75,17 +86,7 @@ return (
             </tr>
           )}
           {visibleWorkOrders.map(wo => {
-console.log("assignDate raw value:", visibleWorkOrders.map(wo => wo.timeLogs?.[0]?.assignDate));
-console.log("assignDate typeof:", typeof visibleWorkOrders[0]?.timeLogs?.[0]?.assignDate);
-console.log("assignDate keys:", visibleWorkOrders[0]?.timeLogs?.[0]?.assignDate && Object.keys(visibleWorkOrders[0].timeLogs[0].assignDate));
-console.log("assignDate value:", visibleWorkOrders[0]?.timeLogs?.[0]?.assignDate);
-console.log('assignDate value:', wo.timeLogs?.[0]?.assignDate);
-              console.log("💬 work order status:", wo.workOrderNo, '→', String(wo.status));
-              console.log("🧪 status check:", wo.workOrderNo, '→', (wo.status || '').toLowerCase().trim());
-
             return (
-
-
               <tr key={wo.id}>
                 <td>{String(wo.workOrderNo)}</td>
                 <td>{String(wo.companyName)}</td>
@@ -93,57 +94,67 @@ console.log('assignDate value:', wo.timeLogs?.[0]?.assignDate);
                 <td>
                   {wo.timeLogs?.[0]?.assignDate
                     ? (
-                        typeof wo.timeLogs[0].assignDate === 'string'
-                          ? wo.timeLogs[0].assignDate.slice(0, 10)
-                          : (
-                            wo.timeLogs[0].assignDate instanceof Date
-                              ? wo.timeLogs[0].assignDate.toLocaleDateString()
-                              : ''
-                          )
-                      )
+                      typeof wo.timeLogs[0].assignDate === 'string'
+                        ? wo.timeLogs[0].assignDate.slice(0, 10)
+                        : (
+                          wo.timeLogs[0].assignDate instanceof Date
+                            ? wo.timeLogs[0].assignDate.toLocaleDateString()
+                            : ''
+                        )
+                    )
                     : ''
                   }
                 </td>
-
                 <td>
-{(() => {
-  const status = (wo.status || '').toLowerCase().trim();
-  const isAssigned = !status || status === 'assigned';
-  return isAssigned;
-})() ? (
-
-
-  <>
-<button
-  onClick={() => handleOpenEdit(wo.workOrderNo, true)}
-  style={{ marginRight: 8, padding: '4px 10px', border: '1px solid #ccc', background: '#eee', borderRadius: 4 }}
->
-  Preview
-</button>
-<button
-  onClick={() => handleOpenEdit(wo.workOrderNo)}
-  style={{ padding: '4px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4 }}
->
-  Start Work
-</button>
-
-  </>
-) : (
-<button
-  onClick={() => handleOpenEdit(wo.workOrderNo)}
-  style={{ padding: '4px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4 }}
->
-  Open
-</button>
-
-)}
-
+                  {(() => {
+                    const status = (wo.status || '').toLowerCase().trim();
+                    const isAssigned = !status || status === 'assigned';
+                    return isAssigned;
+                  })() ? (
+                    <>
+                      <button
+                        onClick={() => handleOpenEdit(wo.workOrderNo, true)}
+                        style={{
+                          marginRight: 8,
+                          padding: '4px 10px',
+                          border: '1px solid #ccc',
+                          background: '#eee',
+                          borderRadius: 4
+                        }}
+                      >
+                        Preview
+                      </button>
+                      <button
+                        onClick={() => handleOpenEdit(wo.workOrderNo)}
+                        style={{
+                          padding: '4px 10px',
+                          background: '#1d4ed8',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 4
+                        }}
+                      >
+                        Start Work
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handleOpenEdit(wo.workOrderNo)}
+                      style={{
+                        padding: '4px 10px',
+                        background: '#1d4ed8',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 4
+                      }}
+                    >
+                      Open
+                    </button>
+                  )}
                 </td>
               </tr>
             );
           })}
-
-
         </tbody>
       </table>
     </div>

@@ -228,7 +228,7 @@ const handleViewPDF = (order) => {
   <tr><td style="padding-bottom:3px;"><strong>Make / Model / Serial:</strong></td><td style="padding-bottom:3px;">${order.make} / ${order.model} / ${order.serialNumber}</td></tr>
   <tr><td style="padding-bottom:3px;"><strong>Repair Type:</strong></td><td style="padding-bottom:3px;">${order.repairType}</td></tr>
   <tr><td style="padding-bottom:3px;"><strong>Work Type:</strong></td><td style="padding-bottom:3px;">${[
-    order.warranty ? 'Warranty' : '',
+    order.vendorWarranty ? 'Vendor Warranty' : '',
     order.billable ? 'Billable' : '',
     order.maintenance ? 'Maintenance' : '',
     order.nonBillableRepair ? 'Non-billable Repair' : ''
@@ -316,10 +316,31 @@ const handleViewPDF = (order) => {
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        marginBottom: 8
+        marginBottom: 8,
+        fontFamily: 'Arial, sans-serif'
+
       }}>
-        <h1 style={{ margin: 30 }}>Manager Dashboard</h1>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30, fontFamily: 'Arial, sans-serif' }}>
+  <button
+    onClick={() => window.location.href = '/login'}
+    style={{
+      background: '#ef4444',
+      color: 'white',
+      fontWeight: 'bold',
+      padding: '6px 14px',
+      fontSize: 14,
+      borderRadius: 6,
+      border: 'none',
+      marginBottom: 10,
+      cursor: 'pointer'
+    }}
+  >
+    Log Out
+  </button>
+  <h1 style={{  textAlign: 'center', width: '100%', margin: '0 auto 20px auto', fontFamily: 'Arial, sans-serif',  }}>Manager Dashboard</h1>
+</div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontFamily: 'Arial, sans-serif' }}>
           <img src={GLLSLogo} alt="Company Logo" className= "login-logo"  />
           <button
             style={{
@@ -341,7 +362,7 @@ const handleViewPDF = (order) => {
       </div>
 
       {/* Location Filter */}
-      <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16, fontFamily: 'Arial, sans-serif' }}>
         <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12 }}>Location Filter:</label>
         <select
           value={shopFilter}
@@ -374,7 +395,7 @@ const handleViewPDF = (order) => {
       </div>
 
       {/* Active Work Orders */}
-      <h2 className="text-lg font-bold mb-2">Active Work Orders</h2>
+      <h2 style={{fontFamily: 'Arial, sans-serif'}}>Active Work Orders</h2>
             <input
         type="text"
         placeholder="Search by company, order #, serial #, tech, or date..."
@@ -387,9 +408,10 @@ const handleViewPDF = (order) => {
           fontSize: 16,
           border: "1px solid #ccc",
           borderRadius: 5,
+          fontFamily: 'Arial, sans-serif'
         }}
       />
-      <div style={{overflowX: 'auto'}}>
+      <div style={{overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
       <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
         <thead>
           <tr>
@@ -453,19 +475,20 @@ const handleViewPDF = (order) => {
 
       {/* Pending Review Work Orders */}
       <h2
-  className="text-lg font-bold mb-2"
+  
   style={{
     color: pendingReviewOrders.length > 0 ? '#8b5cf6' : 'inherit',
     backgroundColor: pendingReviewOrders.length > 0 ? '#f3e8ff' : 'transparent',
     padding: pendingReviewOrders.length > 0 ? '6px 12px' : undefined,
     borderRadius: pendingReviewOrders.length > 0 ? 6 : undefined,
-    textAlign: 'center'
+    textAlign: 'center',
+    fontFamily: 'Arial, sans-serif'
   }}
 >
   Pending Review
 </h2>
 
-      <div style={{overflowX: 'auto'}}>
+      <div style={{overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
       <table className='manager-table' style={{ minWidth: 900 }}>
         <thead>
           <tr>
@@ -541,7 +564,7 @@ const handleViewPDF = (order) => {
       </div>
 
       {/* --- Submitted for Billing Archive --- */}
-      <h2 className="text-lg font-bold mb-2" style={{ marginTop: 32 }}>Submitted for Billing Archive</h2>
+      <h2 style={{ marginTop: 32, fontFamily: 'Arial, sans-serif' }}>Submitted for Billing Archive</h2>
       <input
         type="text"
         placeholder="Search by company, order #, serial #, tech, or date..."
@@ -556,7 +579,7 @@ const handleViewPDF = (order) => {
           borderRadius: 5,
         }}
       />
-      <div style={{ overflowX: 'auto'}}>
+      <div style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
         <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
           <thead>
             <tr>
@@ -624,7 +647,7 @@ const handleViewPDF = (order) => {
       </div>
 
       {/* --- Closed Work Orders Archive --- */}
-      <h2 className="text-lg font-bold mb-2" style={{ marginTop: 32 }}>Closed Work Orders Archive</h2>
+      <h2 style={{ marginTop: 32, fontFamily: 'Arial, sans-serif' }}>Closed Work Orders Archive</h2>
       <input
           type="text"
           placeholder="Search by company, order #, serial #, tech, or date..."
@@ -637,9 +660,10 @@ const handleViewPDF = (order) => {
             fontSize: 16,
             border: "1px solid #ccc",
             borderRadius: 5,
+            fontFamily: 'Arial, sans-serif'
           }}
         />
-      <div style={{ overflowX: 'auto'}}>
+      <div style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
         <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
           <thead>
             <tr>

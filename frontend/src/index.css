@@ -30,13 +30,13 @@
   font-size: 12px;
   font-family: inherit;
 }
-/* frontend/src/index.css */
 
 .assign-table-header {
-  background-color: #D9e1f2 !important;  /* match your header blue */
-  font-size: 12px;          /* ensure bold text */
-  border: 1px solid #39547e;  /* match your header border if needed */
+  background-color: #D9e1f2 !important;
+  font-size: 12px;
+  border: 1px solid #39547e;
 }
+
 .assign-select {
   border: 1px solid #b6b6b6;
   border-radius: 2px;
@@ -45,9 +45,8 @@
   font-size: 1em;
   width: 100%;
   box-sizing: border-box;
-  /* Optional: Slight drop shadow for depth, can be omitted for flat Excel look */
-  /* box-shadow: 0 1px 2px rgba(0,0,0,0.03); */
 }
+
 .manager-table {
   border-collapse: collapse;
   width: 100%;
@@ -56,11 +55,16 @@
 
 .manager-table th,
 .manager-table td {
-  width: 100px;           /* Make all columns the same width */
-  min-width: 100px;       /* Prevent them from getting too squished */
+  width: 100px;
+  min-width: 100px;
   border: 1px solid #a0a0a0;
   text-align: left;
   padding: 8px;
+}
+
+.manager-table th {
+  background: #e3eafc;
+  font-weight: bold;
 }
 
 .login-logo {
@@ -72,17 +76,13 @@
   height: auto;
   object-fit: contain;
 }
+
 .login-header {
   margin-top: 0;
   margin-bottom: 0;
   padding-top: 0;
 }
 
-
-.manager-table th {
-  background: #e3eafc;
-  font-weight: bold;
-}
 @media print {
   .assign-table th,
   .assign-table-header,
@@ -101,8 +101,8 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-
 }
+
 @media (max-width: 700px) {
   h1, h2 {
     font-size: 1.1em;
@@ -111,7 +111,6 @@
     font-size: 0.95em;
     padding: 6px 4px;
   }
-  /* If you use a header-row class, make it stack: */
   .header-row {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -126,7 +125,7 @@
     margin-bottom: 10px;
     font-size: 1em;
   }
-
+}
 
 @media (max-width: 600px) {
   .login-logo {
@@ -134,4 +133,24 @@
     margin-bottom: 18px;
   }
 }
+
+.card-style {
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.20);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-style:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.kpi-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }

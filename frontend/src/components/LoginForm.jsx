@@ -55,7 +55,8 @@ return (
         boxShadow: '0 4px 24px rgba(0,0,0,0.50)',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center'
+        alignItems: 'center',
+        fontFamily: 'Ariel, sans-serif'
       }}
     >
       <img
@@ -65,8 +66,8 @@ return (
 
 
       />
-      <h2 className="login-header" style={{ textAlign: 'center', width: '100%', }}> Great Lakes Lifting Work Order Portal</h2>
-      <h3 className='text-xl mb-4' style={{ textAlign: 'center', width: '100%' }}>Login</h3>
+      <h2 className="login-header" style={{ textAlign: 'center', width: '100%', fontFamily: 'Ariel, sans-serif'}}> Great Lakes Lifting Work Order Portal</h2>
+      <h3 className='text-xl mb-4' style={{ textAlign: 'center', width: '100%', fontFamily: 'Ariel, sans-serif' }}>Login</h3>
       <input
         name="username"
         autoComplete="username"

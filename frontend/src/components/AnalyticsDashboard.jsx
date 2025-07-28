@@ -34,7 +34,7 @@ export default function AnalyticsDashboard({ user }) {
     if (defaultShop) setShopFilter(defaultShop);
   }, []);
 
-  if (!data) return <div style={{ padding: 30 }}>Loading analytics...</div>;
+  if (!data) return <div style={{ padding: 30, fontFamily: 'Arial, sans-serif'}}>Loading analytics...</div>;
 
   // This will be filled with backend work orders in next step
   const orders = data.allWorkOrders || [];
@@ -229,37 +229,34 @@ function countAllOrdersByTechnician(orders) {
 
   // -- return section starts here! --
 return (
-  <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 18,
-    }}>
-      <h1 style={{
-        fontSize: 36,
-        fontWeight: 800,
-        margin: 0,
-      }}>
-        Analytics Dashboard
-      </h1>
-      <img
-        src={GLLSLogo}
-        alt="Company Logo"
-        style={{
-          height: 100,
-          marginLeft: 0,
-          marginBottom: 0,
-          marginTop: 0,
-          objectFit: "contain"
-        }}
-      />
+  <div>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30, fontFamily: 'Arial, sans-serif' }}>
+        <button
+          onClick={() => window.location.href = '/login'}
+          style={{
+            background: '#ef4444',
+            color: 'white',
+            fontWeight: 'bold',
+            padding: '6px 14px',
+            fontSize: 14,
+            borderRadius: 6,
+            border: 'none',
+            marginBottom: 10,
+            cursor: 'pointer'
+          }}
+        >
+          Log Out
+        </button>
+        <h1 style={{ margin: 0 }}>Analytics Dashboard</h1>
+      </div>
+      <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 20 }} />
     </div>
     {/* ...rest of your dashboard... */}
 
 
       {/* Location Filter */}
-      <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16, fontFamily: 'Arial, sans-serif' }}>
         <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12 }}>Location Filter:</label>
         <select
           value={shopFilter}
@@ -292,8 +289,8 @@ return (
       </div>
 
       {/* KPIs -- ALL filtered! */}
-      <div style={{ display: "flex", gap: 30, marginBottom: 24, flexWrap: "wrap" }}>
-        <KPI label="Total Work Orders" value={filteredOrders.length} />
+      <div style={{ display: "flex", gap: 30, marginBottom: 24, flexWrap: "wrap", fontFamily: 'Arial, sans-serif'}}>
+        <KPI label="Total Work Orders" value={filteredOrders.length}/>
         <KPI label="Closed Work Orders" value={closedOrdersCount} />
         <KPI 
             label="Waiting on Part" 
@@ -329,7 +326,7 @@ return (
       </div>
 
       {/* Charts Row */}
-      <div style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 36, flexWrap: "wrap", fontFamily: 'Arial, sans-serif' }}>
         {/* Shop Bar Chart */}
         <ChartCard title="Active Work Orders by Shop">
           <ResponsiveContainer width="100%" height={260}>
@@ -368,7 +365,7 @@ return (
       </div>
 
       {/* Trends and More */}
-      <div style={{ display: "flex", gap: 36, flexWrap: "wrap", marginTop: 36 }}>
+      <div style={{ display: "flex", gap: 36, flexWrap: "wrap", marginTop: 36, fontFamily: 'Arial, sans-serif' }}>
         {/* Orders by Month */}
         <ChartCard title="New Work Orders per Month">
           <ResponsiveContainer width="100%" height={240}>
@@ -395,7 +392,7 @@ return (
       </div>
 
 {/* Technician Workloads + Leaderboard */}
-<div style={{ marginTop: 36, display: 'flex', gap: 36, flexWrap: 'wrap' }}>
+<div style={{ marginTop: 36, display: 'flex', gap: 36, flexWrap: 'wrap', fontFamily: 'Arial, sans-serif' }}>
   {/* Active Technician Workloads */}
   <ChartCard title="Active Work Orders by Technician" style={{ flex: 1 }}>
     <ResponsiveContainer width="100%" height={260}>
@@ -415,7 +412,9 @@ return (
         <thead>
           <tr style={{ background: '#e5e7eb' }}>
             <th style={{ textAlign: 'left', padding: 8 }}>Technician</th>
-            <th style={{ textAlign: 'right', padding: 8 }}>Work Orders (All-Time)</th>
+            <th style={{ textAlign: 'right', padding: 8 }}>Work Orders (All-Time)
+              
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -436,8 +435,8 @@ return (
 
 
       {/* Slow Movers */}
-      <div style={{ marginTop: 48, maxWidth: 800 }}>
-        <h2 style={{ fontSize: 22, marginBottom: 8 }}>Slow Movers: Work Orders Open &gt; 10 Days</h2>
+      <div style={{ marginTop: 48, maxWidth: 800, fontFamily: 'Arial, sans-serif'}}>
+        <h2 style={{ fontSize: 22, marginBottom: 8, borderBottom: '3px solid #2563eb', paddingBottom: 4,  }}>Slow Movers: Work Orders Open &gt; 10 Days</h2>
         <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
           <thead>
             <tr style={{ background: "#e5e7eb" }}>
@@ -479,7 +478,7 @@ return (
         </table>
         {/* Waiting on Parts Table */}
 <div style={{ marginTop: 48, maxWidth: 800 }}>
-  <h2 style={{ fontSize: 22, marginBottom: 8 }}>Work Orders Waiting on Parts</h2>
+  <h2 style={{ fontSize: 22, marginBottom: 8, borderBottom: '3px solid #2563eb', paddingBottom: 4, dispaly:'inline-block' }}>Work Orders Waiting on Parts</h2>
   <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
     <thead>
       <tr style={{ background: "#e5e7eb" }}>
@@ -568,7 +567,7 @@ function getTopParts(orders) {
 
 
 
-function KPI({ label, value, styleOverride = {} }) {
+function KPI({ label, value, styleOverride = {}, }) {
 const renderValue = () => {
   const valueStr = (value ?? "").toString();
   return valueStr.split("").map((char, idx) => {
@@ -595,7 +594,7 @@ const renderValue = () => {
 
 
   return (
-    <div style={{
+    <div className="kpi-hover" style={{
       background: "#f8fafc",
       borderRadius: 12,
       padding: "18px 30px",
