@@ -26,9 +26,10 @@ export default function TechDashboard({ username }) {
     wo => !wo.status || wo.status.toLowerCase() !== 'submitted for billing'
   );
 
-  const handleOpenEdit = (workOrderNo) => {
-    navigate(`/tech-dashboard/workorder/${workOrderNo}`);
-  };
+const handleOpenEdit = (workOrderNo, isPreview = false) => {
+  navigate(`/tech-dashboard/workorder/${workOrderNo}${isPreview ? '?preview=true' : ''}`);
+};
+
 
 useEffect(() => {
   API.get(`/workorders/assigned/${username}`)
@@ -79,8 +80,12 @@ console.log("assignDate typeof:", typeof visibleWorkOrders[0]?.timeLogs?.[0]?.as
 console.log("assignDate keys:", visibleWorkOrders[0]?.timeLogs?.[0]?.assignDate && Object.keys(visibleWorkOrders[0].timeLogs[0].assignDate));
 console.log("assignDate value:", visibleWorkOrders[0]?.timeLogs?.[0]?.assignDate);
 console.log('assignDate value:', wo.timeLogs?.[0]?.assignDate);
+              console.log("💬 work order status:", wo.workOrderNo, '→', String(wo.status));
+              console.log("🧪 status check:", wo.workOrderNo, '→', (wo.status || '').toLowerCase().trim());
 
             return (
+
+
               <tr key={wo.id}>
                 <td>{String(wo.workOrderNo)}</td>
                 <td>{String(wo.companyName)}</td>
@@ -101,9 +106,38 @@ console.log('assignDate value:', wo.timeLogs?.[0]?.assignDate);
                 </td>
 
                 <td>
-                  <button onClick={() => handleOpenEdit(wo.workOrderNo)}>
-                    Open/Edit
-                  </button>
+{(() => {
+  const status = (wo.status || '').toLowerCase().trim();
+  const isAssigned = !status || status === 'assigned';
+  return isAssigned;
+})() ? (
+
+
+  <>
+<button
+  onClick={() => handleOpenEdit(wo.workOrderNo, true)}
+  style={{ marginRight: 8, padding: '4px 10px', border: '1px solid #ccc', background: '#eee', borderRadius: 4 }}
+>
+  Preview
+</button>
+<button
+  onClick={() => handleOpenEdit(wo.workOrderNo)}
+  style={{ padding: '4px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4 }}
+>
+  Start Work
+</button>
+
+  </>
+) : (
+<button
+  onClick={() => handleOpenEdit(wo.workOrderNo)}
+  style={{ padding: '4px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4 }}
+>
+  Open
+</button>
+
+)}
+
                 </td>
               </tr>
             );

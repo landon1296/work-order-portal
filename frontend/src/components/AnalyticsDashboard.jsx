@@ -161,17 +161,20 @@ if (closedDaysArray.length > 0) {
 function countByTechnician(orders) {
   const techOrders = {};
   orders.forEach(wo => {
-    // Use a Set so each tech only gets counted once per work order
-    const techs = new Set();
-    (wo.timeLogs || []).forEach(log => {
-      if (log.technician_assigned) techs.add(log.technician_assigned);
-    });
-    techs.forEach(tech => {
-      techOrders[tech] = (techOrders[tech] || 0) + 1;
-    });
+    const isClosed = wo.status && wo.status.toLowerCase().includes("closed");
+    if (!isClosed) {
+      const techs = new Set();
+      (wo.timeLogs || []).forEach(log => {
+        if (log.technician_assigned) techs.add(log.technician_assigned);
+      });
+      techs.forEach(tech => {
+        techOrders[tech] = (techOrders[tech] || 0) + 1;
+      });
+    }
   });
   return techOrders;
 }
+
 
 
   const techCountsFiltered = countByTechnician(filteredOrders);
@@ -192,14 +195,35 @@ function countByStatus(orders) {
 }
   const activeStatusCounts = countByStatus(filteredOrders);
 
-  function countByShop(orders) {
-    const out = {};
-    orders.forEach(wo => {
+function countByShop(orders) {
+  const out = {};
+  orders.forEach(wo => {
+    const isClosed = wo.status && wo.status.toLowerCase().includes("closed");
+    if (!isClosed) {
       out[wo.shop] = (out[wo.shop] || 0) + 1;
-    });
-    return out;
-  }
+    }
+  });
+  return out;
+}
+
   const shopCounts = countByShop(filteredOrders);
+
+
+function countAllOrdersByTechnician(orders) {
+  const techCounts = {};
+  orders.forEach(wo => {
+    const techs = new Set();
+    (wo.timeLogs || []).forEach(log => {
+      if (log.technician_assigned) techs.add(log.technician_assigned);
+    });
+    techs.forEach(tech => {
+      techCounts[tech] = (techCounts[tech] || 0) + 1;
+    });
+  });
+  return techCounts;
+}
+
+
 
 
 
@@ -307,7 +331,7 @@ return (
       {/* Charts Row */}
       <div style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
         {/* Shop Bar Chart */}
-        <ChartCard title="Work Orders by Shop">
+        <ChartCard title="Active Work Orders by Shop">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={Object.entries(shopCounts).map(([shop, count]) => ({ shop, count }))}>
               <XAxis dataKey="shop" />
@@ -370,19 +394,46 @@ return (
         </ChartCard>
       </div>
 
-      {/* Technician Workloads */}
-      <div style={{ marginTop: 36 }}>
-        <ChartCard title="Work Orders by Technician">
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={Object.entries(techCountsFiltered).map(([tech, count]) => ({ tech, count }))}>
-              <XAxis dataKey="tech" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#facc15" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
+{/* Technician Workloads + Leaderboard */}
+<div style={{ marginTop: 36, display: 'flex', gap: 36, flexWrap: 'wrap' }}>
+  {/* Active Technician Workloads */}
+  <ChartCard title="Active Work Orders by Technician" style={{ flex: 1 }}>
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={Object.entries(techCountsFiltered).map(([tech, count]) => ({ tech, count }))}>
+        <XAxis dataKey="tech" />
+        <YAxis />
+        <Tooltip />
+        <Bar dataKey="count" fill="#facc15" />
+      </BarChart>
+    </ResponsiveContainer>
+  </ChartCard>
+
+  {/* Technician Leaderboard */}
+  <ChartCard title="Technician Leaderboard (All-Time)">
+    <div style={{ padding: '0 12px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ background: '#e5e7eb' }}>
+            <th style={{ textAlign: 'left', padding: 8 }}>Technician</th>
+            <th style={{ textAlign: 'right', padding: 8 }}>Work Orders (All-Time)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(countAllOrdersByTechnician(orders))
+            .sort((a, b) => b[1] - a[1])
+            .map(([tech, count]) => (
+              <tr key={tech}>
+                <td style={{ padding: 8 }}>{tech}</td>
+                <td style={{ padding: 8, textAlign: 'right' }}>{count}</td>
+              </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </ChartCard>
+</div>
+
+
 
       {/* Slow Movers */}
       <div style={{ marginTop: 48, maxWidth: 800 }}>

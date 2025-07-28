@@ -48,7 +48,7 @@ export default function AssignWorkOrderForm({ token }) {
     contactName: '',
     contactPhone: '',
     contactEmail:'',
-    warranty: false,
+    vendorWarranty: false,
     billable: false,
     maintenance: false,
     nonBillableRepair: false,
@@ -238,12 +238,14 @@ const handleDeletePhoto = async (photoId) => {
     console.log("Submitting this form to API:", form);
 
   e.preventDefault();
+  form.status = form.status || "Assigned";
+
     if (!form.workDescription.trim()) {
     alert('Work Description is required.');
     return;
   }
-  if (!(form.warranty || form.billable || form.maintenance || form.nonBillableRepair)) {
-    alert('At least one Work Type must be selected (Warranty, Billable, Maintenance or Non-billable Repair).');
+  if (!(form.vendorWarranty || form.billable || form.maintenance || form.nonBillableRepair)) {
+    alert('At least one Work Type must be selected (Vendor Warranty, Billable, Maintenance or Non-billable Repair).');
     return;
   }
   // If "Field Repair" is selected, check for required field address info
@@ -276,9 +278,19 @@ if (id) {
   console.log('EDIT MODE: sending to API:', cleanedForm);
   await API.put(`/workorders/${form.workOrderNo}`, cleanedForm);
 } else {
-  console.log('NEW MODE: sending to API:', cleanedForm);
-  await API.post('/workorders', cleanedForm);
+const assignedTimestamp = new Date().toISOString();
+const newForm = {
+  ...cleanedForm,
+  status: "Assigned",
+  statusHistory: [{ status: "Assigned", date: assignedTimestamp }],
+  assignedDays: 1
+};
+
+console.log('NEW MODE: sending to API:', newForm);
+await API.post('/workorders', newForm);
+
 }
+
 
     navigate('/dashboard');
   } catch (err) {
@@ -309,7 +321,7 @@ const handleSave = async () => {
   }
 };
 
-  const isInHouseRepair = form.repairType === "In-House Repair";
+  const isInHouseRepair = form.repairType === "GLLS Machine";
   const disabledIfInHouse = isInHouseRepair
     ? { disabled: true}
     : {};
@@ -666,7 +678,7 @@ const handleSave = async () => {
             />
             </td> 
                   <td style={{ background: '#fff', padding: 0, position:'relative'}}>
-                  <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Warranty</span>
+                  <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>GLLS Vendor Warranty</span>
                   <div style={{
                     position: 'absolute',
                     left: '60%',
@@ -675,8 +687,8 @@ const handleSave = async () => {
                   }}>
                   <input
                     type="checkbox"
-                    name="warranty"
-                    checked={form.warranty}
+                    name="vendorWarranty"
+                    checked={form.vendorWarranty}
                     onChange={handleChange}
                   /> 
                   </div>

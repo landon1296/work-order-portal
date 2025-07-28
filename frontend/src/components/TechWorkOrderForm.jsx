@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import API from '../api';
 import '../index.css';
 import axios from 'axios';
@@ -24,6 +25,8 @@ function toCamelCaseDeep(obj) {
 
 export default function TechWorkOrderForm({ token, user }) {
   const { id } = useParams();
+  const location = useLocation();
+  const isPreview = new URLSearchParams(location.search).get('preview') === 'true';
   const navigate = useNavigate();
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
@@ -51,7 +54,7 @@ export default function TechWorkOrderForm({ token, user }) {
     contactName: '',
     contactPhone: '',
     contactEmail:'',
-    warranty: false,
+    vendorWarranty: false,
     billable: false,
     maintenance: false,
     nonBillableRepair: false,
@@ -240,7 +243,7 @@ useEffect(() => {
   // STATUS AUTOMATION LOGIC (only run after loaded)
   useEffect(() => {
     console.log("STATUS AUTO-UPDATE useEffect fired!", { loaded, status: form.status, statusHistory: form.statusHistory });
-    if (!loaded) return;
+    if (!loaded || isPreview) return;
     // Only update if status is 'Assigned' and not already in history as In Progress
 if (
         form.status &&
@@ -463,7 +466,7 @@ const handlePartChange = (idx, field, value) => {
   };
 
   // Step 1: Set this up so we know when "In House Repair" is selected
-  const isInHouseRepair = form.repairType === "In-House Repair";
+  const isInHouseRepair = form.repairType === "GLLS Machine";
   const disabledIfInHouse = isInHouseRepair
     ? { disabled: true}
     : {};
@@ -497,6 +500,13 @@ const handlePartChange = (idx, field, value) => {
   // SUBMIT FOR REVIEW (set status to "Completed, Pending Approval")
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const urlParams = new URLSearchParams(window.location.search);
+const isPreview = urlParams.get('preview') === 'true';
+if (isPreview) {
+  alert("You're in preview mode. Submit is disabled.");
+  return;
+}
+
     // Validation: At least one complete time log required
     const hasCompleteTimeLog = form.timeLogs.some(
       log =>
@@ -549,8 +559,15 @@ console.log("form", form);
   return (
     <form onSubmit={handleSubmit} style={{ padding: '8px', fontFamily: 'Arial' }}>
       <button
-        type="button"
-        onClick={() => navigate(-1)}
+  type="button"
+  onClick={() => {
+    if (isPreview) {
+      navigate('/dashboard');
+    } else {
+      navigate(-1);
+    }
+  }}
+
         style={{
           marginBottom: 18,
           padding: "8px 20px",
@@ -563,6 +580,9 @@ console.log("form", form);
       >
         &larr; Back
       </button>
+    <fieldset disabled={isPreview} style={{ border: 'none', padding: 0, margin: 0 }}>
+
+
 
       <table className="assign-table">
         <thead>
@@ -856,7 +876,7 @@ console.log("form", form);
             />
             </td> 
                   <td style={{ background: '#fff', padding: 0, position:'relative'}}>
-                  <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Warranty</span>
+                  <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>GLLS Vendor Warranty</span>
                   <div style={{
                     position: 'absolute',
                     left: '60%',
@@ -865,8 +885,8 @@ console.log("form", form);
                   }}>
                   <input
                     type="checkbox"
-                    name="warranty"
-                    checked={form.warranty}
+                    name="vendorWarranty"
+                    checked={form.vendorWarranty}
                     onChange={handleChange}
                   /> 
                   </div>
@@ -1661,7 +1681,7 @@ console.log("form", form);
 )}
 
 
-
+            </fieldset>
             </form>
           );
         }

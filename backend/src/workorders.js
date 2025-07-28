@@ -54,6 +54,56 @@ async function getStartingWorkOrderNo() {
   return 1;
 }
 
+function calculateDaysByStatus(statusHistory) {
+  const daysByStatus = {
+    assigned_days: 0,
+    in_progress_days: 0,
+    in_progress_pending_parts_days: 0,
+    completed_pending_approval_days: 0,
+    submitted_for_billing_days: 0,
+    closed_days: 0,
+  };
+
+  if (!Array.isArray(statusHistory) || statusHistory.length === 0) return daysByStatus;
+
+  for (let i = 0; i < statusHistory.length; i++) {
+    const curr = statusHistory[i];
+    const next = statusHistory[i + 1];
+    const currDate = new Date(curr.date);
+    const nextDate = next ? new Date(next.date) : new Date();
+
+const diffMs = nextDate - currDate;
+const diffHours = diffMs / (1000 * 60 * 60);
+const diffDays = diffHours / 24;
+
+
+
+    const status = (curr.status || "").toLowerCase();
+
+    if (status.includes("assigned")) daysByStatus.assigned_days += diffDays;
+    if (status.includes("in progress, pending parts")) {
+      daysByStatus.in_progress_pending_parts_days += diffDays;
+    } else if (status.includes("in progress")) {
+      daysByStatus.in_progress_days += diffDays;
+    }
+    if (status.includes("completed, pending approval")) {
+      daysByStatus.completed_pending_approval_days += diffDays;
+    }
+    if (status.includes("submitted for billing")) {
+      daysByStatus.submitted_for_billing_days += diffDays;
+    }
+    if (status.includes("closed")) {
+      daysByStatus.closed_days += diffDays;
+    }
+  }
+for (const key in daysByStatus) {
+  daysByStatus[key] = Math.max(1, Math.round(daysByStatus[key]));
+}
+  return daysByStatus;
+}
+
+
+
 // GET /workorders -> list all work orders
 function setupWorkOrderRoutes(app) {
   app.get('/workorders', async (req, res) => {
@@ -134,6 +184,8 @@ app.get('/workorders/assigned/:username', async (req, res) => {
   // POST /workorders -> Save new work order in Supabase and line items and time entries
   app.post('/workorders', async (req, res) => {
     console.log('POST /workorders hit:', req.body);
+    console.log('📦 Incoming status field:', req.body.status);
+
 
     try {
       const order = req.body;
@@ -247,6 +299,17 @@ const toCamel = obj => {
     console.log('PUT /workorders/:workOrderNo', req.params.workOrderNo, req.body);
     const workOrderNo = req.params.workOrderNo;
     const updates = req.body; // All fields to update
+    // Recalculate day counts if statusHistory is present
+if (Array.isArray(updates.statusHistory)) {
+  const days = calculateDaysByStatus(updates.statusHistory);
+  updates.assignedDays = days.assigned_days;
+  updates.inProgressDays = days.in_progress_days;
+  updates.inProgressPendingPartsDays = days.in_progress_pending_parts_days;
+  updates.completedPendingApprovalDays = days.completed_pending_approval_days;
+  updates.submittedForBillingDays = days.submitted_for_billing_days;
+  updates.closedDays = days.closed_days;
+}
+
 
         // Cleanup legacy fields
     const CLEANUP_FIELDS = ['fieldContactName', 'PoNumber', 'techSummary'];
@@ -355,33 +418,9 @@ res.json({ message: 'Work order updated', workOrder: updated });
     if (typeof statusHistory === "string") statusHistory = JSON.parse(statusHistory);
 
     // Calculate days spent in each status
-    const daysByStatus = {
-      assigned_days: 0,
-      in_progress_days: 0,
-      in_progress_pending_parts_days: 0,
-      completed_pending_approval_days: 0,
-      submitted_for_billing_days: 0,
-      closed_days: 0,
-    };
+        const daysByStatus = calculateDaysByStatus(statusHistory);
 
-    if (Array.isArray(statusHistory) && statusHistory.length > 0) {
-      for (let i = 0; i < statusHistory.length; i++) {
-        const curr = statusHistory[i];
-        const next = statusHistory[i + 1];
-        const currDate = new Date(curr.date);
-        const nextDate = next ? new Date(next.date) : new Date();
 
-        const diffDays = Math.max(1, Math.round((nextDate - currDate) / (1000 * 60 * 60 * 24)));
-
-        // Map the status string to your DB columns (adjust as needed)
-        if (curr.status.toLowerCase().includes("assigned")) daysByStatus.assigned_days += diffDays;
-        if (curr.status.toLowerCase().includes("in progress, pending parts")) daysByStatus.in_progress_pending_parts_days += diffDays;
-        else if (curr.status.toLowerCase().includes("in progress")) daysByStatus.in_progress_days += diffDays;
-        if (curr.status.toLowerCase().includes("completed, pending approval")) daysByStatus.completed_pending_approval_days += diffDays;
-        if (curr.status.toLowerCase().includes("submitted for billing")) daysByStatus.submitted_for_billing_days += diffDays;
-        if (curr.status.toLowerCase().includes("closed")) daysByStatus.closed_days += diffDays;
-      }
-    }
         // --- PATCH: Ensure statusHistory always ends with a "Closed" status ---
     const now = new Date().toISOString();
     if (

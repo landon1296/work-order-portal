@@ -27,6 +27,13 @@ async function getAll() {
 
 // Add a new work order
 async function add(order) {
+  if (!order.status) order.status = "Assigned";
+if (!order.statusHistory || !Array.isArray(order.statusHistory)) {
+  const now = new Date().toISOString();
+  order.statusHistory = [{ status: "Assigned", date: now }];
+}
+if (!order.assignedDays) order.assignedDays = 1;
+
   const result = await pool.query(
     `INSERT INTO workorders
       (
@@ -34,11 +41,11 @@ async function add(order) {
         company_state, company_zip, field_contact_name, field_contact_number,
         field_street, field_city, field_state, field_zipcode,
         make, model, other_desc, serial_number, contact_name, contact_phone,
-        contact_email, warranty, billable, maintenance, non_billable_repair, shop, repair_type,
+        contact_email, vendor_warranty, billable, maintenance, non_billable_repair, shop, repair_type,
         sales_name, shipping_cost, work_description, po_number, notes, status,
         status_history, assigned_days, in_progress_days,
         in_progress_pending_parts_days, completed_pending_approval_days,
-        submitted_for_billing_days, closed_days, customer_signature, customer_signature_printed,
+        submitted_for_billing_days, closed_days, customer_signature, customer_signature_printed
       )
      VALUES
       (
@@ -68,7 +75,7 @@ async function add(order) {
       order.contactName,
       order.contactPhone,
       order.contactEmail,
-      order.warranty,
+      order.vendorWarranty,
       order.billable,
       order.maintenance,
       order.nonBillableRepair,
@@ -80,7 +87,7 @@ async function add(order) {
       order.poNumber,
       order.notes, // or order.notes, if that's what you use
       order.status,
-      order.statusHistory, // this can be an array or JSON
+      JSON.stringify(order.statusHistory || []), // this can be an array or JSON
       order.assignedDays,
       order.inProgressDays,
       order.inProgressPendingPartsDays,
@@ -173,7 +180,7 @@ const camelToSnake = {
   contactName: 'contact_name',
   contactPhone: 'contact_phone',
   contactEmail: 'contact_email',
-  warranty: 'warranty',
+  vendorWarranty: 'vendor_warranty',
   billable: 'billable',
   maintenance: 'maintenance',
   nonBillableRepair: 'non_billable_repair',
