@@ -487,20 +487,18 @@ const handleSave = async () => {
               />
             </td>
             <td>
-            <input
-              name="fieldContact"
-              value={form.fieldContact ?? ""}
-              onChange={handleChange}
-              placeholder="Field Contact Name"
-              {...disabledIfInHouse}
-              style={
-                isInHouseRepair
-                  ? { backgroundColor: "#808080", color: "#808080" }
-                  : form.repairType === "Field Repair"
-                  ? { backgroundColor: "#fff68f" }
-                  : {}
-              }
-              />
+                  <input
+                    name="fieldContact"
+                    value={form.fieldContact ?? ""}
+                    onChange={handleChange}
+                    placeholder="Field Contact Name"
+                    style={
+                      form.repairType === "Field Repair"
+                        ? { backgroundColor: "#fff68f" }
+                        : {}
+                    }
+                  />
+
               </td>
               <td>
                 <input
@@ -509,13 +507,11 @@ const handleSave = async () => {
                 onChange={handleChange}
                 placeholder="Field Contact Phone"
                 {...disabledIfInHouse}
-              style={
-                isInHouseRepair
-                  ? { backgroundColor: "#808080", color: "#808080" }
-                  : form.repairType === "Field Repair"
-                  ? { backgroundColor: "#fff68f" }
-                  : {}
-              }
+                    style={
+                      form.repairType === "Field Repair"
+                        ? { backgroundColor: "#fff68f" }
+                        : {}
+                    }
                 />
               </td>
             <td>
@@ -550,14 +546,11 @@ const handleSave = async () => {
                 value={form.fieldStreet ?? ""}
                 onChange={handleChange}
                 placeholder="Field Street"
-                {...disabledIfInHouse}
-              style={
-                isInHouseRepair
-                  ? { backgroundColor: "#808080", color: "#808080" }
-                  : form.repairType === "Field Repair"
-                  ? { backgroundColor: "#fff68f" }
-                  : {}
-              }
+                    style={
+                      form.repairType === "Field Repair"
+                        ? { backgroundColor: "#fff68f" }
+                        : {}
+                    }
               />
             </td>
             <td>
@@ -566,14 +559,11 @@ const handleSave = async () => {
                 value={form.fieldCity ?? ""}
                 onChange={handleChange}
                 placeholder="Field City"
-                {...disabledIfInHouse}
-              style={
-                isInHouseRepair
-                  ? { backgroundColor: "#808080", color: "#808080" }
-                  : form.repairType === "Field Repair"
-                  ? { backgroundColor: "#fff68f" }
-                  : {}
-              }
+                    style={
+                      form.repairType === "Field Repair"
+                        ? { backgroundColor: "#fff68f" }
+                        : {}
+                    }
               />
             </td>
             <th className="assign-table-header">
@@ -601,14 +591,11 @@ const handleSave = async () => {
                 value={form.fieldState ?? ""}
                 onChange={handleChange}
                 placeholder="Field State"
-                {...disabledIfInHouse}
-              style={
-                isInHouseRepair
-                  ? { backgroundColor: "#808080", color: "#808080" }
-                  : form.repairType === "Field Repair"
-                  ? { backgroundColor: "#fff68f" }
-                  : {}
-              }
+                    style={
+                      form.repairType === "Field Repair"
+                        ? { backgroundColor: "#fff68f" }
+                        : {}
+                    }
               />
             </td>
             <td>
@@ -617,14 +604,11 @@ const handleSave = async () => {
                 value={form.fieldZipcode ?? ""}
                 onChange={handleChange}
                 placeholder="Field ZIP"
-                {...disabledIfInHouse}
-              style={
-                isInHouseRepair
-                  ? { backgroundColor: "#808080", color: "#808080" }
-                  : form.repairType === "Field Repair"
-                  ? { backgroundColor: "#fff68f" }
-                  : {}
-              }
+                    style={
+                      form.repairType === "Field Repair"
+                        ? { backgroundColor: "#fff68f" }
+                        : {}
+                    }
               />
             </td>
             <td>
