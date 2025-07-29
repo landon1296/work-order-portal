@@ -44,9 +44,10 @@ export default function TechDashboard({ username }) {
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        marginBottom: 8
+        marginBottom: 8,
+        fontFamily: 'Arial, Sans-Serif'
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30, fontFamily: 'Arial, Sans-Serif' }}>
           <button
             onClick={() => window.location.href = '/login'}
             style={{
@@ -63,13 +64,15 @@ export default function TechDashboard({ username }) {
           >
             Log Out
           </button>
-          <h1 style={{ margin: 0 }}>Technician Dashboard</h1>
+          <h1 style={{ margin: 0, fontFamily: 'Arial, Sans-Serif' }}>Technician Dashboard</h1>
         </div>
         <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 20 }} />
       </div>
 
-      <h2 style={{ textAlign: 'center' }}>Your Assigned Work Orders</h2>
-      <table className="assign-table" style={{ width: '100%', marginTop: 8 }}>
+      <h2 style={{ textAlign: 'center', fontFamily: 'Arial, Sans-Serif' }}>Your Assigned Work Orders</h2>
+      <div className='manager-table-wrapper' >
+      <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif'}}>
+        
         <thead>
           <tr>
             <th>Work Order #</th>
@@ -119,7 +122,8 @@ export default function TechDashboard({ username }) {
                           padding: '4px 10px',
                           border: '1px solid #ccc',
                           background: '#eee',
-                          borderRadius: 4
+                          borderRadius: 4,
+                          cursor: 'pointer'
                         }}
                       >
                         Preview
@@ -131,7 +135,8 @@ export default function TechDashboard({ username }) {
                           background: '#1d4ed8',
                           color: '#fff',
                           border: 'none',
-                          borderRadius: 4
+                          borderRadius: 4,
+                          cursor: 'pointer'
                         }}
                       >
                         Start Work
@@ -145,7 +150,8 @@ export default function TechDashboard({ username }) {
                         background: '#1d4ed8',
                         color: '#fff',
                         border: 'none',
-                        borderRadius: 4
+                        borderRadius: 4,
+                        cursor: 'pointer'
                       }}
                     >
                       Open
@@ -157,6 +163,7 @@ export default function TechDashboard({ username }) {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

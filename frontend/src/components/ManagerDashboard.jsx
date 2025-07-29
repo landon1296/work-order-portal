@@ -26,6 +26,9 @@ export default function ManagerDashboard({ user }) {
   const [closedSearch, setClosedSearch] = useState("");
   const [shopFilter, setShopFilter] = useState(() => localStorage.getItem('defaultShopFilter') || 'All Shops');
   const navigate = useNavigate();
+  const [closedPage, setClosedPage] = useState(1);
+  const CLOSED_PAGE_SIZE = 10;
+
 
   useEffect(() => {
     fetchOrders();
@@ -400,7 +403,7 @@ const handleViewPDF = (order) => {
         type="text"
         placeholder="Search by company, order #, serial #, tech, or date..."
         value={search}
-        onChange={e => setSearch(e.target.value)}
+        onChange={e => {setSearch(e.target.value); setClosedPage(1);}}
         style={{
           marginBottom: 10,
           padding: 6,
@@ -411,7 +414,7 @@ const handleViewPDF = (order) => {
           fontFamily: 'Arial, sans-serif'
         }}
       />
-      <div style={{overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
+      <div className="manager-table-wrapper" style={{overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
       <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
         <thead>
           <tr>
@@ -462,7 +465,7 @@ const handleViewPDF = (order) => {
               <td>
                 <button
                   onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
-                  style={{ padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4}}
+                  style={{ padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4, cursor: 'pointer'}}
                 >
                   View / Edit
                 </button>
@@ -488,7 +491,7 @@ const handleViewPDF = (order) => {
   Pending Review
 </h2>
 
-      <div style={{overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
+      <div className="manager-table-wrapper" style={{overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
       <table className='manager-table' style={{ minWidth: 900 }}>
         <thead>
           <tr>
@@ -524,19 +527,19 @@ const handleViewPDF = (order) => {
               <td>
                 <button
                   onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
-                  style={{ padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4}}
+                  style={{ padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4, cursor: 'pointer'}}
                 >
                   View / Edit
                 </button>
                 <button
                   onClick={() => handleRework(o)}
-                  style={{ padding: '4px 10px', background:'#eed812', color: '#222', border:'none', borderRadius: 4, marginRight: 4}}
+                  style={{ padding: '4px 10px', background:'#eed812', color: '#222', border:'none', borderRadius: 4, marginRight: 4, cursor: 'pointer'}}
                 >
                   Rework
                 </button>
                 <button
                   onClick={() => handleSubmitForBilling(o)}
-                  style={{ padding: '4px 10px', background: '#16a34a', color: 'white', border:'none', borderRadius: 4}}
+                  style={{ padding: '4px 10px', background: '#16a34a', color: 'white', border:'none', borderRadius: 4, cursor: 'pointer'}}
                 >
                   Submit for Billing
                 </button>
@@ -550,6 +553,7 @@ const handleViewPDF = (order) => {
                       border: 'none',
                       borderRadius: 4,
                       marginLeft: 0,
+                      cursor: 'pointer'
                     }}
                     title="Close this work order (only if no parts present)"
                   >
@@ -569,7 +573,7 @@ const handleViewPDF = (order) => {
         type="text"
         placeholder="Search by company, order #, serial #, tech, or date..."
         value={search}
-        onChange={e => setSearch(e.target.value)}
+        onChange={e => {setSearch(e.target.value); setClosedPage(1);}}
         style={{
           marginBottom: 10,
           padding: 6,
@@ -579,7 +583,7 @@ const handleViewPDF = (order) => {
           borderRadius: 5,
         }}
       />
-      <div style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
+      <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
         <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
           <thead>
             <tr>
@@ -629,13 +633,13 @@ const handleViewPDF = (order) => {
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
-                    style={{ padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4 }}
+                    style={{ padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4, cursor: 'pointer' }}
                   >
                     View / Edit
                   </button>
                   <button
                     onClick={() => handleViewPDF(o)}
-                    style={{ padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4 }}
+                    style={{ padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4, cursor: 'pointer' }}
                   >
                     View PDF
                   </button>
@@ -652,7 +656,7 @@ const handleViewPDF = (order) => {
           type="text"
           placeholder="Search by company, order #, serial #, tech, or date..."
           value={closedSearch}
-          onChange={e => setClosedSearch(e.target.value)}
+          onChange={e => {setClosedSearch(e.target.value); setClosedPage(1);}}
           style={{
             marginBottom: 10,
             padding: 6,
@@ -663,7 +667,7 @@ const handleViewPDF = (order) => {
             fontFamily: 'Arial, sans-serif'
           }}
         />
-      <div style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
+      <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
         <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
           <thead>
             <tr>
@@ -682,7 +686,10 @@ const handleViewPDF = (order) => {
                 <td colSpan={7} style={{ textAlign: 'center' }}>No closed work orders found.</td>
               </tr>
             )}
-            {filteredClosedOrders.map(o => (
+            {filteredClosedOrders
+              .slice((closedPage - 1) * CLOSED_PAGE_SIZE, closedPage * CLOSED_PAGE_SIZE)
+              .map(o => (
+
               <tr key={o.workOrderNo}>
                 <td>{o.workOrderNo}</td>
                 <td>
@@ -701,13 +708,13 @@ const handleViewPDF = (order) => {
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
-                    style={{ padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4 }}
+                    style={{ padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4, cursor: 'pointer' }}
                   >
                     View / Edit
                   </button>
                   <button
                     onClick={() => handleViewPDF(o)}
-                    style={{ padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4 }}
+                    style={{ padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4, cursor: 'pointer' }}
                   >
                     View PDF
                   </button>
@@ -716,6 +723,44 @@ const handleViewPDF = (order) => {
             ))}
           </tbody>
         </table>
+        {filteredClosedOrders.length > CLOSED_PAGE_SIZE && (
+  <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center', gap: 16 }}>
+    <button
+      onClick={() => setClosedPage(p => Math.max(p - 1, 1))}
+      disabled={closedPage === 1}
+      style={{
+        padding: '6px 12px',
+        background: closedPage === 1 ? '#e5e7eb' : '#2563eb',
+        color: closedPage === 1 ? '#888' : 'white',
+        border: 'none',
+        borderRadius: 6,
+        cursor: closedPage === 1 ? 'default' : 'pointer'
+      }}
+    >
+      Previous
+    </button>
+
+    <span style={{ alignSelf: 'center', fontSize: 14 }}>
+      Page {closedPage} of {Math.ceil(filteredClosedOrders.length / CLOSED_PAGE_SIZE)}
+    </span>
+
+    <button
+      onClick={() => setClosedPage(p => p + 1)}
+      disabled={closedPage >= Math.ceil(filteredClosedOrders.length / CLOSED_PAGE_SIZE)}
+      style={{
+        padding: '6px 12px',
+        background: closedPage >= Math.ceil(filteredClosedOrders.length / CLOSED_PAGE_SIZE) ? '#e5e7eb' : '#2563eb',
+        color: closedPage >= Math.ceil(filteredClosedOrders.length / CLOSED_PAGE_SIZE) ? '#888' : 'white',
+        border: 'none',
+        borderRadius: 6,
+        cursor: closedPage >= Math.ceil(filteredClosedOrders.length / CLOSED_PAGE_SIZE) ? 'default' : 'pointer'
+      }}
+    >
+      Next
+    </button>
+  </div>
+)}
+
       </div>
     </div>
   );

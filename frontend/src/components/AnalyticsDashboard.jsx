@@ -598,7 +598,7 @@ const renderValue = () => {
       background: "#f8fafc",
       borderRadius: 12,
       padding: "18px 30px",
-      boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+      boxShadow: "0 2px 12px rgba(0,0,0,0.50)",
       fontWeight: 700,
       minWidth: 140,
       textAlign: "center",
@@ -629,11 +629,10 @@ const renderValue = () => {
 
 function ChartCard({ title, children }) {
   return (
-    <div style={{
+    <div className="card-style" style={{
       background: "#fff",
       borderRadius: 16,
       padding: 16,
-      boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
       width: 440,
       minWidth: 320,
       maxWidth: "100%",

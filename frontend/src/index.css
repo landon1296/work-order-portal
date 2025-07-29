@@ -50,7 +50,8 @@
 .manager-table {
   border-collapse: collapse;
   width: 100%;
-  margin-top: 8px;
+  margin-top: 0px;
+  
 }
 
 .manager-table th,
@@ -60,11 +61,18 @@
   border: 1px solid #a0a0a0;
   text-align: left;
   padding: 8px;
+  border: none;
+  
+}
+
+.manager-table td {
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .manager-table th {
-  background: #e3eafc;
+  background: #e6eafd;
   font-weight: bold;
+  border-bottom: 2px solid #d40b0b
 }
 
 .login-logo {
@@ -81,6 +89,15 @@
   margin-top: 0;
   margin-bottom: 0;
   padding-top: 0;
+}
+
+
+
+.manager-table-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.60);
+  overflow: hidden;
+  background: white;
 }
 
 @media print {
@@ -137,20 +154,20 @@
 .card-style {
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.20);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card-style:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
 }
 
 .kpi-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.5s ease, box-shadow 0.5s ease;
 }
 
 .kpi-hover:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.75);
 }
