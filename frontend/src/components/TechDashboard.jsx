@@ -70,7 +70,7 @@ export default function TechDashboard({ username }) {
       </div>
 
       <h2 style={{ textAlign: 'center', fontFamily: 'Arial, Sans-Serif' }}>Your Assigned Work Orders</h2>
-      <div className='manager-table-wrapper' >
+      <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
       <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif'}}>
         
         <thead>
