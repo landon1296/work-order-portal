@@ -101,6 +101,13 @@
   background: white;
 }
 
+/* Allow horizontal scroll on mobile for tables */
+.tech-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+
 @media print {
   .assign-table th,
   .assign-table-header,
