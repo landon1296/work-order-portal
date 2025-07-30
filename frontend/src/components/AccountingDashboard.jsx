@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 import GLLSLogo from '../assets/GLLSLogo.png';
+import logoBase64 from '../assets/logoBase64';
 import { getStatusColor } from '../utils/statusColors';
 
 const SHOP_OPTIONS = [
@@ -146,123 +147,227 @@ const filteredActiveWorkOrders = regularOrders.filter(order =>
     }
   };
 
-  // PDF GENERATION HANDLER (updated)
+// --- NEW PDF HANDLER (jsPDF + autoTable) ---
+
+
 function formatDate(dateStr) {
   const date = new Date(dateStr);
-  return isNaN(date) ? '' : `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  return isNaN(date) ? "" : `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+}
+function drawRoundedRect(doc, x, y, width, height, radius = 3) {
+  doc.roundedRect(x, y, width, height, radius, radius);
 }
 
 const handleViewPDF = (order) => {
-  const container = document.createElement('div');
-  container.style.width = '700px';
-  container.style.wordBreak = 'break-word';
-  container.style.padding = '12px';
-  container.style.fontFamily = 'monospace';
-  container.style.fontSize = '15px';
-  container.style.lineHeight = '1.6';
-  container.style.letterSpacing = '0.2px';
-  container.innerHTML = `
-    <h2 style="text-align:center; color:#3056d3;">Work Order #${order.workOrderNo}</h2>
-    <table style="width:100%; border-collapse:collapse; margin-left:50px">
-  <tr><td style="padding-bottom:3px;"><strong>Date:</strong></td><td style="padding-bottom:3px;">${formatDate(order.date)}</td></tr>
-  <tr><td style="padding-bottom:3px;"><strong>Company:</strong></td><td style="padding-bottom:3px;">${order.companyName}</td></tr>
-  <tr><td style="padding-bottom:3px;"><strong>Address:</strong></td><td style="padding-bottom:3px;">${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}</td></tr>
-  <tr>
-  <td><strong>Contact:</strong></td>
-  <td>
-    ${order.contactName || ""}
-    <span style="margin-left: 6px; font-family: monospace; font-size: 15px;">
-      (${order.contactPhone || ""})
-    </span>
-  </td>
-</tr>
+  try {
+    console.log("Generating PDF for work order", order.workOrderNo);
 
-  <tr><td style="padding-bottom:3px;"><strong>Technician:</strong></td><td style="padding-bottom:3px;">${
-    order.timeLogs
-      ? [...new Set(order.timeLogs.map(t => t.technicianAssigned).filter(Boolean))].join(', ')
-      : ""
-  }</td></tr>
-  <tr><td style="padding-bottom:3px;"><strong>Make / Model / Serial:</strong></td><td style="padding-bottom:3px;">${order.make} / ${order.model} / ${order.serialNumber}</td></tr>
-  <tr><td style="padding-bottom:3px;"><strong>Repair Type:</strong></td><td style="padding-bottom:3px;">${order.repairType}</td></tr>
-  <tr><td style="padding-bottom:3px;"><strong>Work Type:</strong></td><td style="padding-bottom:3px;">${[
-    order.vendorWarranty ? 'Vendor Warranty' : '',
-    order.billable ? 'Billable' : '',
-    order.maintenance ? 'Maintenance' : '',
-    order.nonBillableRepair ? 'Non-billable Repair' : ''
-  ].filter(Boolean).join(', ')}</td></tr>
-  <tr><td style="padding-bottom:3px;"><strong>Shop:</strong></td><td style="padding-bottom:3px;">${order.shop}</td></tr>
-  <tr><td style="padding-bottom:3px;"><strong>Status:</strong></td><td style="padding-bottom:3px;">${order.status}</td></tr>
-</table>
+const doc = new jsPDF({ margin: 20 }); // doesn't apply automatically, so we’ll manage margins manually
+const leftMargin = 20;
+const rightMargin = 20;
+const topMargin = 20;
+const bottomMargin = 20;
+const pageHeight = doc.internal.pageSize.getHeight();
 
-    <h3 style="margin-top:18px;">Work Description</h3>
-    <div style="border:1px solid #ccc; padding:6px; min-height:36px;">${order.workDescription || ""}</div>
-    <h3 style="margin-top:18px;">Tech Summary / Notes</h3>
-    <div style="border:1px solid #ccc; padding:6px; min-height:36px;">${order.notes || ""}</div>
-    <h3 style="margin-top:18px;">Parts</h3>
-    <table style="width:100%; border-collapse:collapse; border:1px solid #aaa;">
-      <tr style="background:#e3e3e3;"><th>Part #</th><th>Description</th><th>Qty</th></tr>
-      ${(order.parts || []).map(part =>
-        `<tr>
-          <td>${part.partNumber || ""}</td>
-          <td>${part.description || ""}</td>
-          <td>${part.quantity || ""}</td>
-        </tr>`
-      ).join("")}
-    </table>
-    <h3 style="margin-top:18px;">Time Logs</h3>
-<table style="width:100%; border-collapse:collapse; border:1px solid #aaa; text-align:left;">
-  <thead>
-    <tr style="background:#e3e3e3;">
-      <th style="padding:6px;">Tech</th>
-      <th style="padding:6px;">Date</th>
-      <th style="padding:6px;">Start</th>
-      <th style="padding:6px;">Finish</th>
-      <th style="padding:6px;">Travel</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${(order.timeLogs || []).map(log =>
-      `<tr>
-        <td style="padding:6px;">${log.technicianAssigned || ""}</td>
-        <td style="padding:6px;">${formatDate(log.assignDate)}</td>
-        <td style="padding:6px;">${log.startTime || ""}</td>
-        <td style="padding:6px;">${log.finishTime || ""}</td>
-        <td style="padding:6px;">${log.travelTime || ""}</td>
-      </tr>`
-    ).join("")}
-  </tbody>
-</table>
+    let y = 20;
 
-    ${
-      order.customerSignature
-        ? `
-          <div style="margin-top:24px;">
-            <div style="font-weight:600; margin-bottom:4px;">Customer Acknowledgement Signature:</div>
-            <img src="${order.customerSignature}" alt="Customer Signature" style="max-width:100%; height:auto; border:1px solid #aaa;" />
-            <div style="font-size:12px; color:#555;">${
-              order.signatureTimestamp
-                ? `Signed on: ${new Date(order.signatureTimestamp).toLocaleString()}`
-                : ""
-            }</div>
-          </div>
-        `
-        : ""
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(`Work Order #${order.workOrderNo}`, 80, y, { align: "right" });
+    y += 10;
+    if (logoBase64) {
+    doc.addImage(logoBase64, "PNG", 90, 10.5, 93.75, 15);
+
+
     }
-  `;
-  document.body.appendChild(container);
-  html2canvas(container, { scale: 2 }).then(canvas => {
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: 'a4'
+    
+  
+
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+
+    const info = [
+      ["Date", formatDate(order.date)],
+      ["Company", order.companyName],
+      ["Address", `${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}`],
+      ["Contact", `${order.contactName || ""} (${order.contactPhone || ""})`],
+      ["Technician(s)", [...new Set((order.timeLogs || []).map(t => t.technicianAssigned).filter(Boolean))].join(", ")],
+      ["Make / Model / Serial", `${order.make} / ${order.model} / ${order.serialNumber}`],
+      ["Repair Type", order.repairType],
+      ["Work Type", [
+        order.vendorWarranty ? "Vendor Warranty" : "",
+        order.billable ? "Billable" : "",
+        order.maintenance ? "Maintenance" : "",
+        order.nonBillableRepair ? "Non-billable Repair" : ""
+      ].filter(Boolean).join(", ")],
+      ["Shop", order.shop],
+      ["Status", order.status]
+    ];
+    const infoStartY = y + 5;
+    let currentInfoY = infoStartY;
+
+    info.forEach(([label, value]) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(`${label}:`, leftMargin, currentInfoY += 8);
+      doc.setFont("helvetica", "normal");
+      doc.text(value || "", leftMargin + 60, currentInfoY);
     });
-    const imgWidth = 560;
-    const imgHeight = canvas.height * imgWidth / canvas.width;
-    pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
-    window.open(pdf.output('bloburl'));
-    document.body.removeChild(container);
-  });
+    drawRoundedRect(doc, leftMargin - 5, infoStartY - 0, 180, currentInfoY - infoStartY + 5, 4);
+    y = currentInfoY + 4;
+const estimatedWorkDescHeight = doc.splitTextToSize(order.workDescription || "", 170).length * 6 + 16;
+if (y + estimatedWorkDescHeight > pageHeight - bottomMargin) {
+  doc.addPage();
+  y = topMargin;
+}
+
+// Work Description
+doc.setFont("helvetica", "bold");
+const workDescStartY = y + 10;
+doc.text("Work Description:", leftMargin, workDescStartY);
+doc.setFont("helvetica", "normal");
+const workDescText = doc.splitTextToSize(order.workDescription || "", 170);
+doc.text(workDescText, leftMargin, workDescStartY + 6);
+drawRoundedRect(doc, leftMargin - 5, workDescStartY - 5, 180, workDescText.length * 6 + 16, 4);
+y = workDescStartY + workDescText.length * 6 + 20;
+
+
+const estimatedNotesHeight = doc.splitTextToSize(order.notes || "", 170).length * 6 + 16;
+if (y + estimatedNotesHeight > pageHeight - bottomMargin) {
+  doc.addPage();
+  y = topMargin;
+}
+
+// Tech Summary / Notes
+doc.setFont("helvetica", "bold");
+const notesStartY = y;
+doc.text("Tech Summary / Notes:", leftMargin, notesStartY);
+doc.setFont("helvetica", "normal");
+const notesText = doc.splitTextToSize(order.notes || "", 170);
+doc.text(notesText, leftMargin, notesStartY + 6);
+drawRoundedRect(doc, leftMargin - 5, notesStartY - 5, 180, notesText.length * 6 + 16, 4);
+y = notesStartY + notesText.length * 6 + 20;
+
+
+// Parts Table
+if (order.parts && order.parts.length > 0) {
+  doc.setFont("helvetica", "bold");
+const partsStartY = y;
+doc.text("Parts Used", leftMargin, partsStartY);
+y += 6;
+
+
+doc.autoTable({
+  startY: y,
+  head: [["Part #", "Description", "Qty"]],
+  body: order.parts.map(p => [p.partNumber || "", p.description || "", p.quantity || ""]),
+  margin: { top: 20, bottom: 20, left: leftMargin, right: rightMargin },
+  styles: {
+    fontSize: 10,
+    overflow: 'linebreak',
+    cellPadding: 3,
+    lineWidth: 0 // disables all borders
+  },
+  alternateRowStyles: {
+    fillColor: [230, 230, 230] // light gray for zebra striping
+  },
+  tableWidth: doc.internal.pageSize.getWidth() - leftMargin - rightMargin,
+  pageBreak: 'auto',
+  headStyles: { fillColor: [0, 102, 204], textColor: 255 },
+});
+y = doc.lastAutoTable.finalY + 14;
+
+}
+
+// Time Logs Table
+if (order.timeLogs && order.timeLogs.length > 0) {
+  doc.setFont("helvetica", "bold");
+  doc.text("Time Logs", leftMargin, y);
+  y += 6;
+
+doc.autoTable({
+  startY: y,
+  head: [["Tech", "Date", "Start", "Finish", "Travel"]],
+  body: order.timeLogs.map(log => [
+    log.technicianAssigned || "",
+    formatDate(log.assignDate),
+    log.startTime || "",
+    log.finishTime || "",
+    log.travelTime || ""
+  ]),
+  margin: { top: 10, bottom: 30, left: leftMargin, right: rightMargin },
+    styles: {
+    fontSize: 10,
+    overflow: 'linebreak',
+    cellPadding: 3,
+    lineWidth: 0 // disables all borders
+  },
+  alternateRowStyles: {
+    fillColor: [230, 230, 230] // light gray for zebra striping
+  },
+  tableWidth: doc.internal.pageSize.getWidth() - leftMargin - rightMargin,
+  pageBreak: 'auto',
+  headStyles: { fillColor: [0, 102, 204], textColor: 255 },
+});
+
+
+  y = doc.lastAutoTable.finalY + 14;
+}
+
+
+
+
+// Signature
+if (order.customerSignature) {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const signatureBlockHeight = 60; // estimated block height including image + text
+
+  if (y + signatureBlockHeight > pageHeight - 20) {
+    doc.addPage();
+    y = 20;
+  }
+
+  const signatureStartY = y;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Customer Acknowledgement Signature:", leftMargin, signatureStartY);
+
+  const sigImgHeight = 25;
+  const sigImgWidth = 100;
+  const sigPadding = 10;
+
+  doc.addImage(order.customerSignature, "PNG", leftMargin, signatureStartY + 5, sigImgWidth, sigImgHeight);
+
+  let printedY = signatureStartY + sigImgHeight + 15;
+
+  doc.setFontSize(9);
+  if (order.signatureTimestamp) {
+    doc.text(`Signed on: ${new Date(order.signatureTimestamp).toLocaleString()}`, leftMargin, printedY);
+    printedY += 10;
+  }
+
+  if (order.customerSignaturePrinted) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Printed Signature: ${order.customerSignaturePrinted}`, leftMargin, printedY);
+    printedY += 10;
+  }
+
+  const sectionHeight = printedY - signatureStartY + 5;
+  doc.setDrawColor(0);
+  drawRoundedRect(doc, leftMargin - 5, signatureStartY - 5, 180, sectionHeight, 4);
+
+  y = printedY + 10;
+}
+
+
+
+
+    const pdfUrl = doc.output('bloburl');
+window.open(pdfUrl, '_blank');
+
+  } catch (err) {
+    console.error("PDF generation failed:", err);
+  }
 };
 
   return (
