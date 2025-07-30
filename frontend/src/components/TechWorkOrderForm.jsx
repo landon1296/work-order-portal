@@ -1192,12 +1192,13 @@ console.log("form", form);
                     autoComplete="off"
                   />
                   <datalist id={`part-numbers-list-${idx}`}>
-                    {partsMemory.map(mem => (
-                      <option key={mem.partNumber} value={mem.partNumber}>
+                    {partsMemory.map((mem, i) => (
+                      <option key={`${mem.partNumber}-${i}`} value={mem.partNumber}>
                         {mem.description}
                       </option>
                     ))}
                   </datalist>
+
                 </td>
                 <td colSpan={2}>
                   <input
@@ -1591,13 +1592,7 @@ console.log("form", form);
           },
         }}
       />
-      <input
-  type="text"
-  value={printedName}
-  onChange={(e) => setPrintedName(e.target.value)}
-  placeholder="Enter printed name"
-  className="mt-2 p-2 border border-gray-300 rounded w-full max-w-xs text-sm"
-/>
+
 
       <div
         style={{
@@ -1607,6 +1602,16 @@ console.log("form", form);
           marginTop: 16,
         }}
       >
+              
+              <input
+                type="text"
+                value={printedName}
+                onChange={(e) => setPrintedName(e.target.value)}
+                placeholder="Enter printed name"
+                className="mt-2 p-2 border border-gray-300 rounded w-full max-w-xs text-sm"
+              />
+              
+              
         {/* Clear Button */}
         <button
           type="button"
