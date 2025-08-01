@@ -339,10 +339,26 @@ useEffect(() => {
 
 
   // Form handlers
-  const handleChange = e => {
-    const { name, value, type, checked } = e.target;
-    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-  };
+const handleChange = e => {
+  const { name, value, type, checked } = e.target;
+
+  let newValue = value;
+
+  // Auto-format phone numbers
+  if (name === 'contactPhone' || name === 'fieldContactNumber') {
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    if (digits.length >= 7) {
+      newValue = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    } else if (digits.length >= 4) {
+      newValue = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    } else if (digits.length >= 1) {
+      newValue = `(${digits}`;
+    }
+  }
+
+  setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : newValue }));
+};
+
   const addPart = () => {
     setForm(prev => ({ ...prev, parts: [...prev.parts, { description:'', partNumber:'', quantity:'', waiting: false }] }));
   };
