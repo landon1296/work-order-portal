@@ -466,7 +466,7 @@ window.open(pdfUrl, '_blank');
                   style={{
                     marginLeft: 18, background: '#fff', border: '2px solid #111',
                     color: '#111', padding: '4px 12px', borderRadius: 5, fontWeight: 700,
-                    fontSize: 15, cursor: 'pointer', transition: 'background 0.2s', fontFamily: 'Ariel, sans-serif'
+                    fontSize: 15, cursor: 'pointer', transition: 'background 0.2s', fontFamily: 'Ariel, sans-serif', cursor: 'pointer'
                   }}
                 >Dismiss</button>
               </li>
@@ -544,13 +544,13 @@ window.open(pdfUrl, '_blank');
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
-                    style={{ padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4, fontFamily: 'Ariel, sans-serif'}}
+                    style={{ cursor: 'pointer', padding: '4px 10px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4, fontFamily: 'Ariel, sans-serif'}}
                   >
                     View / Edit
                   </button>
                   <button
                     onClick={() => handleRework(o)}
-                    style={{ padding: '4px 10px', background:'#eed812', color: '#222', border:'none', borderRadius: 4, marginRight: 4}}
+                    style={{ cursor: 'pointer', padding: '4px 10px', background:'#eed812', color: '#222', border:'none', borderRadius: 4, marginRight: 4}}
                   >
                     Rework
                   </button>
@@ -565,6 +565,7 @@ window.open(pdfUrl, '_blank');
                       marginLeft: 0,
                       whiteSpace: 'nowrap',
                       minWidth: 135,
+                      cursor: 'pointer'
                     }}
                     title="Close this work order"
                   >
@@ -572,7 +573,7 @@ window.open(pdfUrl, '_blank');
                   </button>
                   <button
                     onClick={() => handleViewPDF(o)}
-                    style={{ padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4 }}
+                    style={{ cursor: 'pointer', padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4 }}
                   >
                     View PDF
                   </button>
@@ -649,13 +650,13 @@ window.open(pdfUrl, '_blank');
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
-                    style={{ padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4 }}
+                    style={{ cursor: 'pointer', padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4 }}
                   >
                     View / Edit
                   </button>
                   <button
                     onClick={() => handleViewPDF(o)}
-                    style={{ padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4 }}
+                    style={{ cursor: 'pointer', padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4 }}
                   >
                     View PDF
                   </button>
@@ -723,13 +724,13 @@ window.open(pdfUrl, '_blank');
                 <td>
                   <button
                     onClick={() => navigate(`/dashboard/workorder/${o.workOrderNo}`)}
-                    style={{ padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4 }}
+                    style={{ cursor: 'pointer', padding: '4px 12px', background: '#64748b', color: 'white', border:'none', borderRadius: 4, marginRight: 4 }}
                   >
                     View / Edit
                   </button>
                   <button
                     onClick={() => handleViewPDF(o)}
-                    style={{ padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4 }}
+                    style={{ cursor: 'pointer', padding: '4px 12px', background: 'white', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 4 }}
                   >
                     View PDF
                   </button>

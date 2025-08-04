@@ -5,6 +5,8 @@ import {
 } from "recharts";
 import GLLSLogo from '../assets/GLLSLogo.png';
 import { getStatusColor } from '../utils/statusColors';
+import { useNavigate } from "react-router-dom";
+
 
 //import racecarFive from '../assets/racecar5.png'; // 👈 import the image at the top
 
@@ -20,6 +22,8 @@ const SHOP_OPTIONS = [
 export default function AnalyticsDashboard({ user }) {
   const [data, setData] = useState(null);
   const [shopFilter, setShopFilter] = useState(() => localStorage.getItem('defaultShopFilter') || 'All Shops');
+    const navigate = useNavigate();
+
 
   useEffect(() => {
     if (!user?.token) return;
@@ -443,36 +447,56 @@ return (
               <th style={{ textAlign: "left", padding: 8 }}>Order #</th>
               <th style={{ textAlign: "left", padding: 8 }}>Status</th>
               <th style={{ textAlign: "left", padding: 8 }}>Created At</th>
+              <th style={{ textAlign: "left", padding: 8 }}>Technician</th>
+              <th style={{ textAlign: "left", padding: 8 }}>Actions</th>
             </tr>
           </thead>
+
             <tbody>
 {slowMoversFiltered.length === 0 && (
   <tr>
     <td colSpan={3} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>No slow movers!</td>
   </tr>
 )}
-{slowMoversFiltered.map(wo => (
-  <tr key={wo.work_order_no}>
-    <td style={{ padding: 8 }}>{wo.work_order_no}</td>
-    <td style={{ padding: 8 }}>
-  <span style={{
-    display: 'inline-block',
-    padding: '4px 10px',
-    background: getStatusColor(wo.status),
-    color: '#fff',
-    borderRadius: '12px',
-    fontWeight: 600,
-    fontSize: '13px'
-  }}>
-    {wo.status}
-  </span>
-</td>
+{slowMoversFiltered.map(wo => {
+  const tech = wo.timeLogs?.[0]?.technician_assigned || '';
+  return (
+    <tr key={wo.work_order_no}>
+      <td style={{ padding: 8 }}>{wo.work_order_no}</td>
+      <td style={{ padding: 8 }}>
+        <span style={{
+          display: 'inline-block',
+          padding: '4px 10px',
+          background: getStatusColor(wo.status),
+          color: '#fff',
+          borderRadius: '12px',
+        }}>
+          {wo.status}
+        </span>
+      </td>
+      <td style={{ padding: 8 }}>
+        {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ''}
+      </td>
+      <td style={{ padding: 8 }}>{tech}</td>
+      <td style={{ padding: 8 }}>
+        <button
+          onClick={() => navigate(`/dashboard/workorder/${wo.work_order_no}`)}
+          style={{
+            background: "#64748b",
+            color: "white",
+            padding: "4px 10px",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer"
+          }}
+        >
+          View / Edit
+        </button>
+      </td>
+    </tr>
+  );
+})}
 
-    <td style={{ padding: 8 }}>
-      {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ""}
-    </td>
-  </tr>
-))}
             </tbody>
 
         </table>
@@ -480,25 +504,30 @@ return (
 <div style={{ marginTop: 48, maxWidth: 800 }}>
   <h2 style={{ fontSize: 22, marginBottom: 8, borderBottom: '3px solid #2563eb', paddingBottom: 4, dispaly:'inline-block' }}>Work Orders Waiting on Parts</h2>
   <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
-    <thead>
-      <tr style={{ background: "#e5e7eb" }}>
-        <th style={{ textAlign: "left", padding: 8 }}>Order #</th>
-        <th style={{ textAlign: "left", padding: 8 }}>Status</th>
-        <th style={{ textAlign: "left", padding: 8 }}>Created At</th>
-      </tr>
-    </thead>
-    <tbody>
-      {waitingOnPartsFiltered.length === 0 ? (
-        <tr>
-          <td colSpan={3} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>
-            No work orders waiting on parts!
-          </td>
-        </tr>
-      ) : (
-        waitingOnPartsFiltered.map(wo => (
-          <tr key={wo.work_order_no}>
-            <td style={{ padding: 8 }}>{wo.work_order_no}</td>
-            <td style={{ padding: 8 }}>
+<thead>
+  <tr style={{ background: "#e5e7eb" }}>
+    <th style={{ textAlign: "left", padding: 8 }}>Order #</th>
+    <th style={{ textAlign: "left", padding: 8 }}>Status</th>
+    <th style={{ textAlign: "left", padding: 8 }}>Created At</th>
+    <th style={{ textAlign: "left", padding: 8 }}>Technician</th>
+    <th style={{ textAlign: "left", padding: 8 }}>Actions</th>
+  </tr>
+</thead>
+
+<tbody>
+  {waitingOnPartsFiltered.length === 0 ? (
+    <tr>
+      <td colSpan={5} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>
+        No work orders waiting on parts!
+      </td>
+    </tr>
+  ) : (
+    waitingOnPartsFiltered.map(wo => {
+      const tech = wo.timeLogs?.[0]?.technician_assigned || '';
+      return (
+        <tr key={wo.work_order_no}>
+          <td style={{ padding: 8 }}>{wo.work_order_no}</td>
+          <td style={{ padding: 8 }}>
             <span style={{
               display: 'inline-block',
               padding: '4px 10px',
@@ -511,14 +540,31 @@ return (
               {wo.status}
             </span>
           </td>
+          <td style={{ padding: 8 }}>
+            {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ""}
+          </td>
+          <td style={{ padding: 8 }}>{tech}</td>
+          <td style={{ padding: 8 }}>
+            <button
+              onClick={() => navigate(`/dashboard/workorder/${wo.work_order_no}`)}
+              style={{
+                background: "#64748b",
+                color: "white",
+                padding: "4px 10px",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer"
+              }}
+            >
+              View / Edit
+            </button>
+          </td>
+        </tr>
+      );
+    })
+  )}
+</tbody>
 
-            <td style={{ padding: 8 }}>
-              {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ""}
-            </td>
-          </tr>
-        ))
-      )}
-    </tbody>
   </table>
 </div>
 
