@@ -318,6 +318,7 @@ return (
           background: "#fee2e2",      // light red
           color: "#b91c1c",           // deep red text
           border: "2px solid #ef4444" // red border
+
         }
       : {}
   }
@@ -452,7 +453,7 @@ return (
             </tr>
           </thead>
 
-            <tbody>
+            <tbody style={{fontFamily: 'Arial, sans-serif'}}>
 {slowMoversFiltered.length === 0 && (
   <tr>
     <td colSpan={3} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>No slow movers!</td>
@@ -462,19 +463,23 @@ return (
   const tech = wo.timeLogs?.[0]?.technician_assigned || '';
   return (
     <tr key={wo.work_order_no}>
-      <td style={{ padding: 8 }}>{wo.work_order_no}</td>
-      <td style={{ padding: 8 }}>
-        <span style={{
-          display: 'inline-block',
-          padding: '4px 10px',
-          background: getStatusColor(wo.status),
-          color: '#fff',
-          borderRadius: '12px',
-        }}>
-          {wo.status}
-        </span>
+      <td style={{ padding: 8, fontFamily: 'Arial, sans-serif' }}>{wo.work_order_no}</td>
+      <td style={{ padding: 8, fontFamily: 'Arial, sans-serif' }}>
+<span style={{
+  display: 'inline-block',
+  padding: '4px 10px',
+  background: getStatusColor(wo.status),
+  color: '#fff',
+  borderRadius: '12px',
+  fontFamily: 'Arial, sans-serif',
+  fontWeight: 600,
+  fontSize: '13px'
+}}>
+  {wo.status}
+</span>
+
       </td>
-      <td style={{ padding: 8 }}>
+      <td style={{ padding: 8, fontFamily: 'Arial, sans-serif'}}>
         {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : ''}
       </td>
       <td style={{ padding: 8 }}>{tech}</td>
@@ -535,7 +540,8 @@ return (
               color: '#fff',
               borderRadius: '12px',
               fontWeight: 600,
-              fontSize: '13px'
+              fontSize: '13px',
+              fontFamily: 'Arial, sans-serif'
             }}>
               {wo.status}
             </span>
