@@ -1,4 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
 .assign-table {
   width: 100%;
   border-collapse: collapse;

@@ -18,7 +18,7 @@ export default function DashboardSwitcher({ user }) {
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, marginTop: 20, marginLeft: 30}}>
         {dashboards.map(d => (
           <button
             key={d.key}
