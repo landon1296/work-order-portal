@@ -356,7 +356,7 @@ const Header = ({ onLogout }) => (
       </button>
       <h1 style={{ margin: 0 }}>Analytics Dashboard</h1>
     </div>
-    <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 20 }} />
+    <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 0 }} />
   </div>
 );
 
@@ -366,15 +366,16 @@ const LocationFilter = ({ shopFilter, setShopFilter, onSetDefault }) => (
     display: "flex", 
     alignItems: "center", 
     gap: 16, 
-    fontFamily: 'Arial, sans-serif' 
+    fontFamily: 'Arial, sans-serif',
+    marginLeft: 30
   }}>
-    <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12 }}>
+    <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12,}}>
       Location Filter:
     </label>
     <select
       value={shopFilter}
       onChange={e => setShopFilter(e.target.value)}
-      style={{ fontSize: 18, padding: "6px 16px", borderRadius: 8, minWidth: 170 }}
+      style={{ fontSize: 18, padding: "6px 16px", borderRadius: 8, minWidth: 170, backgroundColor: "#f4f3f2"}}
       aria-label="Select shop filter"
     >
       {SHOP_OPTIONS.map(opt => (
@@ -409,6 +410,7 @@ const KPISection = ({ kpiData }) => (
     display: "flex", 
     gap: 30, 
     marginBottom: 24, 
+    marginLeft: 30,
     flexWrap: "wrap", 
     fontFamily: 'Arial, sans-serif'
   }}>
@@ -455,6 +457,7 @@ const ChartsSection = ({ chartData, filteredOrders }) => (
     <div style={{ 
       display: "flex", 
       gap: 36, 
+      marginLeft: 30,
       flexWrap: "wrap", 
       fontFamily: 'Arial, sans-serif' 
     }}>
@@ -498,6 +501,7 @@ const ChartsSection = ({ chartData, filteredOrders }) => (
       gap: 36, 
       flexWrap: "wrap", 
       marginTop: 36, 
+      marginLeft: 30,
       fontFamily: 'Arial, sans-serif' 
     }}>
       <ChartCard title="New Work Orders per Month">
@@ -526,6 +530,7 @@ const ChartsSection = ({ chartData, filteredOrders }) => (
     {/* Technician Workloads + Leaderboard */}
     <div style={{ 
       marginTop: 36, 
+      marginLeft: 30,
       display: 'flex', 
       gap: 36, 
       flexWrap: 'wrap', 
@@ -569,7 +574,7 @@ const ChartsSection = ({ chartData, filteredOrders }) => (
 );
 
 const TablesSection = ({ slowMoversFiltered, waitingOnPartsFiltered, onNavigateToWorkOrder }) => (
-  <div style={{ marginTop: 48, maxWidth: 800, fontFamily: 'Arial, sans-serif'}}>
+  <div style={{ marginTop: 48, marginLeft: 30, maxWidth: 800, fontFamily: 'Arial, sans-serif'}}>
     <SlowMoversTable 
       slowMoversFiltered={slowMoversFiltered} 
       onNavigateToWorkOrder={onNavigateToWorkOrder}

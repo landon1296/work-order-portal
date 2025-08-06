@@ -4,12 +4,12 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: white; /* default for all pages */
+  background: #ededed; /* default for all pages */
 }
 
 body.login-page {
   background: black !important; /* overrides white for login */
-  color: white;
+  color: #ffffff;
 }
 
 .assign-table {

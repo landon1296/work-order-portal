@@ -20,6 +20,9 @@ function toCamelCaseDeep(obj) {
 export default function TechDashboard({ username }) {
   const [workOrders, setWorkOrders] = useState([]);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+
+
 
   // Only show work orders that are NOT "submitted"
   const visibleWorkOrders = workOrders.filter(
@@ -30,13 +33,31 @@ export default function TechDashboard({ username }) {
     navigate(`/tech-dashboard/workorder/${workOrderNo}${isPreview ? '?preview=true' : ''}`);
   };
 
-  useEffect(() => {
-    API.get(`/workorders/assigned/${username}`)
-      .then(res => {
-        setWorkOrders(res.data.map(toCamelCaseDeep));
-      })
-      .catch(() => setWorkOrders([]));
-  }, [username]);
+useEffect(() => {
+  setLoading(true);
+  API.get(`/workorders/assigned/${username}`)
+    .then(res => {
+      setWorkOrders(res.data.map(toCamelCaseDeep));
+      setLoading(false);
+    })
+    .catch(() => {
+      setWorkOrders([]);
+      setLoading(false);
+    });
+}, [username]);
+if (loading) {
+  return (
+    <div style={{ 
+      padding: 30, 
+      fontFamily: 'Arial, sans-serif',
+      textAlign: 'center',
+      fontSize: '18px'
+    }}>
+      Loading your assigned work orders...
+    </div>
+  );
+}
+
 
   return (
     <div>
@@ -59,6 +80,7 @@ export default function TechDashboard({ username }) {
               borderRadius: 6,
               border: 'none',
               marginBottom: 10,
+              marginTop: 10,
               cursor: 'pointer'
             }}
           >
@@ -66,33 +88,82 @@ export default function TechDashboard({ username }) {
           </button>
           <h1 style={{ margin: 0, fontFamily: 'Arial, Sans-Serif' }}>Technician Dashboard</h1>
         </div>
-        <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 20 }} />
+        <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 0, marginTop:10 }} />
       </div>
 
-      <h2 style={{ textAlign: 'center', fontFamily: 'Arial, Sans-Serif' }}>Your Assigned Work Orders</h2>
-      <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif'}}>
+      <div style={{ 
+  display: 'flex', 
+  justifyContent: 'space-between', 
+  alignItems: 'center', 
+  margin: '20px 30px 10px 30px',
+  fontFamily: 'Arial, Sans-Serif'
+}}>
+  <div style={{ flex: 1 }}>
+    <button
+      onClick={() => {
+        setLoading(true);
+        API.get(`/workorders/assigned/${username}`)
+          .then(res => {
+            setWorkOrders(res.data.map(toCamelCaseDeep));
+            setLoading(false);
+          })
+          .catch(() => {
+            setWorkOrders([]);
+            setLoading(false);
+          });
+      }}
+      style={{
+        background: '#2563eb',
+        color: 'white',
+        border: 'none',
+        padding: '6px 16px',
+        borderRadius: 6,
+        fontSize: 14,
+        fontWeight: 'bold',
+        cursor: 'pointer'
+      }}
+    >
+      Refresh Work Orders
+    </button>
+  </div>
+
+  <div style={{ flex: 1, textAlign: 'center' }}>
+    <h2 style={{ margin: 0 }}>
+      Your Assigned Work Orders
+    </h2>
+  </div>
+
+  <div style={{ flex: 1 }} />
+</div>
+
+
+      <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', margin: '20px 30px 10px 30px',}}>
       <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif'}}>
         
         <thead>
           <tr>
             <th>Work Order #</th>
             <th>Company</th>
+            <th>Serial #</th>
             <th>Status</th>
             <th>Date Assigned</th>
+            <th>Days Open</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {visibleWorkOrders.length === 0 && (
             <tr>
-              <td colSpan={5} style={{ textAlign: 'center' }}>No assigned work orders.</td>
+              <td colSpan={6} style={{ textAlign: 'center' }}>No assigned work orders.</td>
             </tr>
           )}
           {visibleWorkOrders.map(wo => {
+
             return (
               <tr key={wo.id}>
                 <td>{String(wo.workOrderNo)}</td>
                 <td>{String(wo.companyName)}</td>
+                <td>{String(wo.serialNumber) || ''}</td>
                 <td>{String(wo.status || 'Assigned')}</td>
                 <td>
                   {wo.timeLogs?.[0]?.assignDate
@@ -108,6 +179,17 @@ export default function TechDashboard({ username }) {
                     : ''
                   }
                 </td>
+                <td>
+  {(() => {
+    const assignedDate = wo.timeLogs?.[0]?.assignDate;
+    if (!assignedDate) return '';
+    const assigned = new Date(assignedDate);
+    const now = new Date();
+    const daysOpen = Math.floor((now - assigned) / (1000 * 60 * 60 * 24));
+    return daysOpen;
+  })()}
+</td>
+
                 <td>
                   {(() => {
                     const status = (wo.status || '').toLowerCase().trim();
