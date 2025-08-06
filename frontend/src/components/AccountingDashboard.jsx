@@ -742,7 +742,7 @@ export default function AccountingDashboard({ user }) {
   }, [refetch]);
 
   const handleCloseWorkOrder = useCallback(async (order) => {
-    if (!window.confirm("Are you sure you want to close this work order? This will write it to Google Sheets.")) return;
+    if (!window.confirm("Are you sure you want to close this work order? This will post it to the database.")) return;
     try {
       await API.put(`/workorders/close/${order.id}`);
       alert("Work order closed!");
