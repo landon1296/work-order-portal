@@ -5,8 +5,11 @@ import logo from '../assets/GLLSLogo.png'; // <-- 2. import your logo!
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import * as THREE from 'three';
-import GLOBE from 'vanta/dist/vanta.globe.min';
+//import GLOBE from 'vanta/dist/vanta.globe.min';
 import { useRef } from 'react';
+import SpinningLogoGlobe from './SpinningLogoGlobe';
+
+
 
 
 
@@ -72,10 +75,10 @@ export default function LoginForm({ onLogin }) {
     }, []);
   }
 
-  const [vantaEffect, setVantaEffect] = useState(null);
-  const vantaRef = useRef(null);
+  //const [vantaEffect, setVantaEffect] = useState(null);
+  //const vantaRef = useRef(null);
   
-  useEffect(() => {
+ /* useEffect(() => {
     if (!vantaEffect) {
       setVantaEffect(
         GLOBE({
@@ -92,12 +95,8 @@ export default function LoginForm({ onLogin }) {
           size: .75,                 // 🌀 spacing between points
         })
       );
-    }
-  
-    return () => {
-      if (vantaEffect) vantaEffect.destroy();
-    };
-  }, [vantaEffect]);
+    } */
+
   
     
   
@@ -106,7 +105,10 @@ export default function LoginForm({ onLogin }) {
   
 return (
   <>
-  <div ref={vantaRef} style={{ minHeight: '100vh', width: '100%' }}>
+  <SpinningLogoGlobe />
+ 
+
+
   <div className='max-w-sm w-full p-4'
     style={{
       minHeight: '100vh',
@@ -198,7 +200,7 @@ return (
       </button>
     </form>
   </div>
-  </div>
+
   </>
 );
 

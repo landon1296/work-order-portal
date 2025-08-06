@@ -7,12 +7,16 @@ import TechDashboard from './components/TechDashboard';
 import TechWorkOrderForm from './components/TechWorkOrderForm';
 import AccountingDashboard from './components/AccountingDashboard';
 import DashboardSwitcher from "./components/DashboardSwitcher";
+import { useEffect } from 'react';
+
 // 
 
 
 // Guard for auth
 function RequireAuth({ user, children }) {
   const location = useLocation();
+
+  
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -22,8 +26,25 @@ function RequireAuth({ user, children }) {
 function App() {
   const [user, setUser] = useState(null);
 
+
+function LoginBackgroundWatcher() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.pathname === '/login') {
+      document.body.classList.add('login-page');
+    } else {
+      document.body.classList.remove('login-page');
+    }
+  }, [location.pathname]);
+
+  return null;
+}
+
+
   return (
     <Router>
+      <LoginBackgroundWatcher />
       <Routes>
         {/* Login Route */}
         <Route path="/login" element={<LoginForm onLogin={setUser} />} />
