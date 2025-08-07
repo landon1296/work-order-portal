@@ -353,14 +353,14 @@ const Header = ({ onLogout }) => (
       </button>
       <h1 style={{ margin: 0 }}>Accounting Dashboard</h1>
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginRight: 20 }}>
-      <img src={GLLSLogo} alt="Company Logo" style={{ height: 100 }} />
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginRight: 0 }}>
+      <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight:0, }} />
     </div>
   </div>
 );
 
 const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault }) => (
-  <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16, fontFamily: 'Arial, sans-serif' }}>
+  <div style={{ marginBottom: 28, marginLeft: 30, display: "flex", alignItems: "center", gap: 16, fontFamily: 'Arial, sans-serif' }}>
     <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12 }} htmlFor="shop-filter">
       Location Filter:
     </label>
@@ -803,7 +803,7 @@ export default function AccountingDashboard({ user }) {
   }
 
   return (
-    <div>
+    <div style={{marginLeft: 30, marginRight: 30}}>
       <Header onLogout={handleLogout} />
       
       <LocationFilter 

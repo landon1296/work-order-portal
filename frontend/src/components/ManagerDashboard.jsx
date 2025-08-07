@@ -379,7 +379,8 @@ const Header = ({ onAssignNewWorkOrder, onLogout }) => (
           border: 'none',
           borderRadius: 8,
           cursor: 'pointer',
-          marginBottom: 0
+          marginBottom: 0,
+          marginRight: 30,
         }}
         onClick={onAssignNewWorkOrder}
         aria-label="Create a new work order"
@@ -391,7 +392,7 @@ const Header = ({ onAssignNewWorkOrder, onLogout }) => (
 );
 
 const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault }) => (
-  <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 16, fontFamily: 'Arial, sans-serif' }}>
+  <div style={{ marginBottom: 28, marginLeft: 30, display: "flex", alignItems: "center", gap: 16, fontFamily: 'Arial, sans-serif' }}>
     <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12 }} htmlFor="shop-filter">
       Location Filter:
     </label>
@@ -414,7 +415,7 @@ const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault }) => (
         background: "#e5e7eb",
         color: "#334155",
         fontWeight: 600,
-        border: "1px solid #cbd5e1",
+        border: "1px solid #f4f3f2",
         cursor: "pointer"
       }}
       onClick={() => onSetDefault(shopFilter)}
@@ -439,7 +440,8 @@ const SearchInput = ({ value, onChange, placeholder, "aria-label": ariaLabel }) 
       fontSize: 16,
       border: "1px solid #ccc",
       borderRadius: 5,
-      fontFamily: 'Arial, sans-serif'
+      fontFamily: 'Arial, sans-serif',
+      marginLeft: 30,
     }}
     aria-label={ariaLabel}
   />
@@ -456,7 +458,7 @@ const WorkOrderTable = ({
   showActions = true,
   emptyMessage = "No work orders found."
 }) => (
-  <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif' }}>
+  <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', marginLeft: 30, marginRight: 30 }}>
     <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
       <thead>
         <tr>
@@ -839,7 +841,7 @@ export default function ManagerDashboard({ user }) {
       />
 
       {/* Active Work Orders */}
-      <h2 style={{ fontFamily: 'Arial, sans-serif' }}>Active Work Orders</h2>
+      <h2 style={{ fontFamily: 'Arial, sans-serif', marginLeft: 30, }}>Active Work Orders</h2>
       <SearchInput
         value={search}
         onChange={handleSearchChange}
