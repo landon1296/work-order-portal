@@ -129,8 +129,12 @@ const useShopFilter = () => {
 // Main component
 export default function AnalyticsDashboard({ user }) {
   const navigate = useNavigate();
-  const { data, loading, error } = useAnalyticsData(user);
+  const { data, loading, error, refetch } = useAnalyticsData(user);
   const { shopFilter, setShopFilter, setDefaultShopFilter } = useShopFilter();
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   // Memoized calculations
   const {
@@ -300,7 +304,7 @@ export default function AnalyticsDashboard({ user }) {
 
   return (
     <div>
-      <Header onLogout={() => window.location.href = '/login'} />
+      <Header onLogout={() => window.location.href = '/login'} onRefresh={handleRefresh} />
       
       <LocationFilter 
         shopFilter={shopFilter}
@@ -322,7 +326,7 @@ export default function AnalyticsDashboard({ user }) {
 }
 
 // Sub-components
-const Header = ({ onLogout }) => (
+const Header = ({ onLogout, onRefresh }) => (
   <div style={{ 
     display: 'flex', 
     alignItems: 'flex-start', 
@@ -337,23 +341,40 @@ const Header = ({ onLogout }) => (
       marginLeft: 30, 
       fontFamily: 'Arial, sans-serif' 
     }}>
-      <button
-        onClick={onLogout}
-        style={{
-          background: '#ef4444',
-          color: 'white',
-          fontWeight: 'bold',
-          padding: '6px 14px',
-          fontSize: 14,
-          borderRadius: 6,
-          border: 'none',
-          marginBottom: 10,
-          cursor: 'pointer'
-        }}
-        aria-label="Log out"
-      >
-        Log Out
-      </button>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: 10 }}>
+        <button
+          onClick={onLogout}
+          style={{
+            background: '#ef4444',
+            color: 'white',
+            fontWeight: 'bold',
+            padding: '6px 14px',
+            fontSize: 14,
+            borderRadius: 6,
+            border: 'none',
+            cursor: 'pointer'
+          }}
+          aria-label="Log out"
+        >
+          Log Out
+        </button>
+        <button
+          onClick={onRefresh}
+          style={{
+            background: '#2563eb',
+            color: 'white',
+            fontWeight: 'bold',
+            padding: '6px 14px',
+            fontSize: 14,
+            borderRadius: 6,
+            border: 'none',
+            cursor: 'pointer'
+          }}
+          aria-label="Refresh dashboard data"
+        >
+          Refresh
+        </button>
+      </div>
       <h1 style={{ margin: 0 }}>Analytics Dashboard</h1>
     </div>
     <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 0 }} />

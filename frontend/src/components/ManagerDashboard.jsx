@@ -389,7 +389,7 @@ const generatePDF = (order) => {
 };
 
 // Sub-components
-const Header = ({ onAssignNewWorkOrder, onLogout }) => (
+const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
   <div style={{
     display: 'flex',
     alignItems: 'flex-start',
@@ -398,23 +398,40 @@ const Header = ({ onAssignNewWorkOrder, onLogout }) => (
     fontFamily: 'Arial, sans-serif'
   }}>
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30 }}>
-      <button
-        onClick={onLogout}
-        style={{
-          background: '#ef4444',
-          color: 'white',
-          fontWeight: 'bold',
-          padding: '6px 14px',
-          fontSize: 14,
-          borderRadius: 6,
-          border: 'none',
-          marginBottom: 10,
-          cursor: 'pointer'
-        }}
-        aria-label="Log out of the application"
-      >
-        Log Out
-      </button>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: 10 }}>
+        <button
+          onClick={onLogout}
+          style={{
+            background: '#ef4444',
+            color: 'white',
+            fontWeight: 'bold',
+            padding: '6px 14px',
+            fontSize: 14,
+            borderRadius: 6,
+            border: 'none',
+            cursor: 'pointer'
+          }}
+          aria-label="Log out of the application"
+        >
+          Log Out
+        </button>
+        <button
+          onClick={onRefresh}
+          style={{
+            background: '#2563eb',
+            color: 'white',
+            fontWeight: 'bold',
+            padding: '6px 14px',
+            fontSize: 14,
+            borderRadius: 6,
+            border: 'none',
+            cursor: 'pointer'
+          }}
+          aria-label="Refresh dashboard data"
+        >
+          Refresh
+        </button>
+      </div>
       <h1 style={{ 
         textAlign: 'center', 
         width: '100%', 
@@ -1094,6 +1111,10 @@ export default function ManagerDashboard({ user }) {
     window.location.href = '/login';
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
   const handleViewEdit = useCallback((workOrderNo) => {
     navigate(`/dashboard/workorder/${workOrderNo}`);
   }, [navigate]);
@@ -1214,6 +1235,7 @@ export default function ManagerDashboard({ user }) {
       <Header 
         onAssignNewWorkOrder={handleAssignNewWorkOrder}
         onLogout={handleLogout}
+        onRefresh={handleRefresh}
       />
       
       <LocationFilter 
