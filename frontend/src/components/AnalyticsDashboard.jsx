@@ -774,10 +774,11 @@ function getTopParts(orders) {
       wo.parts.forEach(part => {
         const partNum = (part.part_number || '').trim();
         const desc = (part.description || '').trim();
+        const quantity = parseInt(part.quantity) || 1; // Default to 1 if quantity is not available
 
         if (partNum) {
           if (!partUse[partNum]) partUse[partNum] = { count: 0, description: desc };
-          partUse[partNum].count += 1;
+          partUse[partNum].count += quantity; // Add the actual quantity instead of just 1
         }
       });
     }
