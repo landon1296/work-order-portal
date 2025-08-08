@@ -53,6 +53,62 @@ const drawRoundedRect = (doc, x, y, width, height, radius = 3) => {
   doc.roundedRect(x, y, width, height, radius, radius);
 };
 
+// Global search functionality
+const useGlobalSearch = () => {
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+
+  const performGlobalSearch = useCallback((orders, searchTerm) => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    const searchLower = searchTerm.toLowerCase();
+    const results = orders.filter(order => {
+      return (
+        (order.companyName && order.companyName.toLowerCase().includes(searchLower)) ||
+        (order.workOrderNo && order.workOrderNo.toString().includes(searchTerm)) ||
+        (order.date && order.date.includes(searchTerm)) ||
+        (order.serialNumber && order.serialNumber.toLowerCase().includes(searchLower)) ||
+        (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(searchLower)) ||
+        (order.workDescription && order.workDescription.toLowerCase().includes(searchLower)) ||
+        (order.notes && order.notes.toLowerCase().includes(searchLower)) ||
+        (order.make && order.make.toLowerCase().includes(searchLower)) ||
+        (order.model && order.model.toLowerCase().includes(searchLower)) ||
+        (order.repairType && order.repairType.toLowerCase().includes(searchLower)) ||
+        (order.shop && order.shop.toLowerCase().includes(searchLower)) ||
+        (order.status && order.status.toLowerCase().includes(searchLower))
+      );
+    });
+
+    setSearchResults(results);
+    setShowSearchResults(true);
+  }, []);
+
+  const handleGlobalSearch = useCallback((searchTerm) => {
+    setGlobalSearchTerm(searchTerm);
+    // Don't perform search on every keystroke - only when explicitly triggered
+  }, []);
+
+  const clearGlobalSearch = useCallback(() => {
+    setGlobalSearchTerm('');
+    setShowSearchResults(false);
+    setSearchResults([]);
+  }, []);
+
+  return {
+    globalSearchTerm,
+    showSearchResults,
+    searchResults,
+    handleGlobalSearch,
+    clearGlobalSearch,
+    performGlobalSearch
+  };
+};
+
 // Custom hooks
 const useWorkOrders = (user) => {
   const [orders, setOrders] = useState([]);
@@ -70,6 +126,8 @@ const useWorkOrders = (user) => {
         headers: { Authorization: `Bearer ${user.token}` } 
       });
       setOrders(res.data);
+      // Store all orders globally for search functionality
+      window.allWorkOrders = res.data;
     } catch (err) {
       console.error('Failed to fetch orders:', err);
       setError('Failed to load work orders. Please refresh the page.');
@@ -391,8 +449,16 @@ const Header = ({ onAssignNewWorkOrder, onLogout }) => (
   </div>
 );
 
-const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault }) => (
-  <div style={{ marginBottom: 28, marginLeft: 30, display: "flex", alignItems: "center", gap: 16, fontFamily: 'Arial, sans-serif' }}>
+const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSearchTerm, onGlobalSearchChange, onGlobalSearchSubmit }) => (
+  <div style={{ 
+    marginBottom: 28, 
+    marginLeft: 30, 
+    position: 'relative',
+    display: "flex", 
+    alignItems: "center", 
+    gap: 16, 
+    fontFamily: 'Arial, sans-serif' 
+  }}>
     <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12 }} htmlFor="shop-filter">
       Location Filter:
     </label>
@@ -424,6 +490,54 @@ const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault }) => (
     >
       Set as Default
     </button>
+    
+    {/* Global Search Bar */}
+    <div style={{ 
+      position: 'absolute', 
+      left: '50%', 
+      transform: 'translateX(-50%)', 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: 8 
+    }}>
+      <input
+        type="text"
+        placeholder="Search all work orders..."
+        value={globalSearchTerm}
+        onChange={onGlobalSearchChange}
+        onKeyPress={(e) => {
+          if (e.key === 'Enter') {
+            onGlobalSearchSubmit();
+          }
+        }}
+        style={{
+          padding: "8px 16px",
+          fontSize: 16,
+          border: "2px solid #e5e7eb",
+          borderRadius: 8,
+          minWidth: 300,
+          fontFamily: 'Arial, sans-serif',
+          
+        }}
+        aria-label="Search all work orders"
+      />
+      <button
+        onClick={onGlobalSearchSubmit}
+        style={{
+          padding: "8px 16px",
+          background: "#2563eb",
+          color: "white",
+          border: "none",
+          borderRadius: 8,
+          fontWeight: 600,
+          cursor: "pointer",
+          fontSize: 16
+        }}
+        aria-label="Search work orders"
+      >
+        Search
+      </button>
+    </div>
   </div>
 );
 
@@ -655,6 +769,243 @@ const SectionHeader = ({ title, count, highlight = false }) => (
   </h2>
 );
 
+const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackToDashboard }) => {
+  const highlightText = (text, searchTerm) => {
+    if (!text || !searchTerm) return text;
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    return text.toString().replace(regex, '<mark style="background-color: yellow; padding: 1px 2px;">$1</mark>');
+  };
+
+  return (
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginBottom: '30px',
+        borderBottom: '1px solid #e5e7eb',
+        paddingBottom: '20px'
+      }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '24px', color: '#1f2937' }}>
+            Search Results for "{searchTerm}"
+          </h1>
+          <p style={{ margin: '8px 0 0 0', color: '#6b7280', fontSize: '16px' }}>
+            Found {results.length} work order{results.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <button
+          onClick={onBackToDashboard}
+          style={{
+            padding: '8px 16px',
+            background: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }}
+        >
+          ← Back to Dashboard
+        </button>
+      </div>
+
+      {/* Search Results */}
+      {results.length === 0 ? (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '60px 20px',
+          color: '#6b7280'
+        }}>
+          <h3 style={{ marginBottom: '10px' }}>No results found</h3>
+          <p>Try searching with different keywords or check your spelling.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {results.map((order, index) => (
+            <div
+              key={order.workOrderNo}
+              style={{
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                padding: '20px',
+                backgroundColor: 'white',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                transition: 'box-shadow 0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+              }}
+            >
+              {/* Result Header */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'flex-start',
+                marginBottom: '12px'
+              }}>
+                <div>
+                  <h3 style={{ 
+                    margin: 0, 
+                    fontSize: '18px', 
+                    color: '#2563eb',
+                    fontWeight: '600'
+                  }}>
+                    <span dangerouslySetInnerHTML={{ 
+                      __html: highlightText(order.workOrderNo, searchTerm) 
+                    }} />
+                  </h3>
+                  <p style={{ 
+                    margin: '4px 0 0 0', 
+                    color: '#6b7280', 
+                    fontSize: '14px' 
+                  }}>
+                    <span dangerouslySetInnerHTML={{ 
+                      __html: highlightText(order.companyName, searchTerm) 
+                    }} />
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => onViewEdit(order.workOrderNo)}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#2563eb',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    View/Edit
+                  </button>
+                  <button
+                    onClick={() => onViewPDF(order)}
+                    style={{
+                      padding: '6px 12px',
+                      background: 'white',
+                      color: '#2563eb',
+                      border: '1px solid #2563eb',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Result Details */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '12px',
+                fontSize: '14px'
+              }}>
+                <div>
+                  <strong>Date:</strong> 
+                  <span dangerouslySetInnerHTML={{ 
+                    __html: highlightText(formatDate(order.date), searchTerm) 
+                  }} />
+                </div>
+                <div>
+                  <strong>Technician:</strong> 
+                  <span dangerouslySetInnerHTML={{ 
+                    __html: highlightText(order.timeLogs?.[0]?.technicianAssigned || '', searchTerm) 
+                  }} />
+                </div>
+                <div>
+                  <strong>Shop:</strong> 
+                  <span dangerouslySetInnerHTML={{ 
+                    __html: highlightText(order.shop, searchTerm) 
+                  }} />
+                </div>
+                <div>
+                  <strong>Status:</strong> 
+                  <span style={{
+                    display: "inline-block",
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    fontSize: "12px",
+                    background: getStatusColor(order.status || 'Assigned'),
+                    color: "#fff",
+                    marginLeft: '4px'
+                  }}>
+                    {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Assigned'}
+                  </span>
+                </div>
+                <div>
+                  <strong>Serial #:</strong> 
+                  <span dangerouslySetInnerHTML={{ 
+                    __html: highlightText(order.serialNumber, searchTerm) 
+                  }} />
+                </div>
+                <div>
+                  <strong>Make/Model:</strong> 
+                  <span dangerouslySetInnerHTML={{ 
+                    __html: highlightText(`${order.make} / ${order.model}`, searchTerm) 
+                  }} />
+                </div>
+              </div>
+
+              {/* Work Description Preview */}
+              {order.workDescription && (
+                <div style={{ marginTop: '12px' }}>
+                  <strong>Work Description:</strong>
+                  <p style={{ 
+                    margin: '4px 0 0 0', 
+                    color: '#374151',
+                    lineHeight: '1.4',
+                    fontSize: '13px'
+                  }}>
+                    <span dangerouslySetInnerHTML={{ 
+                      __html: highlightText(
+                        order.workDescription.length > 200 
+                          ? order.workDescription.substring(0, 200) + '...' 
+                          : order.workDescription, 
+                        searchTerm
+                      ) 
+                    }} />
+                  </p>
+                </div>
+              )}
+
+              {/* Notes Preview */}
+              {order.notes && (
+                <div style={{ marginTop: '8px' }}>
+                  <strong>Notes:</strong>
+                  <p style={{ 
+                    margin: '4px 0 0 0', 
+                    color: '#374151',
+                    lineHeight: '1.4',
+                    fontSize: '13px'
+                  }}>
+                    <span dangerouslySetInnerHTML={{ 
+                      __html: highlightText(
+                        order.notes.length > 150 
+                          ? order.notes.substring(0, 150) + '...' 
+                          : order.notes, 
+                        searchTerm
+                      ) 
+                    }} />
+                  </p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Main component
 export default function ManagerDashboard({ user }) {
   const navigate = useNavigate();
@@ -668,6 +1019,7 @@ export default function ManagerDashboard({ user }) {
   const { orders, loading, error, refetch } = useWorkOrders(user);
   const { shopFilter, updateShopFilter, setDefaultShop } = useShopFilter();
   const { search, setSearch, closedSearch, setClosedSearch, closedPage, setClosedPage, resetClosedPage } = useSearchFilters();
+  const { globalSearchTerm, showSearchResults, searchResults, handleGlobalSearch, clearGlobalSearch, performGlobalSearch } = useGlobalSearch();
 
   // Memoized filtered orders
   const filteredOrders = useMemo(() => 
@@ -800,6 +1152,23 @@ export default function ManagerDashboard({ user }) {
     resetClosedPage();
   }, [setClosedSearch, resetClosedPage]);
 
+  const handleGlobalSearchChange = useCallback((e) => {
+    handleGlobalSearch(e.target.value);
+  }, [handleGlobalSearch]);
+
+  const handleGlobalSearchSubmit = useCallback(() => {
+    if (globalSearchTerm.trim()) {
+      performGlobalSearch(window.allWorkOrders || [], globalSearchTerm);
+    } else {
+      setShowSearchResults(false);
+      setSearchResults([]);
+    }
+  }, [globalSearchTerm, performGlobalSearch]);
+
+  const handleBackToDashboard = useCallback(() => {
+    clearGlobalSearch();
+  }, [clearGlobalSearch]);
+
   // Loading and error states
   if (loading) {
     return (
@@ -827,6 +1196,19 @@ export default function ManagerDashboard({ user }) {
     );
   }
 
+  // Show search results page if search is active
+  if (showSearchResults) {
+    return (
+      <SearchResultsPage
+        searchTerm={globalSearchTerm}
+        results={searchResults}
+        onViewEdit={handleViewEdit}
+        onViewPDF={handleViewPDF}
+        onBackToDashboard={handleBackToDashboard}
+      />
+    );
+  }
+
   return (
     <div>
       <Header 
@@ -838,6 +1220,9 @@ export default function ManagerDashboard({ user }) {
         shopFilter={shopFilter}
         onShopFilterChange={updateShopFilter}
         onSetDefault={setDefaultShop}
+        globalSearchTerm={globalSearchTerm}
+        onGlobalSearchChange={handleGlobalSearchChange}
+        onGlobalSearchSubmit={handleGlobalSearchSubmit}
       />
 
       {/* Active Work Orders */}
@@ -851,6 +1236,7 @@ export default function ManagerDashboard({ user }) {
       <WorkOrderTable
         orders={filteredActiveWorkOrders}
         onViewEdit={handleViewEdit}
+        onViewPDF={handleViewPDF}
         emptyMessage="No active work orders."
       />
 
@@ -866,6 +1252,7 @@ export default function ManagerDashboard({ user }) {
         onRework={handleRework}
         onSubmitForBilling={handleSubmitForBilling}
         onCloseWorkOrder={handleCloseWorkOrder}
+        onViewPDF={handleViewPDF}
         showStatus={false}
         emptyMessage="No work orders pending review."
       />

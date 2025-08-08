@@ -495,23 +495,38 @@ const handlePartChange = (idx, field, value) => {
 
     await API.put(`/workorders/${form.workOrderNo}`, form);
     alert('Progress saved!');
-    // Send them back to their dashboard
-    if (user.role === "manager") {
-      navigate("/dashboard");
-    } else if (user.role === "accounting") {
-      navigate("/accounting-dashboard");
-    } else if (user.role === "technician") {
-      navigate("/tech-dashboard");
-    } else if (user.role === "analytics" || user.role === "owner") {
-      navigate("/analytics");
-    } else {
-      navigate("/");
-    }
+    // Stay on the current page - no navigation
   } catch (err) {
     alert('Failed to save progress.');
     console.error(err);
   }
 };
+
+  // Save and close (save progress and navigate back to dashboard)
+  const handleSaveAndClose = async () => {
+    try {
+      console.log("Saving form.parts:", form.parts);
+
+      await API.put(`/workorders/${form.workOrderNo}`, form);
+      alert('Progress saved!');
+      
+      // Navigate back to the appropriate dashboard based on user role
+      if (user.role === "manager") {
+        navigate("/dashboard");
+      } else if (user.role === "accounting") {
+        navigate("/accounting-dashboard");
+      } else if (user.role === "technician") {
+        navigate("/tech-dashboard");
+      } else if (user.role === "analytics" || user.role === "owner") {
+        navigate("/analytics");
+      } else {
+        navigate("/");
+      }
+    } catch (err) {
+      alert('Failed to save progress.');
+      console.error(err);
+    }
+  };
 
   // SUBMIT FOR REVIEW (set status to "Completed, Pending Approval")
   const handleSubmit = async (e) => {
@@ -1127,7 +1142,7 @@ console.log("form", form);
             ))}
             <tr>
             <td colSpan={5}>
-                <button type="button" onClick={addTimeLog}>+ Add Time Log</button>
+                <button style={{cursor: 'pointer'}} type="button" onClick={addTimeLog}>+ Add Time Log</button>
             </td>
             </tr>
             <tr>
@@ -1289,7 +1304,7 @@ console.log("form", form);
           {/* Parts & notes */}
           <tr>
             <td colSpan={1}>
-              <button type="button" onClick={addPart}>Add Part</button>
+              <button  type="button" style={{cursor: 'pointer'}} onClick={addPart}>Add Part </button>
             </td>
             <td colSpan={4} style={{background:"#808080"}}></td>
 
@@ -1335,14 +1350,21 @@ console.log("form", form);
 
               <button 
                 type="button"
+                onClick={handleSaveAndClose}
+                style={{ marginRight: '8px', background: '#ffe066', border: '1px solid #aaa', borderRadius: 4, padding: '4px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                Save & Close
+              </button>
+              <button 
+                type="button"
                 onClick={handleSaveProgress}
-                style={{ marginRight: '8px', background: '#ffe066', border: '1px solid #aaa', borderRadius: 4, padding: '4px 16px', fontWeight: 'bold' }}
+                style={{ marginRight: '8px', background: '#ffe066', border: '1px solid #aaa', borderRadius: 4, padding: '4px 16px', fontWeight: 'bold', cursor: 'pointer' }}
               >
                 Save Progress
               </button>
               <button 
                 type="submit"
-                style={{marginRight: '8px', background: '#adebb3', border: '1px solid #aaa', borderRadius: 4, padding: '4px 16px', fontWeight: 'bold' }}>
+                style={{marginRight: '8px', background: '#adebb3', border: '1px solid #aaa', borderRadius: 4, padding: '4px 16px', fontWeight: 'bold', cursor: 'pointer' }}>
                 Submit For Review
               </button>
             </td>

@@ -3,6 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api';
 import '../index.css';
 import { default as SignaturePad } from 'react-signature-canvas';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import GLLSLogo from '../assets/GLLSLogo.png';
+import logoBase64 from '../assets/logoBase64';
 
 // Constants
 const REPAIR_TYPES = {
@@ -73,6 +77,228 @@ const validateForm = (form) => {
   }
 
   return errors;
+};
+
+// PDF Generation utility functions
+const formatDate = (dateStr) => {
+  const date = new Date(dateStr);
+  return isNaN(date) ? "" : `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+};
+
+const drawRoundedRect = (doc, x, y, width, height, radius = 3) => {
+  doc.roundedRect(x, y, width, height, radius, radius);
+};
+
+const generatePDF = (order) => {
+  try {
+    console.log("Generating PDF for work order", order.workOrderNo);
+
+    const doc = new jsPDF({ margin: 20 });
+    const leftMargin = 20;
+    const rightMargin = 20;
+    const topMargin = 20;
+    const bottomMargin = 20;
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    let y = 20;
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(`Work Order #${order.workOrderNo}`, 80, y, { align: "right" });
+    y += 10;
+    
+    if (logoBase64) {
+      doc.addImage(logoBase64, "PNG", 90, 10.5, 93.75, 15);
+    }
+
+    // Work Order Information
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+
+    const info = [
+      ["Date", formatDate(order.date)],
+      ["Company", order.companyName],
+      ["Address", `${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}`],
+      ["Contact", `${order.contactName || ""} (${order.contactPhone || ""})`],
+      ["Technician(s)", [...new Set((order.timeLogs || []).map(t => t.technicianAssigned).filter(Boolean))].join(", ")],
+      ["Make / Model / Serial", `${order.make} / ${order.model} / ${order.serialNumber}`],
+      ["Repair Type", order.repairType],
+      ["Work Type", [
+        order.vendorWarranty ? "Vendor Warranty" : "",
+        order.billable ? "Billable" : "",
+        order.maintenance ? "Maintenance" : "",
+        order.nonBillableRepair ? "Non-billable Repair" : ""
+      ].filter(Boolean).join(", ")],
+      ["Shop", order.shop],
+      ["Status", order.status]
+    ];
+
+    const infoStartY = y + 5;
+    let currentInfoY = infoStartY;
+
+    info.forEach(([label, value]) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(`${label}:`, leftMargin, currentInfoY += 8);
+      doc.setFont("helvetica", "normal");
+      doc.text(value || "", leftMargin + 60, currentInfoY);
+    });
+    
+    drawRoundedRect(doc, leftMargin - 5, infoStartY - 0, 180, currentInfoY - infoStartY + 5, 4);
+    y = currentInfoY + 4;
+
+    // Work Description
+    const estimatedWorkDescHeight = doc.splitTextToSize(order.workDescription || "", 170).length * 6 + 16;
+    if (y + estimatedWorkDescHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      y = topMargin;
+    }
+
+    doc.setFont("helvetica", "bold");
+    const workDescStartY = y + 10;
+    doc.text("Work Description:", leftMargin, workDescStartY);
+    doc.setFont("helvetica", "normal");
+    const workDescText = doc.splitTextToSize(order.workDescription || "", 170);
+    doc.text(workDescText, leftMargin, workDescStartY + 6);
+    drawRoundedRect(doc, leftMargin - 5, workDescStartY - 5, 180, workDescText.length * 6 + 16, 4);
+    y = workDescStartY + workDescText.length * 6 + 20;
+
+    // Tech Summary / Notes
+    const estimatedNotesHeight = doc.splitTextToSize(order.notes || "", 170).length * 6 + 16;
+    if (y + estimatedNotesHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      y = topMargin;
+    }
+
+    doc.setFont("helvetica", "bold");
+    const notesStartY = y;
+    doc.text("Tech Summary / Notes:", leftMargin, notesStartY);
+    doc.setFont("helvetica", "normal");
+    const notesText = doc.splitTextToSize(order.notes || "", 170);
+    doc.text(notesText, leftMargin, notesStartY + 6);
+    drawRoundedRect(doc, leftMargin - 5, notesStartY - 5, 180, notesText.length * 6 + 16, 4);
+    y = notesStartY + notesText.length * 6 + 20;
+
+    // Parts Table
+    if (order.parts && order.parts.length > 0) {
+      doc.setFont("helvetica", "bold");
+      const partsStartY = y;
+      doc.text("Parts Used", leftMargin, partsStartY);
+      y += 6;
+
+      doc.autoTable({
+        startY: y,
+        head: [["Part #", "Description", "Qty"]],
+        body: order.parts.map(p => [p.partNumber || "", p.description || "", p.quantity || ""]),
+        margin: { top: 20, bottom: 20, left: leftMargin, right: rightMargin },
+        styles: {
+          fontSize: 10,
+          overflow: 'linebreak',
+          cellPadding: 3,
+          lineWidth: 0
+        },
+        alternateRowStyles: {
+          fillColor: [230, 230, 230]
+        },
+        tableWidth: doc.internal.pageSize.getWidth() - leftMargin - rightMargin,
+        pageBreak: 'auto',
+        headStyles: { fillColor: [0, 102, 204], textColor: 255 }
+      });
+      y = doc.lastAutoTable.finalY + 14;
+    }
+
+    // Time Logs Table
+    if (order.timeLogs && order.timeLogs.length > 0) {
+      doc.setFont("helvetica", "bold");
+      const timeLogsStartY = y;
+      doc.text("Time Logs", leftMargin, timeLogsStartY);
+      y += 6;
+
+      // Store the starting Y position for the rectangle
+      const timeLogsTableStartY = y;
+
+      doc.autoTable({
+        startY: y,
+        head: [["Tech", "Date", "Start", "Finish", "Travel"]],
+        body: order.timeLogs.map(log => [
+          log.technicianAssigned || "",
+          formatDate(log.assignDate),
+          log.startTime || "",
+          log.finishTime || "",
+          log.travelTime || ""
+        ]),
+        margin: { top: 10, bottom: 30, left: leftMargin, right: rightMargin },
+        styles: {
+          fontSize: 10,
+          overflow: 'linebreak',
+          cellPadding: 3,
+          lineWidth: 0
+        },
+        alternateRowStyles: {
+          fillColor: [230, 230, 230]
+        },
+        tableWidth: doc.internal.pageSize.getWidth() - leftMargin - rightMargin,
+        pageBreak: 'auto',
+        headStyles: { fillColor: [0, 102, 204], textColor: 255 },
+        didDrawPage: function(data) {
+          // Draw rectangle around time logs table on each page it appears
+          const currentPage = doc.getCurrentPageInfo().pageNumber;
+          
+          // Only draw rectangle if this is the first page of the time logs table
+          if (currentPage === Math.floor(timeLogsTableStartY / pageHeight) + 1) {
+            const rectHeight = Math.min(pageHeight - timeLogsTableStartY - 20, data.cursor.y - timeLogsTableStartY + 10);
+            drawRoundedRect(doc, leftMargin - 5, timeLogsTableStartY - 5, 180, rectHeight, 4);
+          }
+        }
+      });
+      y = doc.lastAutoTable.finalY + 14;
+    }
+
+    // Signature
+    if (order.customerSignature) {
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const signatureBlockHeight = 60;
+
+      if (y + signatureBlockHeight > pageHeight - 20) {
+        doc.addPage();
+        y = 20;
+      }
+
+      const signatureStartY = y;
+      doc.setFont("helvetica", "bold");
+      doc.text("Customer Acknowledgement Signature:", leftMargin, signatureStartY);
+
+      const sigImgHeight = 25;
+      const sigImgWidth = 100;
+      doc.addImage(order.customerSignature, "PNG", leftMargin, signatureStartY + 5, sigImgWidth, sigImgHeight);
+
+      let printedY = signatureStartY + sigImgHeight + 15;
+
+      doc.setFontSize(9);
+      if (order.signatureTimestamp) {
+        doc.text(`Signed on: ${new Date(order.signatureTimestamp).toLocaleString()}`, leftMargin, printedY);
+        printedY += 10;
+      }
+
+      if (order.customerSignaturePrinted) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Printed Signature: ${order.customerSignaturePrinted}`, leftMargin, printedY);
+        printedY += 10;
+      }
+
+      const sectionHeight = printedY - signatureStartY + 5;
+      doc.setDrawColor(0);
+      drawRoundedRect(doc, leftMargin - 5, signatureStartY - 5, 180, sectionHeight, 4);
+    }
+
+    const pdfUrl = doc.output('bloburl');
+    window.open(pdfUrl, '_blank');
+
+  } catch (err) {
+    console.error("PDF generation failed:", err);
+    alert('Failed to generate PDF. Please try again.');
+  }
 };
 
 // Custom hooks
@@ -443,6 +669,56 @@ export default function AssignWorkOrderForm({ token }) {
     }
   }, [form, id, navigate, setFormLoading]);
 
+  const handleAssignAndPrintPDF = useCallback(async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    const errors = validateForm(form);
+    if (errors.length > 0) {
+      alert(errors.join('\n'));
+      return;
+    }
+
+    setFormLoading(true);
+    
+    try {
+      const cleanedParts = (form.parts || []).filter(part => {
+        const partNumber = (part.partNumber || '').trim();
+        const description = (part.description || '').trim();
+        const quantity = Number(part.quantity || 0);
+        return partNumber || description || quantity !== 0;
+      });
+
+      const cleanedForm = { ...form, parts: cleanedParts };
+
+      if (id) {
+        console.log('EDIT MODE: sending to API:', cleanedForm);
+        await API.put(`/workorders/${form.workOrderNo}`, cleanedForm);
+      } else {
+        const assignedTimestamp = new Date().toISOString();
+        const newForm = {
+          ...cleanedForm,
+          status: "Assigned",
+          statusHistory: [{ status: "Assigned", date: assignedTimestamp }],
+          assignedDays: 1
+        };
+
+        console.log('NEW MODE: sending to API:', newForm);
+        await API.post('/workorders', newForm);
+      }
+
+      // Generate PDF after successful assignment
+      generatePDF(cleanedForm);
+
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Failed to save work order:', err);
+      alert('Failed to save work order. Please try again.');
+    } finally {
+      setFormLoading(false);
+    }
+  }, [form, id, navigate, setFormLoading]);
+
   // Loading and error states
   if (masterLoading) {
     return (
@@ -506,6 +782,7 @@ export default function AssignWorkOrderForm({ token }) {
         onRemoveTimeLog={removeTimeLog}
         onTimeLogChange={handleTimeLogChange}
         onSubmit={handleSubmit}
+        onAssignAndPrintPDF={handleAssignAndPrintPDF}
         loading={formLoading}
         isEdit={!!id}
       />
@@ -564,6 +841,7 @@ const FormTable = ({
   onRemoveTimeLog,
   onTimeLogChange,
   onSubmit,
+  onAssignAndPrintPDF,
   loading,
   isEdit
 }) => (
@@ -589,7 +867,7 @@ const FormTable = ({
       <PartsRow form={form} onAddPart={onAddPart} onRemovePart={onRemovePart} onPartChange={onPartChange} onPartWaitingChange={onPartWaitingChange} />
       <WorkDescriptionRow form={form} onChange={onChange} />
       <TechSummaryRow form={form} onChange={onChange} />
-      <SubmitRow onSubmit={onSubmit} loading={loading} isEdit={isEdit} />
+      <SubmitRow onSubmit={onSubmit} onAssignAndPrintPDF={onAssignAndPrintPDF} loading={loading} isEdit={isEdit} />
     </tbody>
   </table>
 );
@@ -1303,9 +1581,29 @@ const TechSummaryRow = ({ form, onChange }) => (
   </>
 );
 
-const SubmitRow = ({ onSubmit, loading, isEdit }) => (
+const SubmitRow = ({ onSubmit, onAssignAndPrintPDF, loading, isEdit }) => (
   <tr>
     <td colSpan={5} style={{ textAlign: 'right' }}>
+      {!isEdit && (
+        <button 
+          type="button"
+          onClick={onAssignAndPrintPDF}
+          disabled={loading}
+          style={{
+            marginRight: '8px', 
+            background: '#2563eb', 
+            color: 'white',
+            border: '1px solid #2563eb', 
+            borderRadius: 4, 
+            padding: '4px 16px', 
+            fontWeight: 'bold',
+            opacity: loading ? 0.6 : 1,
+            cursor: loading ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {loading ? 'Saving...' : 'Assign & Print PDF'}
+        </button>
+      )}
       <button 
         type="submit"
         disabled={loading}
@@ -1500,56 +1798,164 @@ const SignatureSection = ({ form, signatureModalOpen, setSignatureModalOpen, sig
   </>
 );
 
-const PhotoSection = ({ workOrderPhotos, onDeletePhoto }) => (
-  <>
-    {workOrderPhotos.length > 0 && (
-      <div style={{ marginTop: 32 }}>
-        <h3 style={{ marginBottom: 12 }}>Uploaded Photos</h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-          {workOrderPhotos.map(photo => (
-            <div key={photo.id} style={{ width: 180, position: 'relative' }}>
-              <img
-                src={photo.url}
-                alt="Work Order"
-                style={{
-                  width: '100%',
-                  height: 120,
-                  objectFit: 'cover',
-                  borderRadius: 8,
-                  border: '1px solid #ccc'
-                }}
-              />
-              {photo.description && (
-                <div style={{ marginTop: 6, fontSize: 13 }}>
-                  {photo.description}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => onDeletePhoto(photo.id)}
-                style={{
-                  position: 'absolute',
-                  top: 6,
-                  right: 6,
-                  background: '#f44336',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: 24,
-                  height: 24,
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  lineHeight: '24px',
-                  textAlign: 'center'
-                }}
-                title="Delete photo"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+const PhotoSection = ({ workOrderPhotos, onDeletePhoto }) => {
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const handlePhotoClick = (photo) => {
+    setSelectedPhoto(photo);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedPhoto(null);
+  };
+
+
+
+  return (
+    <>
+      {workOrderPhotos.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <h3 style={{ marginBottom: 12 }}>Uploaded Photos</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+            {workOrderPhotos.map(photo => (
+              <div key={photo.id} style={{ width: 180, position: 'relative' }}>
+                <img
+                  src={photo.url}
+                  alt="Work Order"
+                  style={{
+                    width: '100%',
+                    height: 120,
+                    objectFit: 'cover',
+                    borderRadius: 8,
+                    border: '1px solid #ccc',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => handlePhotoClick(photo)}
+                  title="Click to view larger image"
+                />
+                {photo.description && (
+                  <div style={{ marginTop: 6, fontSize: 13 }}>
+                    {photo.description}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onDeletePhoto(photo.id)}
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    background: '#f44336',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 24,
+                    height: 24,
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    lineHeight: '24px',
+                    textAlign: 'center'
+                  }}
+                  title="Delete photo"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-    )}
-  </>
-);
+      )}
+
+      {/* Photo Modal */}
+      {showModal && selectedPhoto && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px'
+          }}
+          onClick={handleCloseModal}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={handleCloseModal}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: '#f44336',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Close"
+            >
+              ×
+            </button>
+
+            {/* Image */}
+            <img
+              src={selectedPhoto.url}
+              alt="Work Order"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                objectFit: 'contain',
+                borderRadius: '8px',
+                marginBottom: '16px'
+              }}
+            />
+
+            {/* Description */}
+            {selectedPhoto.description && (
+              <div style={{ 
+                marginBottom: '16px', 
+                fontSize: '16px', 
+                textAlign: 'center',
+                color: '#333',
+                maxWidth: '600px'
+              }}>
+                {selectedPhoto.description}
+              </div>
+            )}
+
+            
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
