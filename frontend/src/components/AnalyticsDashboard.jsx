@@ -87,7 +87,7 @@ const useAnalyticsData = (user) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     if (!user?.token) {
       setLoading(false);
       return;
@@ -110,7 +110,11 @@ const useAnalyticsData = (user) => {
       });
   }, [user]);
 
-  return { data, loading, error };
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
 };
 
 const useShopFilter = () => {
