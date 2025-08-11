@@ -699,7 +699,7 @@ export default function TechDashboard({ username }) {
           <tr>
             <th>Work Order #</th>
             <th>Company</th>
-            <th>Serial #</th>
+            <th>Make / Model / Serial#</th>
             <th>Status</th>
             <th>Date Assigned</th>
             <th>Days Open</th>
@@ -718,10 +718,10 @@ export default function TechDashboard({ username }) {
               <tr key={wo.id}>
                 <td>{String(wo.workOrderNo)}</td>
                 <td>{String(wo.companyName)}</td>
-                                 <td style={{ position: 'relative' }}>
-                   {String(wo.serialNumber) || ''}
-                   <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} />
-                 </td>
+                                                  <td style={{ position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                    {`${wo.make || ''} / ${wo.model || ''} / ${wo.serialNumber || ''}`}
+                    <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} />
+                  </td>
                 <td>{String(wo.status || 'Assigned')}</td>
                 <td>
                   {wo.timeLogs?.[0]?.assignDate
