@@ -7,6 +7,78 @@ import GLLSLogo from '../assets/GLLSLogo.png';
 import logoBase64 from '../assets/logoBase64';
 import { getStatusColor } from '../utils/statusColors';
 
+// Add responsive styles for mobile
+const mobileStyles = `
+  @media (max-width: 768px) {
+    .manager-table-wrapper {
+      margin-left: 15px !important;
+      margin-right: 15px !important;
+    }
+    
+    .manager-table {
+      font-size: 12px !important;
+    }
+    
+    .manager-table th,
+    .manager-table td {
+      padding: 8px 4px !important;
+      white-space: nowrap;
+    }
+    
+    .manager-table th:first-child,
+    .manager-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: white;
+      z-index: 1;
+    }
+    
+    .header-container {
+      flex-direction: column !important;
+      align-items: center !important;
+      text-align: center !important;
+    }
+    
+    .header-left {
+      align-items: center !important;
+      margin-left: 0 !important;
+      margin-bottom: 20px !important;
+    }
+    
+    .header-right {
+      align-items: center !important;
+      margin-right: 0 !important;
+    }
+    
+    .assign-button {
+      margin-right: 0 !important;
+      margin-left: 0 !important;
+    }
+    
+    .button-group {
+      justify-content: center !important;
+      width: 100% !important;
+      flex-wrap: nowrap !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .manager-table-wrapper {
+      margin-left: 10px !important;
+      margin-right: 10px !important;
+    }
+    
+    .manager-table {
+      font-size: 11px !important;
+    }
+    
+    .manager-table th,
+    .manager-table td {
+      padding: 6px 3px !important;
+    }
+  }
+`;
+
 // Constants
 const SHOP_OPTIONS = [
   { value: 'All Shops', label: 'All Shops' },
@@ -390,15 +462,29 @@ const generatePDF = (order) => {
 
 // Sub-components
 const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
-  <div style={{
+  <div className="header-container" style={{
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 8,
-    fontFamily: 'Arial, sans-serif'
+    fontFamily: 'Arial, sans-serif',
+    flexWrap: 'wrap',
+    gap: '10px'
   }}>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30 }}>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: 10 }}>
+    <div className="header-left" style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'flex-start', 
+      marginLeft: 30,
+      flex: '1 1 auto',
+      minWidth: '200px'
+    }}>
+      <div className="button-group" style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        marginBottom: 10,
+        flexWrap: 'nowrap'
+      }}>
         <button
           onClick={onLogout}
           style={{
@@ -409,7 +495,8 @@ const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
             fontSize: 14,
             borderRadius: 6,
             border: 'none',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
           }}
           aria-label="Log out of the application"
         >
@@ -425,7 +512,8 @@ const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
             fontSize: 14,
             borderRadius: 6,
             border: 'none',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
           }}
           aria-label="Refresh dashboard data"
         >
@@ -436,26 +524,44 @@ const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
         textAlign: 'center', 
         width: '100%', 
         margin: '0 auto 20px auto', 
-        fontFamily: 'Arial, sans-serif' 
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 'clamp(20px, 4vw, 24px)'
       }}>
         Manager Dashboard
       </h1>
     </div>
 
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-      <img src={GLLSLogo} alt="Company Logo" className="login-logo" />
+    <div className="header-right" style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'flex-end',
+      flex: '0 1 auto'
+    }}>
+      <img 
+        src={GLLSLogo} 
+        alt="Company Logo" 
+        className="login-logo" 
+        style={{
+          height: 'auto',
+          maxHeight: '100px',
+          width: 'auto',
+          maxWidth: '200px'
+        }}
+      />
       <button
+        className="assign-button"
         style={{
           background: '#2563eb',
           color: 'white',
           fontWeight: 'bold',
-          fontSize: 18,
+          fontSize: 'clamp(14px, 3vw, 18px)',
           padding: '10px 28px',
           border: 'none',
           borderRadius: 8,
           cursor: 'pointer',
           marginBottom: 0,
           marginRight: 30,
+          whiteSpace: 'nowrap'
         }}
         onClick={onAssignNewWorkOrder}
         aria-label="Create a new work order"
@@ -470,52 +576,72 @@ const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSe
   <div style={{ 
     marginBottom: 28, 
     marginLeft: 30, 
+    marginRight: 30,
     position: 'relative',
     display: "flex", 
-    alignItems: "center", 
+    flexDirection: 'column',
     gap: 16, 
     fontFamily: 'Arial, sans-serif' 
   }}>
-    <label style={{ fontWeight: 700, fontSize: 18, marginRight: 12 }} htmlFor="shop-filter">
-      Location Filter:
-    </label>
-    <select
-      id="shop-filter"
-      value={shopFilter}
-      onChange={e => onShopFilterChange(e.target.value)}
-      style={{ fontSize: 18, padding: "6px 16px", borderRadius: 8, minWidth: 170 }}
-      aria-label="Filter work orders by shop location"
-    >
-      {SHOP_OPTIONS.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
-    <button
-      style={{
-        marginLeft: 8,
-        padding: "6px 16px",
-        borderRadius: 8,
-        background: "#e5e7eb",
-        color: "#334155",
-        fontWeight: 600,
-        border: "1px solid #f4f3f2",
-        cursor: "pointer"
-      }}
-      onClick={() => onSetDefault(shopFilter)}
-      type="button"
-      aria-label={`Set ${shopFilter} as default location filter`}
-    >
-      Set as Default
-    </button>
+    {/* Top row for location filter */}
+    <div style={{
+      display: "flex", 
+      alignItems: "center", 
+      gap: 16,
+      flexWrap: 'wrap'
+    }}>
+      <label style={{ 
+        fontWeight: 700, 
+        fontSize: 'clamp(14px, 3vw, 18px)', 
+        marginRight: 12,
+        whiteSpace: 'nowrap'
+      }} htmlFor="shop-filter">
+        Location Filter:
+      </label>
+      <select
+        id="shop-filter"
+        value={shopFilter}
+        onChange={e => onShopFilterChange(e.target.value)}
+        style={{ 
+          fontSize: 'clamp(14px, 3vw, 18px)', 
+          padding: "6px 16px", 
+          borderRadius: 8, 
+          minWidth: 170,
+          maxWidth: '200px'
+        }}
+        aria-label="Filter work orders by shop location"
+      >
+        {SHOP_OPTIONS.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+      <button
+        style={{
+          marginLeft: 8,
+          padding: "6px 16px",
+          borderRadius: 8,
+          background: "#e5e7eb",
+          color: "#334155",
+          fontWeight: 600,
+          border: "1px solid #f4f3f2",
+          cursor: "pointer",
+          whiteSpace: 'nowrap'
+        }}
+        onClick={() => onSetDefault(shopFilter)}
+        type="button"
+        aria-label={`Set ${shopFilter} as default location filter`}
+      >
+        Set as Default
+      </button>
+    </div>
     
     {/* Global Search Bar */}
     <div style={{ 
-      position: 'absolute', 
-      left: '50%', 
-      transform: 'translateX(-50%)', 
       display: 'flex', 
       alignItems: 'center', 
-      gap: 8 
+      gap: 8,
+      width: '100%',
+      maxWidth: '600px'
     }}>
       <input
         type="text"
@@ -532,9 +658,9 @@ const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSe
           fontSize: 16,
           border: "2px solid #e5e7eb",
           borderRadius: 8,
-          minWidth: 300,
+          flex: 1,
+          minWidth: 200,
           fontFamily: 'Arial, sans-serif',
-          
         }}
         aria-label="Search all work orders"
       />
@@ -548,7 +674,8 @@ const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSe
           borderRadius: 8,
           fontWeight: 600,
           cursor: "pointer",
-          fontSize: 16
+          fontSize: 16,
+          whiteSpace: 'nowrap'
         }}
         aria-label="Search work orders"
       >
@@ -567,12 +694,14 @@ const SearchInput = ({ value, onChange, placeholder, "aria-label": ariaLabel }) 
     style={{
       marginBottom: 10,
       padding: 6,
-      width: 400,
+      width: 'calc(100% - 60px)',
+      maxWidth: 400,
       fontSize: 16,
       border: "1px solid #ccc",
       borderRadius: 5,
       fontFamily: 'Arial, sans-serif',
       marginLeft: 30,
+      marginRight: 30,
     }}
     aria-label={ariaLabel}
   />
@@ -589,8 +718,22 @@ const WorkOrderTable = ({
   showActions = true,
   emptyMessage = "No work orders found."
 }) => (
-  <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', marginLeft: 30, marginRight: 30 }}>
-    <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
+  <div className="manager-table-wrapper" style={{ 
+    overflowX: 'auto', 
+    fontFamily: 'Arial, sans-serif', 
+    marginLeft: 30, 
+    marginRight: 30,
+    WebkitOverflowScrolling: 'touch',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px'
+  }}>
+    <table className='manager-table' style={{ 
+      minWidth: 900, 
+      marginBottom: 40,
+      fontSize: 'clamp(12px, 2.5vw, 14px)',
+      width: '100%',
+      borderCollapse: 'collapse'
+    }}>
       <thead>
         <tr>
           <th>Work Order Number</th>
@@ -780,7 +923,10 @@ const SectionHeader = ({ title, count, highlight = false }) => (
     borderRadius: highlight && count > 0 ? 6 : undefined,
     textAlign: 'center',
     fontFamily: 'Arial, sans-serif',
-    marginTop: 32
+    marginTop: 32,
+    marginLeft: 30,
+    marginRight: 30,
+    fontSize: 'clamp(18px, 4vw, 22px)'
   }}>
     {title}
   </h2>
@@ -1232,6 +1378,7 @@ export default function ManagerDashboard({ user }) {
 
   return (
     <div>
+      <style>{mobileStyles}</style>
       <Header 
         onAssignNewWorkOrder={handleAssignNewWorkOrder}
         onLogout={handleLogout}
@@ -1248,7 +1395,12 @@ export default function ManagerDashboard({ user }) {
       />
 
       {/* Active Work Orders */}
-      <h2 style={{ fontFamily: 'Arial, sans-serif', marginLeft: 30, }}>Active Work Orders</h2>
+      <h2 style={{ 
+        fontFamily: 'Arial, sans-serif', 
+        marginLeft: 30, 
+        marginRight: 30,
+        fontSize: 'clamp(18px, 4vw, 22px)'
+      }}>Active Work Orders</h2>
       <SearchInput
         value={search}
         onChange={handleSearchChange}
@@ -1319,3 +1471,4 @@ export default function ManagerDashboard({ user }) {
     </div>
   );
 }
+
