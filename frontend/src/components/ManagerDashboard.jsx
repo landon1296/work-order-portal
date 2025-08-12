@@ -521,11 +521,11 @@ const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
         </button>
       </div>
       <h1 style={{ 
-        textAlign: 'center', 
+        textAlign: 'left', 
         width: '100%', 
         margin: '0 auto 20px auto', 
         fontFamily: 'Arial, sans-serif',
-        fontSize: 'clamp(20px, 4vw, 24px)'
+        fontSize: 'clamp(40px, 4vw, 24px)'
       }}>
         Manager Dashboard
       </h1>
@@ -543,9 +543,9 @@ const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
         className="login-logo" 
         style={{
           height: 'auto',
-          maxHeight: '100px',
+          maxHeight:'85px',
           width: 'auto',
-          maxWidth: '200px'
+          maxWidth: '500px'
         }}
       />
       <button
