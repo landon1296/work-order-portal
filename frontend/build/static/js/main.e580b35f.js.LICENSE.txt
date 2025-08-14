@@ -1,4 +1,14 @@
 /*!
+ * 
+ *               jsPDF AutoTable plugin v3.5.25
+ *
+ *               Copyright (c) 2022 Simon Bengtsson, https://github.com/simonbengtsson/jsPDF-AutoTable
+ *               Licensed under the MIT License.
+ *               http://opensource.org/licenses/mit-license
+ *
+ */
+
+/*!
  * Signature Pad v2.3.2
  * https://github.com/szimek/signature_pad
  *
@@ -15,25 +25,6 @@
  * http://www.lemoda.net/maths/bezier-length/index.html
  *
  */
-
-/*!
- * html2canvas 1.4.1 <https://html2canvas.hertzen.com>
- * Copyright (c) 2022 Niklas von Hertzen <https://hertzen.com>
- * Released under MIT License
- */
-
-/*! *****************************************************************************
-  Copyright (c) Microsoft Corporation.
-    Permission to use, copy, modify, and/or distribute this software for any
-  purpose with or without fee is hereby granted.
-    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-  REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-  AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-  INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-  LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-  OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-  PERFORMANCE OF THIS SOFTWARE.
-  ***************************************************************************** */
 
 /*! decimal.js-light v2.5.1 https://github.com/MikeMcl/decimal.js-light/LICENCE */
 
@@ -162,6 +153,12 @@
  *
  * Licensed under the MIT License.
  * http://opensource.org/licenses/mit-license
+ */
+
+/**
+ * @license
+ * Copyright 2010-2025 Three.js Authors
+ * SPDX-License-Identifier: MIT
  */
 
 /**
@@ -370,7 +367,7 @@
 /** @license
  *
  * jsPDF - PDF Document creation from JavaScript
- * Version 3.0.1 Built on 2025-03-17T14:19:36.873Z
+ * Version 2.5.1 Built on 2022-01-28T15:37:57.791Z
  *                      CommitID 00000000
  *
  * Copyright (c) 2010-2021 James Hall <james@parall.ax>, https://github.com/MrRio/jsPDF

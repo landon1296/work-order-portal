@@ -1,5 +1,7 @@
 const pool = require('../db');
 const { google } = require('googleapis');
+const nodemailer = require('nodemailer');
+const axios = require('axios');
 const {
   add,
   addLineItem,
@@ -388,7 +390,129 @@ res.json({ message: 'Work order updated', workOrder: updated });
     //res.status(501).json({ error: 'Not implemented yet.' });
   //});
 
-  // PUT /workorders/submit-for-billing/:id -> set status to "Submitted for Billing"
+  // PUT /workorders/submit-for-billing/:workOrderNo -> set status to "Submitted for Billing" with email notification
+  app.put('/workorders/submit-for-billing/:workOrderNo', async (req, res) => {
+    try {
+      const workOrderNo = req.params.workOrderNo;
+      
+      // Get the current work order to check if it's already submitted for billing
+      const currentResult = await pool.query(
+        'SELECT * FROM workorders WHERE work_order_no = $1',
+        [workOrderNo]
+      );
+      
+      if (currentResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Work order not found' });
+      }
+      
+      const currentWorkOrder = currentResult.rows[0];
+      
+      // Check if already submitted for billing
+      if (currentWorkOrder.status === 'Submitted for Billing') {
+        return res.status(400).json({ error: 'Work order is already submitted for billing' });
+      }
+      
+      // Update status to "Submitted for Billing"
+      const now = new Date().toISOString();
+      let statusHistory = currentWorkOrder.status_history;
+      
+      // Parse status_history if it's a string
+      if (typeof statusHistory === "string") {
+        statusHistory = JSON.parse(statusHistory);
+      }
+      
+      // Add new status to history
+      if (!Array.isArray(statusHistory)) {
+        statusHistory = [];
+      }
+      statusHistory.push({ status: 'Submitted for Billing', date: now });
+      
+      // Calculate days by status
+      const daysByStatus = calculateDaysByStatus(statusHistory);
+      
+      // Update the work order
+      const updateResult = await pool.query(
+        `UPDATE workorders
+         SET status = $1,
+             status_history = $2,
+             assigned_days = $3,
+             in_progress_days = $4,
+             in_progress_pending_parts_days = $5,
+             completed_pending_approval_days = $6,
+             submitted_for_billing_days = $7,
+             closed_days = $8
+         WHERE work_order_no = $9
+         RETURNING *`,
+        [
+          'Submitted for Billing',
+          JSON.stringify(statusHistory),
+          daysByStatus.assigned_days,
+          daysByStatus.in_progress_days,
+          daysByStatus.in_progress_pending_parts_days,
+          daysByStatus.completed_pending_approval_days,
+          daysByStatus.submitted_for_billing_days,
+          daysByStatus.closed_days,
+          workOrderNo
+        ]
+      );
+      
+      const updatedWorkOrder = updateResult.rows[0];
+      
+      // Send email notification using the same method as "waiting on part"
+      try {
+        // Get notification emails from Google Sheets
+        const sheetsClient = new google.auth.GoogleAuth({
+          keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          scopes: ['https://www.googleapis.com/auth/spreadsheets']
+        });
+        const sheets = google.sheets({ version: 'v4', auth: sheetsClient });
+        
+        const emailResp = await sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'Config!D2:D', // D2 and down - notification emails
+        });
+        
+        const emailRows = emailResp.data.values || [];
+        const notificationEmails = emailRows.map(r => r[0]).filter(email => email && email.includes('@'));
+        
+        if (notificationEmails.length > 0) {
+          // Use the same email sending method as "waiting on part"
+          const subject = `Work Order ${workOrderNo}: Submitted for Billing`;
+          const text = `Work Order #${workOrderNo} has been submitted for billing.
+
+Company: ${currentWorkOrder.company_name || 'N/A'}
+Date: ${currentWorkOrder.date || 'N/A'}
+Status: Submitted for Billing
+
+This work order is now ready for billing processing.`;
+
+          // Use the existing notify endpoint instead of direct nodemailer
+          const axios = require('axios');
+          await axios.post('http://localhost:4000/api/notify/email', {
+            to: notificationEmails.join(','),
+            subject,
+            text
+          });
+          
+          console.log('Billing notification email sent via notify endpoint');
+        }
+      } catch (emailError) {
+        console.error('Failed to send billing notification email:', emailError);
+        // Don't fail the request if email fails
+      }
+      
+      res.json({ 
+        message: 'Work order submitted for billing and notification sent.', 
+        workOrder: updatedWorkOrder 
+      });
+      
+    } catch (err) {
+      console.error('Failed to submit work order for billing:', err);
+      res.status(500).json({ error: 'Failed to submit work order for billing.' });
+    }
+  });
+
+  // PUT /workorders/submit-for-billing/:id -> set status to "Submitted for Billing" (legacy endpoint)
   app.put('/workorders/submit-for-billing/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);

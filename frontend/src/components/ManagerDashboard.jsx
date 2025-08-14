@@ -1281,11 +1281,15 @@ export default function ManagerDashboard({ user }) {
 
   const handleSubmitForBilling = useCallback(async (order) => {
     try {
-      await API.put(`/workorders/submit-for-billing/${order.id}`);
-      alert('Work order submitted for billing!');
+      await API.put(`/workorders/submit-for-billing/${order.workOrderNo}`);
+      alert('Work order submitted for billing! Email notification sent.');
       refetch();
     } catch (err) {
-      alert('Failed to submit for billing.');
+      if (err.response?.status === 400) {
+        alert(err.response.data.error || 'Work order is already submitted for billing.');
+      } else {
+        alert('Failed to submit for billing.');
+      }
       console.error(err);
     }
   }, [refetch]);
