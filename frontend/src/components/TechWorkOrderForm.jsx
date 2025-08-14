@@ -65,6 +65,7 @@ export default function TechWorkOrderForm({ token, user }) {
     repairType: '',
     salesName: '',
     shippingCost: '',
+    shippingComments: '',
     notes: '',
     parts: [{ description:'', partNumber:'', quantity:'', waiting: false }],
     status: 'Assigned',
@@ -181,7 +182,7 @@ useEffect(() => {
           "companyName", "companyStreet", "companyCity", "companyState", "companyZip",
           "fieldContact", "fieldContactNumber", "fieldStreet", "fieldCity", "fieldState", "fieldZipcode",
           "poNumber", "make", "model", "serialNumber", "date",
-          "contactName", "contactPhone", "contactEmail", "salesName", "shippingCost", "notes", "otherDesc", "workDescription"
+          "contactName", "contactPhone", "contactEmail", "salesName", "shippingCost", "shippingComments", "notes", "otherDesc", "workDescription"
         ].forEach(field => {
           if (formObj[field] === undefined || formObj[field] === null) formObj[field] = "";
         });
@@ -1152,7 +1153,9 @@ console.log("form", form);
                 <th className="assign-table-header" colSpan={1}>
                   Shipping Cost
                 </th>
-            <td colSpan={3} style={{background: "#808080"}}></td>
+            <th className="assign-table-header" colSpan={3} style={{textAlign:'left'}}>
+              Shipping Comments
+            </th>
             </tr>
             <tr>
             <td>
@@ -1187,8 +1190,16 @@ console.log("form", form);
                   }
               />
             </td>
-            <td colSpan={3} style={{background: "#808080"}}></td>
-               
+            <td colSpan={3} style={{textAlign:'left'}}>
+              <input
+                name="shippingComments"
+                value={form.shippingComments ?? ""}
+                onChange={handleChange}
+                placeholder="Shipping Comments"
+              />
+            </td>
+
+
             </tr>
             <tr>
                 <th className="assign-table-header" colSpan={1}>

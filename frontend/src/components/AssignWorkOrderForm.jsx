@@ -334,6 +334,7 @@ const useFormData = (id) => {
     repairType: '',
     salesName: '',
     shippingCost: '',
+    shippingComments: '',
     notes: '',
     parts: [{ partNumber: '', description: '', quantity: '', waiting: false }],
     otherDesc: '',
@@ -1386,7 +1387,9 @@ const SalesRow = ({ form, onChange, salesNames, disabledIfInHouse, isInHouseRepa
       <th className="assign-table-header" colSpan={1}>
         Shipping Cost
       </th>
-      <td colSpan={3} style={{background:"#808080"}}></td>
+      <th className="assign-table-header" colSpan={3} style={{textAlign:'left'}}>
+        Shipping Comments
+      </th>
     </tr>
     <tr>
       <td>
@@ -1420,7 +1423,15 @@ const SalesRow = ({ form, onChange, salesNames, disabledIfInHouse, isInHouseRepa
           }
         />
       </td>
-      <td colSpan={3} style={{background: "#808080"}}></td>
+      <td colSpan={3} style={{textAlign:'left'}}>
+        <input
+          name="shippingComments"
+          value={form.shippingComments ?? ""}
+          onChange={onChange}
+          placeholder="Shipping Comments"
+        
+        />
+    </td>
     </tr>
   </>
 );

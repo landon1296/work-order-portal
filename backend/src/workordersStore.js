@@ -42,7 +42,7 @@ if (!order.assignedDays) order.assignedDays = 1;
         field_street, field_city, field_state, field_zipcode,
         make, model, other_desc, serial_number, contact_name, contact_phone,
         contact_email, vendor_warranty, billable, maintenance, non_billable_repair, shop, repair_type,
-        sales_name, shipping_cost, work_description, po_number, notes, status,
+        sales_name, shipping_cost, shipping_comments, work_description, po_number, notes, status,
         status_history, assigned_days, in_progress_days,
         in_progress_pending_parts_days, completed_pending_approval_days,
         submitted_for_billing_days, closed_days, customer_signature, customer_signature_printed
@@ -51,7 +51,7 @@ if (!order.assignedDays) order.assignedDays = 1;
       (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
         $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
-        $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
+        $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
       )
      RETURNING *`,
     [
@@ -83,6 +83,7 @@ if (!order.assignedDays) order.assignedDays = 1;
       order.repairType,
       order.salesName,
       order.shippingCost,
+      order.shippingComments,
       order.workDescription,
       order.poNumber,
       order.notes, // or order.notes, if that's what you use
@@ -188,6 +189,7 @@ const camelToSnake = {
   repairType: 'repair_type',
   salesName: 'sales_name',
   shippingCost: 'shipping_cost',
+  shippingComments: 'shipping_comments',
   workDescription: 'work_description',
   poNumber: 'po_number',
   notes: 'notes',
