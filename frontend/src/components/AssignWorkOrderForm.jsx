@@ -542,6 +542,21 @@ export default function AssignWorkOrderForm({ token }) {
     updateFormField(name, type === 'checkbox' ? checked : newValue);
   }, [updateFormField]);
 
+  // Auto-fill GLLS for company fields when repair type is "GLLS Machine"
+  const handleRepairTypeChange = useCallback((e) => {
+    const { value } = e.target;
+    updateFormField('repairType', value);
+    
+    if (value === 'GLLS Machine') {
+      // Auto-fill company fields with GLLS
+      updateFormField('companyName', 'GLLS');
+      updateFormField('companyStreet', 'GLLS');
+      updateFormField('companyCity', 'GLLS');
+      updateFormField('companyState', 'GLLS');
+      updateFormField('companyZip', 'GLLS');
+    }
+  }, [updateFormField]);
+
   const addPart = useCallback(() => {
     setForm(prev => ({
       ...prev,
@@ -775,6 +790,7 @@ export default function AssignWorkOrderForm({ token }) {
         isInHouseRepair={isInHouseRepair}
         disabledIfInHouse={disabledIfInHouse}
         onChange={handleChange}
+        handleRepairTypeChange={handleRepairTypeChange}
         onAddPart={addPart}
         onRemovePart={removePart}
         onPartChange={handlePartChange}
@@ -834,6 +850,7 @@ const FormTable = ({
   isInHouseRepair,
   disabledIfInHouse,
   onChange,
+  handleRepairTypeChange,
   onAddPart,
   onRemovePart,
   onPartChange,
@@ -862,7 +879,7 @@ const FormTable = ({
       <ContactInfoRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
       <FieldAddressRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
       <FieldAddressRow2 form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
-      <WorkTypeRow form={form} onChange={onChange} shops={shops} repairTypes={repairTypes} />
+      <WorkTypeRow form={form} onChange={onChange} handleRepairTypeChange={handleRepairTypeChange} shops={shops} repairTypes={repairTypes} />
       <TechnicianRow form={form} technicians={technicians} onAddTimeLog={onAddTimeLog} onRemoveTimeLog={onRemoveTimeLog} onTimeLogChange={onTimeLogChange} />
       <SalesRow form={form} onChange={onChange} salesNames={salesNames} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
       <PartsRow form={form} onAddPart={onAddPart} onRemovePart={onRemovePart} onPartChange={onPartChange} onPartWaitingChange={onPartWaitingChange} />
@@ -881,12 +898,6 @@ const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, ma
         value={form.companyName ?? ""}
         onChange={onChange}
         placeholder="Company Name"
-        {...disabledIfInHouse}
-          style={
-            isInHouseRepair
-              ? { backgroundColor: "#808080", color: "#808080" }
-              : {}
-          }
       />
     </td>
     <td>
@@ -935,12 +946,6 @@ const FieldContactRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair })
         value={form.companyStreet ?? ""}
         onChange={onChange}
         placeholder="Company Street"
-        {...disabledIfInHouse}
-          style={
-            isInHouseRepair
-              ? { backgroundColor: "#808080", color: "#808080" }
-              : {}
-          }
       />
     </td>
     <th className="assign-table-header" colSpan={2}>
@@ -960,12 +965,6 @@ const ContactInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair }) 
         value={form.companyCity ?? ""}
         onChange={onChange}
         placeholder="Company City"
-        {...disabledIfInHouse}
-          style={
-            isInHouseRepair
-              ? { backgroundColor: "#808080", color: "#808080" }
-              : {}
-          }
       />
     </td>
     <td>
@@ -1015,12 +1014,6 @@ const FieldAddressRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair })
         value={form.companyState ?? ""}
         onChange={onChange}
         placeholder="Company State"
-        {...disabledIfInHouse}
-          style={
-            isInHouseRepair
-              ? { backgroundColor: "#808080", color: "#808080" }
-              : {}
-          }
       />
     </td>
     <td>
@@ -1074,12 +1067,6 @@ const FieldAddressRow2 = ({ form, onChange, disabledIfInHouse, isInHouseRepair }
         value={form.companyZip ?? ""}
         onChange={onChange}
         placeholder="Company ZIP"
-        {...disabledIfInHouse}
-          style={
-            isInHouseRepair
-              ? { backgroundColor: "#808080", color: "#808080" }
-              : {}
-          }
       />
     </td>
     <td>
@@ -1118,7 +1105,7 @@ const FieldAddressRow2 = ({ form, onChange, disabledIfInHouse, isInHouseRepair }
   </tr>
 );
 
-const WorkTypeRow = ({ form, onChange, shops, repairTypes }) => (
+const WorkTypeRow = ({ form, onChange, handleRepairTypeChange, shops, repairTypes }) => (
   <>
     <tr>
       <th className="assign-table-header" colSpan={2}>
@@ -1179,7 +1166,7 @@ const WorkTypeRow = ({ form, onChange, shops, repairTypes }) => (
         <select
           name="repairType"
           value={form.repairType ?? ""}
-          onChange={onChange}
+          onChange={handleRepairTypeChange}
           style={{ width: '100%'}}
           required
         >

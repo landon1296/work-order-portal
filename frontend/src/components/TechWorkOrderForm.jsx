@@ -488,6 +488,35 @@ const handlePartChange = (idx, field, value) => {
     ? { disabled: true}
     : {};
 
+  // Auto-fill GLLS for company fields when repair type is "GLLS Machine"
+  const handleRepairTypeChange = useCallback((e) => {
+    const { name, value } = e.target;
+    
+    if (name === 'repairType') {
+      setForm(prev => ({ ...prev, repairType: value }));
+      
+      if (value === 'GLLS Machine') {
+        // Auto-fill company fields with GLLS
+        setForm(prev => ({
+          ...prev,
+          repairType: value,
+          companyName: 'GLLS',
+          companyStreet: 'GLLS',
+          companyCity: 'GLLS',
+          companyState: 'GLLS',
+          companyZip: 'GLLS'
+        }));
+      }
+    } else {
+      // Handle other fields normally
+      const { type, checked } = e.target;
+      setForm(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
+  }, [setForm]);
+
 
   // Save progress (draft)
   const handleSaveProgress = async () => {
@@ -635,12 +664,6 @@ console.log("form", form);
                 value={form.companyName || ""}                
                 onChange={handleChange}
                 placeholder="Company Name"
-                {...disabledIfInHouse}
-                  style={
-                    isInHouseRepair
-                      ? { backgroundColor: "#808080", color: "#808080" }
-                      : {}
-                  }
               />
 
             </td>
@@ -689,12 +712,6 @@ console.log("form", form);
                 value={form.companyStreet || ""}                
                 onChange={handleChange}
                 placeholder="Company Street"
-                {...disabledIfInHouse}
-                  style={
-                    isInHouseRepair
-                      ? { backgroundColor: "#808080", color: "#808080" }
-                      : {}
-                  }
               />
               
             </td>
@@ -714,12 +731,6 @@ console.log("form", form);
                 value={form.companyCity || ""}                
                 onChange={handleChange}
                 placeholder="Company City"
-                {...disabledIfInHouse}
-                  style={
-                    isInHouseRepair
-                      ? { backgroundColor: "#808080", color: "#808080" }
-                      : {}
-                  }
               />
             </td>
             <td>
@@ -772,13 +783,6 @@ console.log("form", form);
                 value={form.companyState || ""}                
                 onChange={handleChange}
                 placeholder="Company State"
-                {...disabledIfInHouse}
-                  style={
-                    isInHouseRepair
-                      ? { backgroundColor: "#808080", color: "#808080" }
-                      : {}
-                  }
-              
               />
             </td>
             <td>
@@ -824,12 +828,6 @@ console.log("form", form);
                 value={form.companyZip || ""}                
                 onChange={handleChange}
                 placeholder="Company ZIP"
-                {...disabledIfInHouse}
-                  style={
-                    isInHouseRepair
-                      ? { backgroundColor: "#808080", color: "#808080" }
-                      : {}
-                  }
               />
             </td>
             <td>
@@ -941,7 +939,7 @@ console.log("form", form);
                 <select
                   name="repairType"
                   value={form.repairType || ""}                  
-                  onChange={handleChange}
+                  onChange={handleRepairTypeChange}
                   style={{ width: '100%'}}
                   required
                 >
