@@ -8,6 +8,7 @@ import TechWorkOrderForm from './components/TechWorkOrderForm';
 import AccountingDashboard from './components/AccountingDashboard';
 import DashboardSwitcher from "./components/DashboardSwitcher";
 import { useEffect } from 'react';
+import OfflineStatus from './components/OfflineStatus';
 
 // 
 
@@ -43,9 +44,11 @@ function LoginBackgroundWatcher() {
 
 
   return (
-    <Router>
-      <LoginBackgroundWatcher />
-      <Routes>
+    <div className="App">
+      <OfflineStatus />
+      <Router>
+        <LoginBackgroundWatcher />
+        <Routes>
         {/* Login Route */}
         <Route path="/login" element={<LoginForm onLogin={setUser} />} />
 
@@ -117,18 +120,19 @@ function LoginBackgroundWatcher() {
           </RequireAuth>
         } />
 
-        {/* Fallback Route */}
-        <Route path="*" element={
-          user
-            ? (
-              ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
-                ? <Navigate to="/dashboard" replace />
-                : <Navigate to="/tech-dashboard" replace />
-              )
-            : <Navigate to="/login" replace />
-        } />
-      </Routes>
-    </Router>
+                 {/* Fallback Route */}
+         <Route path="*" element={
+           user
+             ? (
+               ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
+                 ? <Navigate to="/dashboard" replace />
+                 : <Navigate to="/tech-dashboard" replace />
+               )
+             : <Navigate to="/login" replace />
+         } />
+       </Routes>
+     </Router>
+   </div>
   );
 }
 

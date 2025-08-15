@@ -18,5 +18,15 @@
   "background_color": "#c20000",
   "theme_color": "#c20000",
   "description": "Digital Work Order Portal for GLLS",
-  "orientation": "portrait-primary"
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["business", "productivity"],
+  "screenshots": [
+    {
+      "src": "logo512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
