@@ -3,6 +3,9 @@ import API from '../api';
 import { useNavigate } from 'react-router-dom';
 import GLLSLogo from '../assets/GLLSLogo.png';
 import { getStatusColor } from '../utils/statusColors';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import logoBase64 from '../assets/logoBase64';
 
 // Utility functions
 const formatDate = (dateStr) => {
@@ -23,6 +26,210 @@ function toCamelCaseDeep(obj) {
   }
   return obj;
 }
+
+const drawRoundedRect = (doc, x, y, width, height, radius = 3) => {
+  doc.roundedRect(x, y, width, height, radius, radius);
+};
+
+// PDF Generation
+const generatePDF = (order) => {
+  try {
+    console.log("Generating PDF for work order", order.workOrderNo);
+
+    const doc = new jsPDF({ margin: 20 });
+    const leftMargin = 20;
+    const rightMargin = 20;
+    const topMargin = 20;
+    const bottomMargin = 20;
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    let y = 20;
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(`Work Order #${order.workOrderNo}`, 80, y, { align: "right" });
+    y += 10;
+    
+    if (logoBase64) {
+      doc.addImage(logoBase64, "PNG", 90, 10.5, 93.75, 15);
+    }
+
+    // Work Order Information
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+
+    const info = [
+      ["Date", formatDate(order.date)],
+      ["Company", order.companyName],
+      ["Address", `${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}`],
+      ["Contact", `${order.contactName || ""} (${order.contactPhone || ""})`],
+      ["Technician(s)", [...new Set((order.timeLogs || []).map(t => t.technicianAssigned).filter(Boolean))].join(", ")],
+      ["Make / Model / Serial", `${order.make} / ${order.model} / ${order.serialNumber}`],
+      ["Repair Type", order.repairType],
+      ["Work Type", [
+        order.vendorWarranty ? "Vendor Warranty" : "",
+        order.billable ? "Billable" : "",
+        order.maintenance ? "Maintenance" : "",
+        order.nonBillableRepair ? "Non-billable Repair" : ""
+      ].filter(Boolean).join(", ")],
+      ["Shop", order.shop],
+      ["Status", order.status]
+    ];
+
+    const infoStartY = y + 5;
+    let currentInfoY = infoStartY;
+
+    info.forEach(([label, value]) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(`${label}:`, leftMargin, currentInfoY += 8);
+      doc.setFont("helvetica", "normal");
+      doc.text(value || "", leftMargin + 60, currentInfoY);
+    });
+    
+    drawRoundedRect(doc, leftMargin - 5, infoStartY - 0, 180, currentInfoY - infoStartY + 5, 4);
+    y = currentInfoY + 4;
+
+    // Work Description
+    const estimatedWorkDescHeight = doc.splitTextToSize(order.workDescription || "", 170).length * 6 + 16;
+    if (y + estimatedWorkDescHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      y = topMargin;
+    }
+
+    doc.setFont("helvetica", "bold");
+    const workDescStartY = y + 10;
+    doc.text("Work Description:", leftMargin, workDescStartY);
+    doc.setFont("helvetica", "normal");
+    const workDescText = doc.splitTextToSize(order.workDescription || "", 170);
+    doc.text(workDescText, leftMargin, workDescStartY + 6);
+    drawRoundedRect(doc, leftMargin - 5, workDescStartY - 5, 180, workDescText.length * 6 + 16, 4);
+    y = workDescStartY + workDescText.length * 6 + 20;
+
+    // Tech Summary / Notes
+    const estimatedNotesHeight = doc.splitTextToSize(order.notes || "", 170).length * 6 + 16;
+    if (y + estimatedNotesHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      y = topMargin;
+    }
+
+    doc.setFont("helvetica", "bold");
+    const notesStartY = y;
+    doc.text("Tech Summary / Notes:", leftMargin, notesStartY);
+    doc.setFont("helvetica", "normal");
+    const notesText = doc.splitTextToSize(order.notes || "", 170);
+    doc.text(notesText, leftMargin, notesStartY + 6);
+    drawRoundedRect(doc, leftMargin - 5, notesStartY - 5, 180, notesText.length * 6 + 16, 4);
+    y = notesStartY + notesText.length * 6 + 20;
+
+    // Parts Table
+    if (order.parts && order.parts.length > 0) {
+      doc.setFont("helvetica", "bold");
+      const partsStartY = y;
+      doc.text("Parts Used", leftMargin, partsStartY);
+      y += 6;
+
+      doc.autoTable({
+        startY: y,
+        head: [["Part #", "Description", "Qty"]],
+        body: order.parts.map(p => [p.partNumber || "", p.description || "", p.quantity || ""]),
+        margin: { top: 20, bottom: 20, left: leftMargin, right: rightMargin },
+        styles: {
+          fontSize: 10,
+          overflow: 'linebreak',
+          cellPadding: 3,
+          lineWidth: 0
+        },
+        alternateRowStyles: {
+          fillColor: [230, 230, 230]
+        },
+        tableWidth: doc.internal.pageSize.getWidth() - leftMargin - rightMargin,
+        pageBreak: 'auto',
+        headStyles: { fillColor: [0, 102, 204], textColor: 255 }
+      });
+      y = doc.lastAutoTable.finalY + 14;
+    }
+
+    // Time Logs Table
+    if (order.timeLogs && order.timeLogs.length > 0) {
+      doc.setFont("helvetica", "bold");
+      const timeLogsStartY = y;
+      doc.text("Time Logs", leftMargin, timeLogsStartY);
+      y += 6;
+
+      doc.autoTable({
+        startY: y,
+        head: [["Tech", "Date", "Start", "Finish", "Travel"]],
+        body: order.timeLogs.map(log => [
+          log.technicianAssigned || "",
+          formatDate(log.assignDate),
+          log.startTime || "",
+          log.finishTime || "",
+          log.travelTime || ""
+        ]),
+        margin: { top: 10, bottom: 30, left: leftMargin, right: rightMargin },
+        styles: {
+          fontSize: 10,
+          overflow: 'linebreak',
+          cellPadding: 3,
+          lineWidth: 0
+        },
+        alternateRowStyles: {
+          fillColor: [230, 230, 230]
+        },
+        tableWidth: doc.internal.pageSize.getWidth() - leftMargin - rightMargin,
+        pageBreak: 'auto',
+        headStyles: { fillColor: [0, 102, 204], textColor: 255 }
+      });
+      y = doc.lastAutoTable.finalY + 14;
+    }
+
+    // Signature
+    if (order.customerSignature) {
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const signatureBlockHeight = 60;
+
+      if (y + signatureBlockHeight > pageHeight - 20) {
+        doc.addPage();
+        y = 20;
+      }
+
+      const signatureStartY = y;
+      doc.setFont("helvetica", "bold");
+      doc.text("Customer Acknowledgement Signature:", leftMargin, signatureStartY);
+
+      const sigImgHeight = 25;
+      const sigImgWidth = 100;
+      doc.addImage(order.customerSignature, "PNG", leftMargin, signatureStartY + 5, sigImgWidth, sigImgHeight);
+
+      let printedY = signatureStartY + sigImgHeight + 15;
+
+      doc.setFontSize(9);
+      if (order.signatureTimestamp) {
+        doc.text(`Signed on: ${new Date(order.signatureTimestamp).toLocaleString()}`, leftMargin, printedY);
+        printedY += 10;
+      }
+
+      if (order.customerSignaturePrinted) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Printed Signature: ${order.customerSignaturePrinted}`, leftMargin, printedY);
+        printedY += 10;
+      }
+
+      const sectionHeight = printedY - signatureStartY + 5;
+      doc.setDrawColor(0);
+      drawRoundedRect(doc, leftMargin - 5, signatureStartY - 5, 180, sectionHeight, 4);
+    }
+
+    const pdfUrl = doc.output('bloburl');
+    window.open(pdfUrl, '_blank');
+
+  } catch (err) {
+    console.error("PDF generation failed:", err);
+    alert('Failed to generate PDF. Please try again.');
+  }
+};
 
 // Global search functionality
 const useGlobalSearch = () => {
@@ -241,7 +448,7 @@ const HistoryCheck = ({ workOrder, onShowHistory }) => {
 };
 
 // Search Results Page Component
-const SearchResultsPage = ({ searchTerm, results, onViewEdit, onBackToDashboard }) => {
+const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackToDashboard }) => {
   const highlightText = (text, searchTerm) => {
     if (!text || !searchTerm) return text;
     const regex = new RegExp(`(${searchTerm})`, 'gi');
@@ -356,6 +563,20 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onBackToDashboard 
                     }}
                   >
                     Open
+                  </button>
+                  <button
+                    onClick={() => onViewPDF(order)}
+                    style={{
+                      padding: '6px 12px',
+                      background: 'white',
+                      color: '#2563eb',
+                      border: '1px solid #2563eb',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    PDF
                   </button>
                 </div>
               </div>
@@ -479,6 +700,10 @@ export default function TechDashboard({ username }) {
     navigate(`/tech-dashboard/workorder/${workOrderNo}${isPreview ? '?preview=true' : ''}`);
   };
 
+  const handleViewPDF = useCallback((order) => {
+    generatePDF(order);
+  }, []);
+
   const handleGlobalSearchChange = useCallback((e) => {
     handleGlobalSearch(e.target.value);
   }, [handleGlobalSearch]);
@@ -556,6 +781,7 @@ export default function TechDashboard({ username }) {
         searchTerm={globalSearchTerm}
         results={searchResults}
         onViewEdit={handleOpenEdit}
+        onViewPDF={handleViewPDF}
         onBackToDashboard={handleBackToDashboard}
       />
     );
@@ -753,7 +979,7 @@ export default function TechDashboard({ username }) {
                     const status = (wo.status || '').toLowerCase().trim();
                     const isAssigned = !status || status === 'assigned';
                     return isAssigned;
-                  })() ? (
+                  })(                  ) ? (
                     <>
                       <button
                         onClick={() => handleOpenEdit(wo.workOrderNo, true)}
@@ -771,6 +997,7 @@ export default function TechDashboard({ username }) {
                       <button
                         onClick={() => handleOpenEdit(wo.workOrderNo)}
                         style={{
+                          marginRight: 8,
                           padding: '4px 10px',
                           background: '#1d4ed8',
                           color: '#fff',
@@ -781,21 +1008,50 @@ export default function TechDashboard({ username }) {
                       >
                         Start Work
                       </button>
+                      <button
+                        onClick={() => handleViewPDF(wo)}
+                        style={{
+                          padding: '4px 10px',
+                          background: 'white',
+                          color: '#2563eb',
+                          border: '1px solid #2563eb',
+                          borderRadius: 4,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        PDF
+                      </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => handleOpenEdit(wo.workOrderNo)}
-                      style={{
-                        padding: '4px 10px',
-                        background: '#1d4ed8',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Open
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleOpenEdit(wo.workOrderNo)}
+                        style={{
+                          marginRight: 8,
+                          padding: '4px 10px',
+                          background: '#1d4ed8',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Open
+                      </button>
+                      <button
+                        onClick={() => handleViewPDF(wo)}
+                        style={{
+                          padding: '4px 10px',
+                          background: 'white',
+                          color: '#2563eb',
+                          border: '1px solid #2563eb',
+                          borderRadius: 4,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        PDF
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>

@@ -605,6 +605,7 @@ const WorkOrderTable = ({
           <th>Date Assigned</th>
           <th>Technician Username</th>
           <th>Company Name</th>
+          <th>Make / Model / Serial #</th>
           <th>Shop</th>
           {showStatus && <th>Status</th>}
           {showActions && <th>Actions</th>}
@@ -613,7 +614,7 @@ const WorkOrderTable = ({
       <tbody>
         {orders.length === 0 && (
           <tr>
-            <td colSpan={showStatus && showActions ? 7 : 6} style={{ textAlign: 'center' }}>
+            <td colSpan={showStatus && showActions ? 8 : 7} style={{ textAlign: 'center' }}>
               {emptyMessage}
             </td>
           </tr>
@@ -632,6 +633,7 @@ const WorkOrderTable = ({
             </td>
             <td>{order.timeLogs?.[0]?.technicianAssigned || ''}</td>
             <td>{order.companyName}</td>
+            <td>{`${order.make || ''} / ${order.model || ''} / ${order.serialNumber || ''}`}</td>
             <td>{order.shop}</td>
             {showStatus && (
               <td style={{ fontWeight: 600 }}>
