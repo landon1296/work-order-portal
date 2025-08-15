@@ -24,19 +24,6 @@ function RequireAuth({ user, children }) {
   return children;
 }
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Add a small delay to ensure proper initialization
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-
 function LoginBackgroundWatcher() {
   const location = useLocation();
 
@@ -51,24 +38,12 @@ function LoginBackgroundWatcher() {
   return null;
 }
 
-
-  if (isLoading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontSize: '18px',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        Loading...
-      </div>
-    );
-  }
+function App() {
+  const [user, setUser] = useState(null);
 
   return (
-    <div className="App">
+    <div className="App" style={{ backgroundColor: 'red', color: 'white', padding: '20px' }}>
+      <h1>App is loading!</h1>
       {/* <OfflineStatus /> */}
       <Router>
         <LoginBackgroundWatcher />
