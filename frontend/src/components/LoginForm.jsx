@@ -32,7 +32,7 @@ export default function LoginForm({ onLogin }) {
       const userInfo = jwtDecode(data.token); // <-- 2. decode the token!
       onLogin({ token: data.token, ...userInfo }); // <-- 3. pass user object
       if (userInfo.role === 'analytics' || userInfo.role === 'owner') {
-        navigate('/analytics');
+        navigate('/dashboard');
       } else if (userInfo.role === 'manager') {
         navigate('/dashboard');
       } else {

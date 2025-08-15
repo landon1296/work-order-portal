@@ -26,6 +26,15 @@ function RequireAuth({ user, children }) {
 
 function App() {
   const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Add a small delay to ensure proper initialization
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
 
 function LoginBackgroundWatcher() {
@@ -43,6 +52,21 @@ function LoginBackgroundWatcher() {
 }
 
 
+  if (isLoading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '18px',
+        fontFamily: 'Arial, sans-serif'
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       {/* <OfflineStatus /> */}
@@ -54,13 +78,15 @@ function LoginBackgroundWatcher() {
 
         {/* Default Route */}
         <Route path="/" element={
-          user
-            ? (
-              ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
-                ? <Navigate to="/dashboard" replace />
-                : <Navigate to="/tech-dashboard" replace />
-              )
-            : <Navigate to="/login" replace />
+          user ? (
+            ['manager', 'accounting', 'analytics', 'owner'].includes(user.role) ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/tech-dashboard" replace />
+            )
+          ) : (
+            <Navigate to="/login" replace />
+          )
         } />
 
         {/* Main Dashboard Route */}
