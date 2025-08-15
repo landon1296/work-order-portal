@@ -1,8 +1,0 @@
-# Handle static assets
-/static/*    /static/*    200
-/manifest.json    /manifest.json    200
-/logo*.png    /logo*.png    200
-/favicon.ico    /favicon.ico    200
-
-# Handle all other routes - serve index.html for client-side routing
-/*    /index.html   200

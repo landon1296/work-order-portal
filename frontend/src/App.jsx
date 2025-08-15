@@ -8,7 +8,6 @@ import TechWorkOrderForm from './components/TechWorkOrderForm';
 import AccountingDashboard from './components/AccountingDashboard';
 import DashboardSwitcher from "./components/DashboardSwitcher";
 import { useEffect } from 'react';
-// import OfflineStatus from './components/OfflineStatus';
 
 // 
 
@@ -24,22 +23,22 @@ function RequireAuth({ user, children }) {
   return children;
 }
 
-function LoginBackgroundWatcher() {
-  const location = useLocation();
-
-  useEffect(() => {
-    if (location.pathname === '/login') {
-      document.body.classList.add('login-page');
-    } else {
-      document.body.classList.remove('login-page');
-    }
-  }, [location.pathname]);
-
-  return null;
-}
-
 function App() {
   const [user, setUser] = useState(null);
+
+  function LoginBackgroundWatcher() {
+    const location = useLocation();
+
+    useEffect(() => {
+      if (location.pathname === '/login') {
+        document.body.classList.add('login-page');
+      } else {
+        document.body.classList.remove('login-page');
+      }
+    }, [location.pathname]);
+
+    return null;
+  }
 
   return (
     <div className="App">
@@ -51,7 +50,15 @@ function App() {
         <Route path="/login" element={<LoginForm onLogin={setUser} />} />
 
         {/* Default Route */}
-        <Route path="/" element={<LoginForm onLogin={setUser} />} />
+        <Route path="/" element={
+          user
+            ? (
+              ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
+                ? <Navigate to="/dashboard" replace />
+                : <Navigate to="/tech-dashboard" replace />
+              )
+            : <Navigate to="/login" replace />
+        } />
 
         {/* Main Dashboard Route */}
         <Route path="/dashboard" element={

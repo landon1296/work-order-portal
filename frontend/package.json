@@ -6,7 +6,7 @@
   
   "private": true,
   
-  "homepage": ".",
+
   
   "dependencies": {
   
@@ -62,11 +62,7 @@
   "tsparticles": "^3.9.1",
   
     
-  "vanta": "^0.5.24",
-  
-    
-  "workbox-webpack-plugin": "^7.3.0"
-  
+  "vanta": "^0.5.24"
   },
   
   "scripts": {
@@ -75,11 +71,7 @@
   "start": "react-scripts start",
   
     
-  "build": "react-scripts build",
-  
-    
-  "build:sw": "workbox generateSW workbox-config.js"
-  
+  "build": "react-scripts build"
   },
   
   "browserslist": {
