@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
-import offlineAPI from './services/offlineAPI';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
@@ -20,5 +19,5 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Initialize offline storage
-offlineAPI.initializeOfflineStorage();
+// Temporarily disable offline storage initialization
+// offlineAPI.initializeOfflineStorage();

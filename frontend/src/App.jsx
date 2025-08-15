@@ -8,7 +8,7 @@ import TechWorkOrderForm from './components/TechWorkOrderForm';
 import AccountingDashboard from './components/AccountingDashboard';
 import DashboardSwitcher from "./components/DashboardSwitcher";
 import { useEffect } from 'react';
-import OfflineStatus from './components/OfflineStatus';
+// import OfflineStatus from './components/OfflineStatus';
 
 // 
 
@@ -45,7 +45,7 @@ function LoginBackgroundWatcher() {
 
   return (
     <div className="App">
-      <OfflineStatus />
+      {/* <OfflineStatus /> */}
       <Router>
         <LoginBackgroundWatcher />
         <Routes>

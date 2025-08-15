@@ -23,36 +23,22 @@ const originalPost = API.post;
 const originalPut = API.put;
 const originalDelete = API.delete;
 
+// For now, let's disable offline functionality to get the app working
+// We can re-enable it once we confirm the basic app works
+
 API.get = async (url, config) => {
-  if (workOrderEndpoints.some(endpoint => url.includes(endpoint))) {
-    // Import offlineAPI dynamically to avoid circular dependency
-    const { default: offlineAPI } = await import('./services/offlineAPI');
-    return offlineAPI.get(url);
-  }
   return originalGet(url, config);
 };
 
 API.post = async (url, data, config) => {
-  if (workOrderEndpoints.some(endpoint => url.includes(endpoint))) {
-    const { default: offlineAPI } = await import('./services/offlineAPI');
-    return offlineAPI.post(url, data);
-  }
   return originalPost(url, data, config);
 };
 
 API.put = async (url, data, config) => {
-  if (workOrderEndpoints.some(endpoint => url.includes(endpoint))) {
-    const { default: offlineAPI } = await import('./services/offlineAPI');
-    return offlineAPI.put(url, data);
-  }
   return originalPut(url, data, config);
 };
 
 API.delete = async (url, config) => {
-  if (workOrderEndpoints.some(endpoint => url.includes(endpoint))) {
-    const { default: offlineAPI } = await import('./services/offlineAPI');
-    return offlineAPI.delete(url);
-  }
   return originalDelete(url, config);
 };
 
