@@ -20,8 +20,7 @@ class OfflineStorage {
 
         // Create object stores
         if (!db.objectStoreNames.contains('workOrders')) {
-          const workOrdersStore = db.createObjectStore('workOrders', { keyPath: 'id' });
-          workOrdersStore.createIndex('workOrderNo', 'workOrderNo', { unique: true });
+          const workOrdersStore = db.createObjectStore('workOrders', { keyPath: 'workOrderNo' });
           workOrdersStore.createIndex('status', 'status', { unique: false });
           workOrdersStore.createIndex('technician', 'technicianAssigned', { unique: false });
         }
@@ -59,10 +58,10 @@ class OfflineStorage {
     });
   }
 
-  async getWorkOrderById(id) {
+  async getWorkOrderByNumber(workOrderNo) {
     const transaction = this.db.transaction(['workOrders'], 'readonly');
     const store = transaction.objectStore('workOrders');
-    const request = store.get(id);
+    const request = store.get(workOrderNo);
     
     return new Promise((resolve, reject) => {
       request.onsuccess = () => resolve(request.result);

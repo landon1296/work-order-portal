@@ -1,4 +1,4 @@
-import API from '../api';
+import { baseAPI } from '../api';
 import offlineStorage from './offlineStorage';
 
 class OfflineAPI {
@@ -20,7 +20,7 @@ class OfflineAPI {
   async get(endpoint) {
     try {
       if (this.isOnline) {
-        const response = await API.get(endpoint);
+        const response = await baseAPI.get(endpoint);
         
         // Cache the response
         if (endpoint.includes('/workorders')) {
@@ -49,7 +49,7 @@ class OfflineAPI {
   async post(endpoint, data) {
     try {
       if (this.isOnline) {
-        const response = await API.post(endpoint, data);
+        const response = await baseAPI.post(endpoint, data);
         return response;
       } else {
         // Queue for later sync
@@ -72,7 +72,7 @@ class OfflineAPI {
   async put(endpoint, data) {
     try {
       if (this.isOnline) {
-        const response = await API.put(endpoint, data);
+        const response = await baseAPI.put(endpoint, data);
         return response;
       } else {
         // Queue for later sync
@@ -86,7 +86,7 @@ class OfflineAPI {
         // Update local cache
         const workOrders = await offlineStorage.getWorkOrders();
         const updatedWorkOrders = workOrders.map(wo => 
-          wo.id === data.id ? { ...wo, ...data, synced: false } : wo
+          wo.workOrderNo === data.workOrderNo ? { ...wo, ...data, synced: false } : wo
         );
         await offlineStorage.saveWorkOrders(updatedWorkOrders);
         
@@ -101,7 +101,7 @@ class OfflineAPI {
   async delete(endpoint) {
     try {
       if (this.isOnline) {
-        const response = await API.delete(endpoint);
+        const response = await baseAPI.delete(endpoint);
         return response;
       } else {
         // Queue for later sync
@@ -129,13 +129,13 @@ class OfflineAPI {
         try {
           switch (change.type) {
             case 'POST':
-              await API.post(change.endpoint, change.data);
+              await baseAPI.post(change.endpoint, change.data);
               break;
             case 'PUT':
-              await API.put(change.endpoint, change.data);
+              await baseAPI.put(change.endpoint, change.data);
               break;
             case 'DELETE':
-              await API.delete(change.endpoint);
+              await baseAPI.delete(change.endpoint);
               break;
           }
         } catch (error) {
@@ -149,7 +149,7 @@ class OfflineAPI {
       await offlineStorage.clearPendingChanges();
       
       // Refresh cached data
-      const response = await API.get('/workorders');
+      const response = await baseAPI.get('/workorders');
       await offlineStorage.saveWorkOrders(response.data);
       
     } catch (error) {
@@ -160,10 +160,10 @@ class OfflineAPI {
   async initializeOfflineStorage() {
     await offlineStorage.init();
     
-    // Load initial data if online
-    if (this.isOnline) {
-      try {
-        const response = await API.get('/workorders');
+          // Load initial data if online
+      if (this.isOnline) {
+        try {
+          const response = await baseAPI.get('/workorders');
         await offlineStorage.saveWorkOrders(response.data);
       } catch (error) {
         console.error('Failed to load initial data:', error);
