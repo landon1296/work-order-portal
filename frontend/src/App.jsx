@@ -42,8 +42,7 @@ function App() {
   const [user, setUser] = useState(null);
 
   return (
-    <div className="App" style={{ backgroundColor: 'red', color: 'white', padding: '20px' }}>
-      <h1>App is loading!</h1>
+    <div className="App">
       {/* <OfflineStatus /> */}
       <Router>
         <LoginBackgroundWatcher />
@@ -52,17 +51,7 @@ function App() {
         <Route path="/login" element={<LoginForm onLogin={setUser} />} />
 
         {/* Default Route */}
-        <Route path="/" element={
-          user ? (
-            ['manager', 'accounting', 'analytics', 'owner'].includes(user.role) ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/tech-dashboard" replace />
-            )
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        } />
+        <Route path="/" element={<LoginForm onLogin={setUser} />} />
 
         {/* Main Dashboard Route */}
         <Route path="/dashboard" element={
