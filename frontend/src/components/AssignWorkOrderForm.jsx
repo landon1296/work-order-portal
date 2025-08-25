@@ -885,6 +885,25 @@ const FormTable = ({
       <PartsRow form={form} onAddPart={onAddPart} onRemovePart={onRemovePart} onPartChange={onPartChange} onPartWaitingChange={onPartWaitingChange} />
       <WorkDescriptionRow form={form} onChange={onChange} />
       <TechSummaryRow form={form} onChange={onChange} />
+      
+      {/* Status History Section */}
+      {Array.isArray(form.statusHistory) && form.statusHistory.length > 0 && (
+        <tr>
+          <td colSpan={5}>
+            <div style={{margin: "16px 0"}}>
+              <h4>Status History</h4>
+              <ul>
+                {form.statusHistory.map((s, i) => (
+                  <li key={i}>
+                    <strong>{s.status}</strong>: {new Date(s.date).toLocaleString()}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </td>
+        </tr>
+      )}
+      
       <SubmitRow onSubmit={onSubmit} onAssignAndPrintPDF={onAssignAndPrintPDF} loading={loading} isEdit={isEdit} />
     </tbody>
   </table>
