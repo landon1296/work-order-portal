@@ -485,15 +485,25 @@ Date: ${currentWorkOrder.date || 'N/A'}
 Status: Submitted for Billing
 
 This work order is now ready for billing processing.`;
+          // Replace lines 488-496 with:
+          // Send email directly using nodemailer (same as notify endpoint)
+          const nodemailer = require('nodemailer');
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.EMAIL_USER,
+              pass: process.env.EMAIL_PASS,
+            },
+          });
 
-          // Use the existing notify endpoint instead of direct nodemailer
-          const axios = require('axios');
-          await axios.post('http://localhost:4000/api/notify/email', {
+          await transporter.sendMail({
+            from: process.env.EMAIL_USER,
             to: notificationEmails.join(','),
             subject,
             text
           });
-          
+
+          console.log('Billing notification email sent directly');
           console.log('Billing notification email sent via notify endpoint');
         }
       } catch (emailError) {
