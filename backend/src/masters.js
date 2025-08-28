@@ -75,5 +75,85 @@ router.get('/salesnames', async (req, res) => {
   }
 });
 
+// GET /api/masters/makes
+router.get('/makes', async (req, res) => {
+  try {
+    const client = await authClient.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Masters!E2:E' // Assumes makes are in column E
+    });
+    const makes = (response.data.values || []).flat().filter(Boolean);
+    res.json(makes);
+  } catch (error) {
+    console.error('Error fetching makes from Masters tab:', error);
+    res.status(500).json({ error: 'Failed to fetch makes' });
+  }
+});
+
+// GET /api/masters/models
+router.get('/models', async (req, res) => {
+  try {
+    const client = await authClient.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+    
+    // Pull from columns E (Make) and F (Model)
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Masters!E2:F' // Make in column E, Model in column F
+    });
+    
+    const models = (response.data.values || []).map(row => ({
+      make: row[0] || '',
+      model: row[1] || ''
+    })).filter(item => item.make && item.model);
+    
+    res.json(models);
+  } catch (error) {
+    console.error('Error fetching models from Masters tab:', error);
+    res.status(500).json({ error: 'Failed to fetch models' });
+  }
+});
+
+// GET /api/masters/makes-models
+router.get('/makes-models', async (req, res) => {
+  try {
+    const client = await authClient.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Masters!E2:F', // E=Make, F=Model, skip header row
+    });
+    const rows = response.data.values || [];
+    res.json(rows); // Each row: [make, model]
+  } catch (error) {
+    console.error('Error fetching makes and models from Masters tab:', error);
+    res.status(500).json({ error: 'Failed to fetch makes and models.' });
+  }
+});
+
+// GET /api/masters/managers
+router.get('/managers', async (req, res) => {
+  try {
+    const client = await authClient.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Users!A2:C', // A=Username, B=HashedPassword, C=Role
+    });
+    
+    const users = (response.data.values || []).map(row => ({
+      name: row[0] || '',
+      username: row[0] || '', // Use username as identifier
+      role: row[2] || ''
+    })).filter(user => user.name && user.role && user.role.toLowerCase().includes('manager'));
+    
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching managers from Users tab:', error);
+    res.status(500).json({ error: 'Failed to fetch managers.' });
+  }
+});
 
 module.exports = router;

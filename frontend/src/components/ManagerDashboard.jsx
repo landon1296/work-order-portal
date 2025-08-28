@@ -6,9 +6,16 @@ import 'jspdf-autotable';
 import GLLSLogo from '../assets/GLLSLogo.png';
 import logoBase64 from '../assets/logoBase64';
 import { getStatusColor } from '../utils/statusColors';
+import NotificationBell from './NotificationBell';
+import DeleteWorkOrderModal from './DeleteWorkOrderModal';
 
 // Add responsive styles for mobile
 const mobileStyles = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
   @media (max-width: 768px) {
     .manager-table-wrapper {
       margin-left: 15px !important;
@@ -130,6 +137,7 @@ const useGlobalSearch = () => {
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const performGlobalSearch = useCallback((orders, searchTerm) => {
     if (!searchTerm.trim()) {
@@ -175,6 +183,8 @@ const useGlobalSearch = () => {
     globalSearchTerm,
     showSearchResults,
     searchResults,
+    searchLoading,
+    setSearchLoading,
     handleGlobalSearch,
     clearGlobalSearch,
     performGlobalSearch
@@ -461,7 +471,7 @@ const generatePDF = (order) => {
 };
 
 // Sub-components
-const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
+const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh, user }) => (
   <div className="header-container" style={{
     display: 'flex',
     alignItems: 'flex-start',
@@ -483,6 +493,7 @@ const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
         display: 'flex', 
         gap: '8px', 
         marginBottom: 10,
+        marginTop: 10,
         flexWrap: 'nowrap'
       }}>
         <button
@@ -520,59 +531,95 @@ const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh }) => (
           Refresh
         </button>
       </div>
-      <h1 style={{ 
-        textAlign: 'left', 
-        width: '100%', 
-        margin: '0 auto 20px auto', 
-        fontFamily: 'Arial, sans-serif',
-        fontSize: 'clamp(40px, 4vw, 24px)'
-      }}>
-        Manager Dashboard
-      </h1>
+      
+                           <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          width: '100%', 
+          margin: '0 auto 20px auto'
+        }}>
+                    <h1 style={{ 
+             textAlign: 'left', 
+             marginTop: '50px', 
+             fontFamily: 'Arial, sans-serif',
+             fontSize: 'clamp(40px, 4vw, 24px)',
+             whiteSpace: 'nowrap'
+           }}>
+             Manager Dashboard
+           </h1>
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px', marginTop: '25px', justifyContent: 'center', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+             <span style={{ fontSize: '20px', fontWeight: 'bold' }}>Notifications</span>
+             <NotificationBell user={user}/>
+           </div>
+        </div>
+      
+
     </div>
 
     <div className="header-right" style={{ 
       display: 'flex', 
       flexDirection: 'column', 
-      alignItems: 'flex-end',
+      alignItems: 'stretch',
       flex: '0 1 auto'
     }}>
-      <img 
-        src={GLLSLogo} 
-        alt="Company Logo" 
-        className="login-logo" 
-        style={{
-          height: 'auto',
-          maxHeight:'85px',
-          width: 'auto',
-          maxWidth: '500px'
-        }}
-      />
-      <button
-        className="assign-button"
-        style={{
-          background: '#2563eb',
-          color: 'white',
-          fontWeight: 'bold',
-          fontSize: 'clamp(14px, 3vw, 18px)',
-          padding: '10px 28px',
-          border: 'none',
-          borderRadius: 8,
-          cursor: 'pointer',
-          marginBottom: 0,
-          marginRight: 30,
-          whiteSpace: 'nowrap'
-        }}
-        onClick={onAssignNewWorkOrder}
-        aria-label="Create a new work order"
-      >
-        Assign New Work Order
-      </button>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        marginBottom: '10px',
+        marginTop: '10px'
+      }}>
+        <img 
+          src={GLLSLogo} 
+          alt="Company Logo" 
+          className="login-logo" 
+          style={{
+            height: 'auto',
+            maxHeight:'85px',
+            width: 'auto',
+            maxWidth: '500px'
+          }}
+        />
+      </div>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'flex-end',
+        gap: '16px',
+        marginBottom: '10px',
+        fontSize: '20px',
+        fontWeight: 'bold',
+        width: '100%'
+      }}>
+
+        <button
+          className="assign-button"
+          style={{
+            background: '#2563eb',
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: 'clamp(14px, 3vw, 18px)',
+            padding: '10px 28px',
+            border: 'none',
+            borderRadius: 8,
+            cursor: 'pointer',
+            marginBottom: 0,
+            marginRight: 30,
+            whiteSpace: 'nowrap'
+          }}
+          onClick={onAssignNewWorkOrder}
+          aria-label="Create a new work order"
+        >
+          Assign New Work Order
+        </button>
+      </div>
     </div>
   </div>
 );
 
-const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSearchTerm, onGlobalSearchChange, onGlobalSearchSubmit }) => (
+const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSearchTerm, onGlobalSearchChange, onGlobalSearchSubmit, searchLoading }) => (
   <div style={{ 
     marginBottom: 28, 
     marginLeft: 30, 
@@ -666,20 +713,33 @@ const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSe
       />
       <button
         onClick={onGlobalSearchSubmit}
+        disabled={searchLoading}
         style={{
           padding: "8px 16px",
-          background: "#2563eb",
+          background: searchLoading ? "#9ca3af" : "#2563eb",
           color: "white",
           border: "none",
           borderRadius: 8,
           fontWeight: 600,
-          cursor: "pointer",
+          cursor: searchLoading ? "not-allowed" : "pointer",
           fontSize: 16,
           whiteSpace: 'nowrap'
         }}
         aria-label="Search work orders"
       >
-        Search
+        {searchLoading ? (
+          <div style={{
+            display: 'inline-block',
+            width: '16px',
+            height: '16px',
+            border: '2px solid #ffffff',
+            borderTop: '2px solid transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+        ) : (
+          'Search'
+        )}
       </button>
     </div>
   </div>
@@ -714,6 +774,7 @@ const WorkOrderTable = ({
   onSubmitForBilling, 
   onCloseWorkOrder, 
   onViewPDF,
+  onDelete,
   showStatus = true,
   showActions = true,
   emptyMessage = "No work orders found."
@@ -755,8 +816,35 @@ const WorkOrderTable = ({
           </tr>
         )}
         {orders.map(order => (
-          <tr key={order.workOrderNo}>
-            <td>{order.workOrderNo}</td>
+          <tr key={order.workOrderNo} style={(order.shop || '').toLowerCase().includes('shop repair') ? { background: '#fff7cc' } : undefined}>
+            <td>
+              {onDelete && (
+                <span
+                  onClick={() => onDelete(order.workOrderNo)}
+                  style={{ 
+                    display: 'inline-block',
+                    width: '16px',
+                    height: '16px',
+                    background: '#ef4444', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '50%', 
+                    marginRight: '8px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    lineHeight: '16px',
+                    verticalAlign: 'middle'
+                  }}
+                  title={`Delete work order ${order.workOrderNo}`}
+                  aria-label={`Delete work order ${order.workOrderNo}`}
+                >
+                  ×
+                </span>
+              )}
+              {order.workOrderNo}
+            </td>
             <td>
               {order.date
                 ? new Date(order.date).toLocaleDateString('en-US', {
@@ -868,6 +956,7 @@ const WorkOrderTable = ({
                     View PDF
                   </button>
                 )}
+
               </td>
             )}
           </tr>
@@ -1184,7 +1273,11 @@ export default function ManagerDashboard({ user }) {
   const { orders, loading, error, refetch } = useWorkOrders(user);
   const { shopFilter, updateShopFilter, setDefaultShop } = useShopFilter();
   const { search, setSearch, closedSearch, setClosedSearch, closedPage, setClosedPage, resetClosedPage } = useSearchFilters();
-  const { globalSearchTerm, showSearchResults, searchResults, handleGlobalSearch, clearGlobalSearch, performGlobalSearch } = useGlobalSearch();
+  const { globalSearchTerm, showSearchResults, searchResults, searchLoading, setSearchLoading, handleGlobalSearch, clearGlobalSearch, performGlobalSearch } = useGlobalSearch();
+
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [workOrderToDelete, setWorkOrderToDelete] = useState(null);
 
   // Memoized filtered orders
   const filteredOrders = useMemo(() => 
@@ -1331,16 +1424,38 @@ export default function ManagerDashboard({ user }) {
 
   const handleGlobalSearchSubmit = useCallback(() => {
     if (globalSearchTerm.trim()) {
+      setSearchLoading(true);
       performGlobalSearch(window.allWorkOrders || [], globalSearchTerm);
+      setSearchLoading(false);
     } else {
       setShowSearchResults(false);
       setSearchResults([]);
     }
-  }, [globalSearchTerm, performGlobalSearch]);
+  }, [globalSearchTerm, performGlobalSearch, setSearchLoading]);
 
   const handleBackToDashboard = useCallback(() => {
     clearGlobalSearch();
   }, [clearGlobalSearch]);
+
+  // Delete handlers
+  const handleDeleteClick = useCallback((workOrderNo) => {
+    setWorkOrderToDelete(workOrderNo);
+    setDeleteModalOpen(true);
+  }, []);
+
+  const handleDeleteSuccess = useCallback((message, deletedWorkOrderNo) => {
+    alert(message);
+    refetch();
+  }, [refetch]);
+
+  const handleDeleteError = useCallback((errorMessage) => {
+    console.error('Delete error:', errorMessage);
+  }, []);
+
+  const handleDeleteModalClose = useCallback(() => {
+    setDeleteModalOpen(false);
+    setWorkOrderToDelete(null);
+  }, []);
 
   // Loading and error states
   if (loading) {
@@ -1389,6 +1504,7 @@ export default function ManagerDashboard({ user }) {
         onAssignNewWorkOrder={handleAssignNewWorkOrder}
         onLogout={handleLogout}
         onRefresh={handleRefresh}
+        user={user}
       />
       
       <LocationFilter 
@@ -1398,6 +1514,7 @@ export default function ManagerDashboard({ user }) {
         globalSearchTerm={globalSearchTerm}
         onGlobalSearchChange={handleGlobalSearchChange}
         onGlobalSearchSubmit={handleGlobalSearchSubmit}
+        searchLoading={searchLoading}
       />
 
       {/* Active Work Orders */}
@@ -1417,6 +1534,7 @@ export default function ManagerDashboard({ user }) {
         orders={filteredActiveWorkOrders}
         onViewEdit={handleViewEdit}
         onViewPDF={handleViewPDF}
+        onDelete={handleDeleteClick}
         emptyMessage="No active work orders."
       />
 
@@ -1433,6 +1551,7 @@ export default function ManagerDashboard({ user }) {
         onSubmitForBilling={handleSubmitForBilling}
         onCloseWorkOrder={handleCloseWorkOrder}
         onViewPDF={handleViewPDF}
+        onDelete={handleDeleteClick}
         showStatus={false}
         emptyMessage="No work orders pending review."
       />
@@ -1474,6 +1593,15 @@ export default function ManagerDashboard({ user }) {
           onPageChange={setClosedPage}
         />
       )}
+
+      {/* Delete Work Order Modal */}
+      <DeleteWorkOrderModal
+        isOpen={deleteModalOpen}
+        onClose={handleDeleteModalClose}
+        workOrderNo={workOrderToDelete}
+        onDeleteSuccess={handleDeleteSuccess}
+        onDeleteError={handleDeleteError}
+      />
     </div>
   );
 }

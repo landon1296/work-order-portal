@@ -30,6 +30,12 @@ app.use('/api/analytics', analyticsRoutes);
 const photosRoutes = require('./routes/photos');
 app.use('/api/photos', photosRoutes);
 
+const troubleshootRoutes = require('./routes/troubleshoot');
+app.use('/api/troubleshoot', troubleshootRoutes);
+
+const notificationsRoutes = require('./routes/notifications');
+app.use('/api/notifications', notificationsRoutes);
+
 
 
 const PORT = process.env.PORT || 4000;

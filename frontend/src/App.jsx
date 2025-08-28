@@ -6,6 +6,8 @@ import AssignWorkOrderForm from './components/AssignWorkOrderForm';
 import TechDashboard from './components/TechDashboard';
 import TechWorkOrderForm from './components/TechWorkOrderForm';
 import AccountingDashboard from './components/AccountingDashboard';
+import ReceptionDashboard from './components/ReceptionDashboard';
+import TroubleshootForm from './components/TroubleshootForm';
 import DashboardSwitcher from "./components/DashboardSwitcher";
 import { useEffect } from 'react';
 
@@ -55,6 +57,8 @@ function App() {
             ? (
               ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
                 ? <Navigate to="/dashboard" replace />
+                : user.role === 'reception'
+                ? <Navigate to="/reception-dashboard" replace />
                 : <Navigate to="/tech-dashboard" replace />
               )
             : <Navigate to="/login" replace />
@@ -74,14 +78,15 @@ function App() {
           </RequireAuth>
         } />
 
-        {/* Assign/Edit Work Order (Managers, Accounting, Analytics, Owner) */}
+        {/* Assign/Edit Work Order (Managers, Accounting, Analytics, Owner, Reception) */}
         <Route path="/dashboard/workorder/:id" element={
           <RequireAuth user={user}>
             {(user?.role === 'manager' ||
               user?.role === 'analytics' ||
               user?.role === 'owner' ||
-              user?.role === 'accounting')
-              ? <AssignWorkOrderForm token={user.token} editMode={true} />
+              user?.role === 'accounting' ||
+              user?.role === 'reception')
+              ? <AssignWorkOrderForm token={user.token} user={user} editMode={true} />
               : <Navigate to="/" />
             }
           </RequireAuth>
@@ -93,7 +98,27 @@ function App() {
             {user?.role === 'manager' ||
              user?.role === 'analytics' ||
              user?.role === 'owner'
-              ? <AssignWorkOrderForm token={user.token} />
+              ? <AssignWorkOrderForm token={user.token} user={user} />
+              : <Navigate to="/" />
+            }
+          </RequireAuth>
+        } />
+
+        {/* Troubleshoot Form (Reception, Analytics, Owner) */}
+        <Route path="/troubleshoot" element={
+          <RequireAuth user={user}>
+            {(user?.role === 'reception' || user?.role === 'analytics' || user?.role === 'owner')
+              ? <TroubleshootForm token={user.token} user={user} />
+              : <Navigate to="/" />
+            }
+          </RequireAuth>
+        } />
+
+        {/* Edit Troubleshoot Form (Reception, Technicians, Analytics, Owner) */}
+        <Route path="/troubleshoot/:id" element={
+          <RequireAuth user={user}>
+            {(user?.role === 'reception' || user?.role === 'technician' || user?.role === 'analytics' || user?.role === 'owner')
+              ? <TroubleshootForm token={user.token} user={user} editMode={true} />
               : <Navigate to="/" />
             }
           </RequireAuth>
@@ -117,12 +142,24 @@ function App() {
           </RequireAuth>
         } />
 
+        {/* Reception Dashboard */}
+        <Route path="/reception-dashboard" element={
+          <RequireAuth user={user}>
+            {user?.role === 'reception'
+              ? <ReceptionDashboard user={user} />
+              : <Navigate to="/" />
+            }
+          </RequireAuth>
+        } />
+
                  {/* Fallback Route */}
          <Route path="*" element={
            user
              ? (
                ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
                  ? <Navigate to="/dashboard" replace />
+                 : user.role === 'reception'
+                 ? <Navigate to="/reception-dashboard" replace />
                  : <Navigate to="/tech-dashboard" replace />
                )
              : <Navigate to="/login" replace />

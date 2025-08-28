@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import ManagerDashboard from "./ManagerDashboard";
 import AccountingDashboard from "./AccountingDashboard";
 import AnalyticsDashboard from "./AnalyticsDashboard";
+import AllTechDashboard from "./AllTechDashboard";
+import ReceptionDashboard from "./ReceptionDashboard";
 
 export default function DashboardSwitcher({ user }) {
   const [selected, setSelected] = useState("analytics");
@@ -12,6 +14,9 @@ export default function DashboardSwitcher({ user }) {
         { key: "analytics", name: "Analytics", component: <AnalyticsDashboard user={user} /> },
         { key: "manager", name: "Manager", component: <ManagerDashboard user={user} /> },
         { key: "accounting", name: "Accounting", component: <AccountingDashboard user={user} /> },
+        { key: "reception", name: "Reception", component: <ReceptionDashboard user={user} /> },
+        { key: "tech", name: "Tech", component: <AllTechDashboard user={user} /> },
+        
       ];
 
 

@@ -8,6 +8,7 @@ import 'jspdf-autotable';
 import GLLSLogo from '../assets/GLLSLogo.png';
 import logoBase64 from '../assets/logoBase64';
 
+
 // Constants
 const REPAIR_TYPES = {
   FIELD_REPAIR: "Field Repair",
@@ -420,13 +421,15 @@ const useMasterData = () => {
 };
 
 // Main component
-export default function AssignWorkOrderForm({ token }) {
+export default function AssignWorkOrderForm({ token, user, editMode = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [nextWorkOrderNo, setNextWorkOrderNo] = useState('');
   const [workOrderPhotos, setWorkOrderPhotos] = useState([]);
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
   const sigPadRef = useRef();
+  
+
   const prevMakeRef = useRef();
 
   const { form, setForm, updateForm, updateFormField, loading: formLoading, setLoading: setFormLoading, error: formError } = useFormData(id);
@@ -674,9 +677,8 @@ export default function AssignWorkOrderForm({ token }) {
 
         console.log('NEW MODE: sending to API:', newForm);
         await API.post('/workorders', newForm);
+        navigate('/dashboard');
       }
-
-      navigate('/dashboard');
     } catch (err) {
       console.error('Failed to save work order:', err);
       alert('Failed to save work order. Please try again.');
@@ -734,6 +736,165 @@ export default function AssignWorkOrderForm({ token }) {
       setFormLoading(false);
     }
   }, [form, id, navigate, setFormLoading]);
+
+  // PhotoSection component definition
+  const PhotoSection = ({ workOrderPhotos, onDeletePhoto }) => {
+    const [selectedPhoto, setSelectedPhoto] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+
+    const handlePhotoClick = (photo) => {
+      setSelectedPhoto(photo);
+      setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+      setShowModal(false);
+      setSelectedPhoto(null);
+    };
+
+    return (
+      <>
+        {workOrderPhotos.length > 0 && (
+          <div style={{ marginTop: 32 }}>
+            <h3 style={{ marginBottom: 12 }}>Uploaded Photos</h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+              {workOrderPhotos.map(photo => (
+                <div key={photo.id} style={{ width: 180, position: 'relative' }}>
+                  <img
+                    src={photo.url}
+                    alt="Work Order"
+                    style={{
+                      width: '100%',
+                      height: 120,
+                      objectFit: 'cover',
+                      borderRadius: 8,
+                      border: '1px solid #ccc',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => handlePhotoClick(photo)}
+                    title="Click to view larger image"
+                  />
+                  {photo.description && (
+                    <div style={{ marginTop: 6, fontSize: 13 }}>
+                      {photo.description}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onDeletePhoto(photo.id)}
+                    style={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      background: '#f44336',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: 24,
+                      height: 24,
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      lineHeight: '24px',
+                      textAlign: 'center'
+                    }}
+                    title="Delete photo"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Photo Modal */}
+        {showModal && selectedPhoto && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10000,
+              padding: '20px'
+            }}
+            onClick={handleCloseModal}
+          >
+            <div
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close button */}
+              <button
+                onClick={handleCloseModal}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  background: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Close"
+              >
+                ×
+              </button>
+
+              {/* Image */}
+              <img
+                src={selectedPhoto.url}
+                alt="Work Order"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}
+              />
+
+              {/* Description */}
+              {selectedPhoto.description && (
+                <div style={{ 
+                  marginBottom: '16px', 
+                  fontSize: '16px', 
+                  textAlign: 'center',
+                  color: '#333',
+                  maxWidth: '600px'
+                }}>
+                  {selectedPhoto.description}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
 
   // Loading and error states
   if (masterLoading) {
@@ -1812,167 +1973,7 @@ const SignatureSection = ({ form, signatureModalOpen, setSignatureModalOpen, sig
         </div>
       </div>
     )}
-  </>
-);
+   </>
+ );
+    
 
-const PhotoSection = ({ workOrderPhotos, onDeletePhoto }) => {
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-
-  const handlePhotoClick = (photo) => {
-    setSelectedPhoto(photo);
-    setShowModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setSelectedPhoto(null);
-  };
-
-
-
-  return (
-    <>
-      {workOrderPhotos.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <h3 style={{ marginBottom: 12 }}>Uploaded Photos</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-            {workOrderPhotos.map(photo => (
-              <div key={photo.id} style={{ width: 180, position: 'relative' }}>
-                <img
-                  src={photo.url}
-                  alt="Work Order"
-                  style={{
-                    width: '100%',
-                    height: 120,
-                    objectFit: 'cover',
-                    borderRadius: 8,
-                    border: '1px solid #ccc',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => handlePhotoClick(photo)}
-                  title="Click to view larger image"
-                />
-                {photo.description && (
-                  <div style={{ marginTop: 6, fontSize: 13 }}>
-                    {photo.description}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onDeletePhoto(photo.id)}
-                  style={{
-                    position: 'absolute',
-                    top: 6,
-                    right: 6,
-                    background: '#f44336',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: 24,
-                    height: 24,
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    lineHeight: '24px',
-                    textAlign: 'center'
-                  }}
-                  title="Delete photo"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Photo Modal */}
-      {showModal && selectedPhoto && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            padding: '20px'
-          }}
-          onClick={handleCloseModal}
-        >
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              padding: '24px',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              position: 'relative'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close button */}
-            <button
-              onClick={handleCloseModal}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                background: '#f44336',
-                color: 'white',
-                border: 'none',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                cursor: 'pointer',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              title="Close"
-            >
-              ×
-            </button>
-
-            {/* Image */}
-            <img
-              src={selectedPhoto.url}
-              alt="Work Order"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '70vh',
-                objectFit: 'contain',
-                borderRadius: '8px',
-                marginBottom: '16px'
-              }}
-            />
-
-            {/* Description */}
-            {selectedPhoto.description && (
-              <div style={{ 
-                marginBottom: '16px', 
-                fontSize: '16px', 
-                textAlign: 'center',
-                color: '#333',
-                maxWidth: '600px'
-              }}>
-                {selectedPhoto.description}
-              </div>
-            )}
-
-            
-          </div>
-        </div>
-      )}
-    </>
-  );
-};

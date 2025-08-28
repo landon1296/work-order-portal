@@ -599,10 +599,66 @@ const updateResult = await pool.query(
     console.error(err);
     res.status(500).json({ error: "Failed to close work order." });
   }
-});
+  });
 
+  // === ENDPOINT: Delete Work Order (with password protection)
+  app.delete('/workorders/:workOrderNo', async (req, res) => {
+    try {
+      const { workOrderNo } = req.params;
+      const { password } = req.body;
 
+      // Password validation - you can change this to any password you want
+      const DELETE_PASSWORD = process.env.DELETE_WORK_ORDER_PASSWORD || 'delete123';
+      
+      if (!password || password !== DELETE_PASSWORD) {
+        return res.status(401).json({ error: 'Incorrect password. Work order deletion requires authorization.' });
+      }
 
+      // First, get the work order to verify it exists
+      const workOrderResult = await pool.query('SELECT work_order_no FROM workorders WHERE work_order_no = $1', [workOrderNo]);
+      if (workOrderResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Work order not found' });
+      }
+
+      // Start a transaction to ensure all related data is deleted
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Delete troubleshooting records first (due to foreign key constraint)
+        await client.query('DELETE FROM troubleshoot WHERE work_order_no = $1', [workOrderNo]);
+
+        // Delete time entries
+        await client.query('DELETE FROM time_entries WHERE work_order_no = $1', [workOrderNo]);
+
+        // Delete line items
+        await client.query('DELETE FROM line_items WHERE work_order_no = $1', [workOrderNo]);
+
+        // Delete photos (if they exist in a photos table)
+        // Uncomment if you have a photos table: await client.query('DELETE FROM photos WHERE work_order_no = $1', [workOrderNo]);
+
+        // Finally, delete the work order itself
+        const deleteResult = await client.query('DELETE FROM workorders WHERE work_order_no = $1 RETURNING work_order_no', [workOrderNo]);
+
+        await client.query('COMMIT');
+
+        res.json({ 
+          message: `Work order ${workOrderNo} and all related data have been permanently deleted.`,
+          deletedWorkOrderNo: workOrderNo
+        });
+
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+
+    } catch (err) {
+      console.error('Error deleting work order:', err);
+      res.status(500).json({ error: 'Failed to delete work order. Please try again.' });
+    }
+  });
 
   // === ENDPOINT: Makes & Models (still Google Sheets)
   app.get('/api/masters/makes-models', async (req, res) => {

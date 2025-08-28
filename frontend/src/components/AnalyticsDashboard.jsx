@@ -224,6 +224,8 @@ export default function AnalyticsDashboard({ user }) {
       return out;
     };
 
+    const activeWorkOrdersCount = filteredOrders.filter(wo => !isWorkOrderClosed(wo)).length;
+
     const countByShop = (orders) => {
       const out = {};
       orders.forEach(wo => {
@@ -251,6 +253,7 @@ export default function AnalyticsDashboard({ user }) {
       waitingOnPartsFiltered,
       kpiData: {
         totalOrders: filteredOrders.length,
+        activeWorkOrdersCount,
         closedOrdersCount,
         waitingPartOrdersCount,
         slowMoversCount: slowMoversFiltered.length,
@@ -440,7 +443,7 @@ const KPISection = ({ kpiData }) => (
     fontFamily: 'Arial, sans-serif'
   }}>
     <KPI label="Total Work Orders" value={kpiData.totalOrders}/>
-    <KPI label="Closed Work Orders" value={kpiData.closedOrdersCount} />
+    <KPI label="Active Work Orders" value={kpiData.activeWorkOrdersCount} />
     <KPI 
       label="Waiting on Part" 
       value={kpiData.waitingPartOrdersCount} 
@@ -545,7 +548,33 @@ const ChartsSection = ({ chartData, filteredOrders }) => (
           <BarChart data={getTopParts(filteredOrders)}>
             <XAxis dataKey="partNumber" />
             <YAxis />
-            <Tooltip />
+            <Tooltip 
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div style={{
+                      background: '#fff',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      padding: '8px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>
+                        Part: {data.partNumber}
+                      </p>
+                      <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#666' }}>
+                        {data.description || 'No description available'}
+                      </p>
+                      <p style={{ margin: '0', fontWeight: 'bold', color: '#10b981' }}>
+                        Count: {data.count}
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
             <Bar dataKey="count" fill="#10b981" />
           </BarChart>
         </ResponsiveContainer>

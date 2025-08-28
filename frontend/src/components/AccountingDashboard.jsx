@@ -6,6 +6,15 @@ import 'jspdf-autotable';
 import GLLSLogo from '../assets/GLLSLogo.png';
 import logoBase64 from '../assets/logoBase64';
 import { getStatusColor } from '../utils/statusColors';
+import DeleteWorkOrderModal from './DeleteWorkOrderModal';
+
+// CSS animations
+const styles = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
 
 // Constants
 const SHOP_OPTIONS = [
@@ -32,6 +41,7 @@ const useGlobalSearch = () => {
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const performGlobalSearch = useCallback((orders, searchTerm) => {
     if (!searchTerm.trim()) {
@@ -77,6 +87,8 @@ const useGlobalSearch = () => {
     globalSearchTerm,
     showSearchResults,
     searchResults,
+    searchLoading,
+    setSearchLoading,
     handleGlobalSearch,
     clearGlobalSearch,
     performGlobalSearch
@@ -434,7 +446,7 @@ const Header = ({ onLogout, onRefresh }) => (
   </div>
 );
 
-const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSearchTerm, onGlobalSearchChange, onGlobalSearchSubmit }) => (
+const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSearchTerm, onGlobalSearchChange, onGlobalSearchSubmit, searchLoading }) => (
   <div style={{ 
     marginBottom: 28, 
     marginLeft: 30, 
@@ -508,19 +520,32 @@ const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSe
       />
       <button
         onClick={onGlobalSearchSubmit}
+        disabled={searchLoading}
         style={{
           padding: "8px 16px",
-          background: "#2563eb",
+          background: searchLoading ? "#9ca3af" : "#2563eb",
           color: "white",
           border: "none",
           borderRadius: 8,
           fontWeight: 600,
-          cursor: "pointer",
+          cursor: searchLoading ? "not-allowed" : "pointer",
           fontSize: 16
         }}
         aria-label="Search work orders"
       >
-        Search
+        {searchLoading ? (
+          <div style={{
+            display: 'inline-block',
+            width: '16px',
+            height: '16px',
+            border: '2px solid #ffffff',
+            borderTop: '2px solid transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+        ) : (
+          'Search'
+        )}
       </button>
     </div>
   </div>
@@ -593,6 +618,7 @@ const WorkOrderTable = ({
   onRework, 
   onCloseWorkOrder, 
   onViewPDF,
+  onDelete,
   showStatus = true,
   showActions = true,
   emptyMessage = "No work orders found."
@@ -621,7 +647,34 @@ const WorkOrderTable = ({
         )}
         {orders.map(order => (
           <tr key={order.workOrderNo}>
-            <td>{order.workOrderNo}</td>
+            <td>
+              {onDelete && (
+                <span
+                  onClick={() => onDelete(order.workOrderNo)}
+                  style={{ 
+                    display: 'inline-block',
+                    width: '16px',
+                    height: '16px',
+                    background: '#ef4444', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '50%', 
+                    marginRight: '8px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    lineHeight: '16px',
+                    verticalAlign: 'middle'
+                  }}
+                  title={`Delete work order ${order.workOrderNo}`}
+                  aria-label={`Delete work order ${order.workOrderNo}`}
+                >
+                  ×
+                </span>
+              )}
+              {order.workOrderNo}
+            </td>
             <td>
               {order.date
                 ? new Date(order.date).toLocaleDateString('en-US', {
@@ -719,6 +772,7 @@ const WorkOrderTable = ({
                     View PDF
                   </button>
                 )}
+
               </td>
             )}
           </tr>
@@ -1030,7 +1084,11 @@ export default function AccountingDashboard({ user }) {
     searchClosed, setSearchClosed, 
     closedPage, setClosedPage, resetClosedPage 
   } = useSearchFilters();
-  const { globalSearchTerm, showSearchResults, searchResults, handleGlobalSearch, clearGlobalSearch, performGlobalSearch } = useGlobalSearch();
+  const { globalSearchTerm, showSearchResults, searchResults, searchLoading, setSearchLoading, handleGlobalSearch, clearGlobalSearch, performGlobalSearch } = useGlobalSearch();
+
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [workOrderToDelete, setWorkOrderToDelete] = useState(null);
 
   // Memoized filtered orders
   const filteredOrders = useMemo(() => 
@@ -1156,16 +1214,38 @@ export default function AccountingDashboard({ user }) {
 
   const handleGlobalSearchSubmit = useCallback(() => {
     if (globalSearchTerm.trim()) {
+      setSearchLoading(true);
       performGlobalSearch(window.allWorkOrders || [], globalSearchTerm);
+      setSearchLoading(false);
     } else {
       setShowSearchResults(false);
       setSearchResults([]);
     }
-  }, [globalSearchTerm, performGlobalSearch]);
+  }, [globalSearchTerm, performGlobalSearch, setSearchLoading]);
 
   const handleBackToDashboard = useCallback(() => {
     clearGlobalSearch();
   }, [clearGlobalSearch]);
+
+  // Delete handlers
+  const handleDeleteClick = useCallback((workOrderNo) => {
+    setWorkOrderToDelete(workOrderNo);
+    setDeleteModalOpen(true);
+  }, []);
+
+  const handleDeleteSuccess = useCallback((message, deletedWorkOrderNo) => {
+    alert(message);
+    refetch();
+  }, [refetch]);
+
+  const handleDeleteError = useCallback((errorMessage) => {
+    console.error('Delete error:', errorMessage);
+  }, []);
+
+  const handleDeleteModalClose = useCallback(() => {
+    setDeleteModalOpen(false);
+    setWorkOrderToDelete(null);
+  }, []);
 
   // Loading and error states
   if (loading) {
@@ -1209,6 +1289,7 @@ export default function AccountingDashboard({ user }) {
 
   return (
     <div style={{marginLeft: 30, marginRight: 30}}>
+      <style>{styles}</style>
       <Header onLogout={handleLogout} onRefresh={handleRefresh} />
       
       <LocationFilter 
@@ -1218,6 +1299,7 @@ export default function AccountingDashboard({ user }) {
         globalSearchTerm={globalSearchTerm}
         onGlobalSearchChange={handleGlobalSearchChange}
         onGlobalSearchSubmit={handleGlobalSearchSubmit}
+        searchLoading={searchLoading}
       />
 
       <AlertsSection 
@@ -1239,6 +1321,7 @@ export default function AccountingDashboard({ user }) {
         onRework={handleRework}
         onCloseWorkOrder={handleCloseWorkOrder}
         onViewPDF={handleViewPDF}
+        onDelete={handleDeleteClick}
         emptyMessage="There are no work orders submitted for billing."
       />
 
@@ -1254,6 +1337,7 @@ export default function AccountingDashboard({ user }) {
         orders={filteredActiveWorkOrders}
         onViewEdit={handleViewEdit}
         onViewPDF={handleViewPDF}
+        onDelete={handleDeleteClick}
         emptyMessage="No active work orders."
       />
 
@@ -1279,6 +1363,15 @@ export default function AccountingDashboard({ user }) {
           onPageChange={setClosedPage}
         />
       )}
+
+      {/* Delete Work Order Modal */}
+      <DeleteWorkOrderModal
+        isOpen={deleteModalOpen}
+        onClose={handleDeleteModalClose}
+        workOrderNo={workOrderToDelete}
+        onDeleteSuccess={handleDeleteSuccess}
+        onDeleteError={handleDeleteError}
+      />
     </div>
   );
 }

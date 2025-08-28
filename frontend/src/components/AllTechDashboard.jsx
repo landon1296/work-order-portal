@@ -7,14 +7,6 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import logoBase64 from '../assets/logoBase64';
 
-// CSS animations
-const styles = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-
 // Utility functions
 const formatDate = (dateStr) => {
   const date = new Date(dateStr);
@@ -410,6 +402,7 @@ const HistoryCheck = ({ workOrder, onShowHistory }) => {
              whiteSpace: 'nowrap'
            }}>
           
+          
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -464,13 +457,13 @@ const HistoryCheck = ({ workOrder, onShowHistory }) => {
             >
               Show History
             </button>
-          </div>
-        </div>
-        </>
-      )}
-    </>
-  );
-};
+                       </div>
+           </div>
+         </>
+       )}
+     </>
+   );
+ };
 
 // Search Results Page Component
 const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackToDashboard }) => {
@@ -564,16 +557,15 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackT
                       __html: highlightText(order.workOrderNo, searchTerm) 
                     }} />
                   </h3>
-                                     <p style={{ 
-                     margin: '4px 0 0 0', 
-                     color: '#374151', 
-                     fontSize: '15px',
-                     fontWeight: '600'
-                   }}>
-                     <span dangerouslySetInnerHTML={{ 
-                       __html: highlightText(order.companyName, searchTerm) 
-                     }} />
-                   </p>
+                  <p style={{ 
+                    margin: '4px 0 0 0', 
+                    color: '#6b7280', 
+                    fontSize: '14px' 
+                  }}>
+                    <span dangerouslySetInnerHTML={{ 
+                      __html: highlightText(order.companyName, searchTerm) 
+                    }} />
+                  </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
@@ -711,7 +703,7 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackT
   );
 };
 
-export default function TechDashboard({ username }) {
+export default function AllTechDashboard({ user }) {
   const [workOrders, setWorkOrders] = useState([]);
   const [troubleshootOrders, setTroubleshootOrders] = useState([]);
   const [closedTroubleshootOrders, setClosedTroubleshootOrders] = useState([]);
@@ -719,16 +711,39 @@ export default function TechDashboard({ username }) {
   const [loading, setLoading] = useState(true);
   const [troubleshootLoading, setTroubleshootLoading] = useState(true);
   const [closedTroubleshootLoading, setClosedTroubleshootLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [searchLoading, setSearchLoading] = useState(false);
   const { globalSearchTerm, showSearchResults, searchResults, handleGlobalSearch, clearGlobalSearch, performGlobalSearch, setShowSearchResults, setSearchResults } = useGlobalSearch();
 
-  // Only show work orders that are NOT "submitted"
+  // Show all work orders except closed ones and submitted for billing
   const visibleWorkOrders = workOrders.filter(
-    wo => !wo.status || wo.status.toLowerCase() !== 'submitted for billing'
+    wo => {
+      const status = (wo.status || '').toLowerCase();
+      return status !== 'submitted for billing' && status !== 'closed';
+    }
   );
 
+  // Show only closed work orders
+  const closedWorkOrders = workOrders.filter(
+    wo => {
+      const status = (wo.status || '').toLowerCase();
+      return status === 'closed';
+    }
+  );
+
+  // Pagination logic for closed work orders
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentClosedOrders = closedWorkOrders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(closedWorkOrders.length / itemsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
   const handleOpenEdit = (workOrderNo, isPreview = false) => {
-    navigate(`/tech-dashboard/workorder/${workOrderNo}${isPreview ? '?preview=true' : ''}`);
+    navigate(`/dashboard/workorder/${workOrderNo}${isPreview ? '?preview=true' : ''}`);
   };
 
   const handleViewPDF = useCallback((order) => {
@@ -751,7 +766,7 @@ export default function TechDashboard({ username }) {
         })
         .catch(err => {
           console.error('Failed to fetch all work orders for search:', err);
-          // Fallback to searching assigned work orders
+          // Fallback to searching current work orders
           performGlobalSearch(workOrders, globalSearchTerm);
           setSearchLoading(false);
         });
@@ -798,7 +813,8 @@ export default function TechDashboard({ username }) {
 
   useEffect(() => {
     setLoading(true);
-    API.get(`/workorders/assigned/${username}`)
+    // Fetch ALL work orders instead of just assigned ones
+    API.get('/workorders')
       .then(res => {
         const orders = res.data.map(toCamelCaseDeep);
         setWorkOrders(orders);
@@ -809,16 +825,16 @@ export default function TechDashboard({ username }) {
         setLoading(false);
       });
 
-    // Fetch troubleshooting orders assigned to this technician
+    // Fetch ALL troubleshooting orders instead of just assigned ones
     setTroubleshootLoading(true);
     API.get('/api/troubleshoot')
       .then(res => {
         const troubleshootData = res.data || [];
-        // Filter for troubleshooting orders assigned to this technician
-        const assignedTroubleshoot = troubleshootData.filter(order => 
-          order.technician_assigned === username && order.status !== 'Closed'
+        // Show all active troubleshooting orders, not just assigned ones
+        const activeTroubleshoot = troubleshootData.filter(order => 
+          order.status !== 'Closed'
         );
-        setTroubleshootOrders(assignedTroubleshoot);
+        setTroubleshootOrders(activeTroubleshoot);
         setTroubleshootLoading(false);
       })
       .catch(err => {
@@ -827,14 +843,14 @@ export default function TechDashboard({ username }) {
         setTroubleshootLoading(false);
       });
 
-    // Fetch closed troubleshooting orders assigned to this technician
+    // Fetch closed troubleshooting orders
     setClosedTroubleshootLoading(true);
     API.get('/api/troubleshoot')
       .then(res => {
         const troubleshootData = res.data || [];
-        // Filter for closed troubleshooting orders assigned to this technician
+        // Filter for closed troubleshooting orders
         const closedTroubleshoot = troubleshootData.filter(order => 
-          order.technician_assigned === username && order.status === 'Closed'
+          order.status === 'Closed'
         );
         setClosedTroubleshootOrders(closedTroubleshoot);
         setClosedTroubleshootLoading(false);
@@ -844,7 +860,7 @@ export default function TechDashboard({ username }) {
         setClosedTroubleshootOrders([]);
         setClosedTroubleshootLoading(false);
       });
-  }, [username]);
+  }, []);
 
   if (loading) {
     return (
@@ -854,7 +870,7 @@ export default function TechDashboard({ username }) {
         textAlign: 'center',
         fontSize: '18px'
       }}>
-        Loading your assigned work orders...
+        Loading all work orders...
       </div>
     );
   }
@@ -874,7 +890,14 @@ export default function TechDashboard({ username }) {
 
   return (
     <div style={{ paddingBottom: '60px' }}>
-      <style>{styles}</style>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <div style={{
         display: 'flex',
         alignItems: 'flex-start',
@@ -883,24 +906,7 @@ export default function TechDashboard({ username }) {
         fontFamily: 'Arial, Sans-Serif'
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 30, fontFamily: 'Arial, Sans-Serif' }}>
-          <button
-            onClick={() => window.location.href = '/login'}
-            style={{
-              background: '#ef4444',
-              color: 'white',
-              fontWeight: 'bold',
-              padding: '6px 14px',
-              fontSize: 14,
-              borderRadius: 6,
-              border: 'none',
-              marginBottom: 10,
-              marginTop: 10,
-              cursor: 'pointer'
-            }}
-          >
-            Log Out
-          </button>
-          <h1 style={{ margin: 0, fontFamily: 'Arial, Sans-Serif' }}>Technician Dashboard</h1>
+          <h1 style={{ margin: 0, fontFamily: 'Arial, Sans-Serif' }}>All Technician Work Orders</h1>
         </div>
         <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 0, marginTop:10 }} />
       </div>
@@ -920,244 +926,246 @@ export default function TechDashboard({ username }) {
           maxWidth: '600px',
           width: '100%'
         }}>
-                      <input
-              type="text"
-              placeholder="Search all work orders..."
-              value={globalSearchTerm}
-              onChange={handleGlobalSearchChange}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleGlobalSearchSubmit();
-                }
-              }}
-              style={{
-                flex: 1,
-                padding: "8px 16px",
-                fontSize: 16,
-                border: "2px solid #e5e7eb",
-                borderRadius: 8,
-                fontFamily: 'Arial, sans-serif',
-              }}
-              aria-label="Search all work orders"
-            />
-          <button
-            onClick={handleGlobalSearchSubmit}
-            disabled={searchLoading}
-            style={{
-              padding: "8px 16px",
-              background: searchLoading ? "#9ca3af" : "#2563eb",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontWeight: 600,
-              cursor: searchLoading ? "not-allowed" : "pointer",
-              fontSize: 16
+          <input
+            type="text"
+            placeholder="Search all work orders..."
+            value={globalSearchTerm}
+            onChange={handleGlobalSearchChange}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleGlobalSearchSubmit();
+              }
             }}
-            aria-label="Search work orders"
-          >
-            {searchLoading ? (
-              <div style={{
-                display: 'inline-block',
-                width: '16px',
-                height: '16px',
-                border: '2px solid #ffffff',
-                borderTop: '2px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-            ) : (
-              'Search'
-            )}
-          </button>
+            style={{
+              flex: 1,
+              padding: "8px 16px",
+              fontSize: 16,
+              border: "2px solid #e5e7eb",
+              borderRadius: 8,
+              fontFamily: 'Arial, sans-serif',
+            }}
+            aria-label="Search all work orders"
+          />
+                     <button
+             onClick={handleGlobalSearchSubmit}
+             disabled={searchLoading}
+             style={{
+               padding: "8px 16px",
+               background: searchLoading ? "#9ca3af" : "#2563eb",
+               color: "white",
+               border: "none",
+               borderRadius: 8,
+               fontWeight: 600,
+               cursor: searchLoading ? "not-allowed" : "pointer",
+               fontSize: 16,
+               display: "flex",
+               alignItems: "center",
+               gap: "8px"
+             }}
+             aria-label="Search work orders"
+           >
+             {searchLoading ? (
+               <>
+                 <div style={{
+                   width: "16px",
+                   height: "16px",
+                   border: "2px solid #ffffff",
+                   borderTop: "2px solid transparent",
+                   borderRadius: "50%",
+                   animation: "spin 1s linear infinite"
+                 }} />
+                 Searching...
+               </>
+             ) : (
+               "Search"
+             )}
+           </button>
         </div>
       </div>
 
       <div style={{ 
-  display: 'flex', 
-  justifyContent: 'space-between', 
-  alignItems: 'center', 
-  margin: '20px 30px 10px 30px',
-  fontFamily: 'Arial, Sans-Serif'
-}}>
-  <div style={{ flex: 1 }}>
-    <button
-      onClick={() => {
-        setLoading(true);
-        API.get(`/workorders/assigned/${username}`)
-          .then(res => {
-            setWorkOrders(res.data.map(toCamelCaseDeep));
-            setLoading(false);
-          })
-          .catch(() => {
-            setWorkOrders([]);
-            setLoading(false);
-          });
-      }}
-      style={{
-        background: '#2563eb',
-        color: 'white',
-        border: 'none',
-        padding: '6px 16px',
-        borderRadius: 6,
-        fontSize: 14,
-        fontWeight: 'bold',
-        cursor: 'pointer'
-      }}
-    >
-      Refresh Work Orders
-    </button>
-  </div>
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        margin: '20px 30px 10px 30px',
+        fontFamily: 'Arial, Sans-Serif'
+      }}>
+        <div style={{ flex: 1 }}>
+          <button
+            onClick={() => {
+              setLoading(true);
+              API.get('/workorders')
+                .then(res => {
+                  setWorkOrders(res.data.map(toCamelCaseDeep));
+                  setLoading(false);
+                })
+                .catch(() => {
+                  setWorkOrders([]);
+                  setLoading(false);
+                });
+            }}
+            style={{
+              background: '#2563eb',
+              color: 'white',
+              border: 'none',
+              padding: '6px 16px',
+              borderRadius: 6,
+              fontSize: 14,
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            Refresh Work Orders
+          </button>
+        </div>
 
-  <div style={{ flex: 1, textAlign: 'center' }}>
-    <h2 style={{ margin: 0 }}>
-      Your Assigned Work Orders
-    </h2>
-  </div>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <h2 style={{ margin: 0 }}>
+            All Work Orders
+          </h2>
+        </div>
 
-  <div style={{ flex: 1 }} />
-</div>
+        <div style={{ flex: 1 }} />
+      </div>
 
       <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', margin: '20px 30px 10px 30px',}}>
-      <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif'}}>
-        
-        <thead>
-          <tr>
-            <th>Work Order #</th>
-            <th>Company</th>
-            <th>Make / Model / Serial#</th>
-            <th>Status</th>
-            <th>Date Assigned</th>
-            <th>Days Open</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {visibleWorkOrders.length === 0 && (
+        <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif'}}>
+          <thead>
             <tr>
-              <td colSpan={6} style={{ textAlign: 'center' }}>No assigned work orders.</td>
+              <th>Work Order #</th>
+              <th>Company</th>
+              <th>Make / Model / Serial#</th>
+              <th>Status</th>
+              <th>Date Assigned</th>
+              <th>Days Open</th>
+              <th>Action</th>
             </tr>
-          )}
-          {visibleWorkOrders.map(wo => {
-
-            return (
-              <tr key={wo.id}>
-                <td>{String(wo.workOrderNo)}</td>
-                <td>{String(wo.companyName)}</td>
-                                                  <td style={{ position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+          </thead>
+          <tbody>
+            {visibleWorkOrders.length === 0 && (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center' }}>No work orders found.</td>
+              </tr>
+            )}
+            {visibleWorkOrders.map(wo => {
+              return (
+                <tr key={wo.id}>
+                  <td>{String(wo.workOrderNo)}</td>
+                  <td>{String(wo.companyName)}</td>
+                  <td style={{ position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
                     {`${wo.make || ''} / ${wo.model || ''} / ${wo.serialNumber || ''}`}
                     <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} />
                   </td>
-                <td>{String(wo.status || 'Assigned')}</td>
-                <td>
-                  {wo.timeLogs?.[0]?.assignDate
-                    ? (
-                      typeof wo.timeLogs[0].assignDate === 'string'
-                        ? wo.timeLogs[0].assignDate.slice(0, 10)
-                        : (
-                          wo.timeLogs[0].assignDate instanceof Date
-                            ? wo.timeLogs[0].assignDate.toLocaleDateString()
-                            : ''
-                        )
-                    )
-                    : ''
-                  }
-                </td>
-                <td>
-  {(() => {
-    const assignedDate = wo.timeLogs?.[0]?.assignDate;
-    if (!assignedDate) return '';
-    const assigned = new Date(assignedDate);
-    const now = new Date();
-    const daysOpen = Math.floor((now - assigned) / (1000 * 60 * 60 * 24));
-    return daysOpen;
-  })()}
-</td>
-
-                <td>
-                  {(() => {
-                    const status = (wo.status || '').toLowerCase().trim();
-                    const isAssigned = !status || status === 'assigned';
-                    return isAssigned;
-                  })(                  ) ? (
-                    <>
-                      <button
-                        onClick={() => handleOpenEdit(wo.workOrderNo, true)}
-                        style={{
-                          marginRight: 8,
-                          padding: '4px 10px',
-                          border: '1px solid #ccc',
-                          background: '#eee',
-                          borderRadius: 4,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Preview
-                      </button>
-                      <button
-                        onClick={() => handleOpenEdit(wo.workOrderNo)}
-                        style={{
-                          marginRight: 8,
-                          padding: '4px 10px',
-                          background: '#1d4ed8',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 4,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Start Work
-                      </button>
-                      <button
-                        onClick={() => handleViewPDF(wo)}
-                        style={{
-                          padding: '4px 10px',
-                          background: 'white',
-                          color: '#2563eb',
-                          border: '1px solid #2563eb',
-                          borderRadius: 4,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        PDF
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleOpenEdit(wo.workOrderNo)}
-                        style={{
-                          marginRight: 8,
-                          padding: '4px 10px',
-                          background: '#1d4ed8',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 4,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Open
-                      </button>
-                      <button
-                        onClick={() => handleViewPDF(wo)}
-                        style={{
-                          padding: '4px 10px',
-                          background: 'white',
-                          color: '#2563eb',
-                          border: '1px solid #2563eb',
-                          borderRadius: 4,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        PDF
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  <td>{String(wo.status || 'Assigned')}</td>
+                  <td>
+                    {wo.timeLogs?.[0]?.assignDate
+                      ? (
+                        typeof wo.timeLogs[0].assignDate === 'string'
+                          ? wo.timeLogs[0].assignDate.slice(0, 10)
+                          : (
+                            wo.timeLogs[0].assignDate instanceof Date
+                              ? wo.timeLogs[0].assignDate.toLocaleDateString()
+                              : ''
+                          )
+                      )
+                      : ''
+                    }
+                  </td>
+                  <td>
+                    {(() => {
+                      const assignedDate = wo.timeLogs?.[0]?.assignDate;
+                      if (!assignedDate) return '';
+                      const assigned = new Date(assignedDate);
+                      const now = new Date();
+                      const daysOpen = Math.floor((now - assigned) / (1000 * 60 * 60 * 24));
+                      return daysOpen;
+                    })()}
+                  </td>
+                  <td>
+                    {(() => {
+                      const status = (wo.status || '').toLowerCase().trim();
+                      const isAssigned = !status || status === 'assigned';
+                      return isAssigned;
+                    })() ? (
+                      <>
+                        <button
+                          onClick={() => handleOpenEdit(wo.workOrderNo, true)}
+                          style={{
+                            marginRight: 8,
+                            padding: '4px 10px',
+                            border: '1px solid #ccc',
+                            background: '#eee',
+                            borderRadius: 4,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Preview
+                        </button>
+                        <button
+                          onClick={() => handleOpenEdit(wo.workOrderNo)}
+                          style={{
+                            marginRight: 8,
+                            padding: '4px 10px',
+                            background: '#1d4ed8',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Start Work
+                        </button>
+                        <button
+                          onClick={() => handleViewPDF(wo)}
+                          style={{
+                            padding: '4px 10px',
+                            background: 'white',
+                            color: '#2563eb',
+                            border: '1px solid #2563eb',
+                            borderRadius: 4,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          PDF
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleOpenEdit(wo.workOrderNo)}
+                          style={{
+                            marginRight: 8,
+                            padding: '4px 10px',
+                            background: '#1d4ed8',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Open
+                        </button>
+                        <button
+                          onClick={() => handleViewPDF(wo)}
+                          style={{
+                            padding: '4px 10px',
+                            background: 'white',
+                            color: '#2563eb',
+                            border: '1px solid #2563eb',
+                            borderRadius: 4,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          PDF
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {/* Troubleshooting Orders Section */}
@@ -1175,10 +1183,7 @@ export default function TechDashboard({ username }) {
               API.get('/api/troubleshoot')
                 .then(res => {
                   const troubleshootData = res.data || [];
-                  const assignedTroubleshoot = troubleshootData.filter(order => 
-                    order.technician_assigned === username && order.status !== 'Closed'
-                  );
-                  setTroubleshootOrders(assignedTroubleshoot);
+                  setTroubleshootOrders(troubleshootData);
                   setTroubleshootLoading(false);
                 })
                 .catch(err => {
@@ -1202,39 +1207,39 @@ export default function TechDashboard({ username }) {
           </button>
         </div>
 
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <h2 style={{ margin: 0 }}>
-            Your Assigned Troubleshooting Orders
-          </h2>
-        </div>
+                 <div style={{ flex: 1, textAlign: 'center' }}>
+           <h2 style={{ margin: 0 }}>
+             Active Troubleshooting Orders
+           </h2>
+         </div>
 
         <div style={{ flex: 1 }} />
       </div>
 
       <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', margin: '20px 30px 40px 30px',}}>
         <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif' }}>
-                     <thead>
-             <tr>
-               <th>Company Name</th>
-               <th>Date</th>
-               <th>Make / Model / Serial#</th>
-               <th>Work Description</th>
-               <th>Status</th>
-               <th>Action</th>
-             </tr>
-           </thead>
+          <thead>
+            <tr>
+              <th>Company Name</th>
+              <th>Date</th>
+              <th>Make / Model / Serial#</th>
+              <th>Work Description</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
           <tbody>
-                         {troubleshootLoading ? (
-               <tr>
-                 <td colSpan={6} style={{ textAlign: 'center' }}>Loading troubleshooting orders...</td>
-               </tr>
-             ) : troubleshootOrders.length === 0 ? (
-               <tr>
-                 <td colSpan={6} style={{ textAlign: 'center' }}>No assigned troubleshooting orders.</td>
-               </tr>
-             ) : (
-               troubleshootOrders.map(order => (
-                 <tr key={order.id}>
+            {troubleshootLoading ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center' }}>Loading troubleshooting orders...</td>
+              </tr>
+            ) : troubleshootOrders.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center' }}>No troubleshooting orders found.</td>
+              </tr>
+            ) : (
+              troubleshootOrders.map(order => (
+                <tr key={order.id}>
                   <td>{order.company_name || 'N/A'}</td>
                   <td>
                     {order.date 
@@ -1284,133 +1289,330 @@ export default function TechDashboard({ username }) {
             )}
           </tbody>
         </table>
-      </div>
+             </div>
 
-      {/* Closed Troubleshooting Orders Section */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        margin: '40px 30px 10px 30px',
-        fontFamily: 'Arial, Sans-Serif'
-      }}>
-        <div style={{ flex: 1 }}>
-          <button
-            onClick={() => {
-              setClosedTroubleshootLoading(true);
-              API.get('/api/troubleshoot')
-                .then(res => {
-                  const troubleshootData = res.data || [];
-                  const closedTroubleshoot = troubleshootData.filter(order => 
-                    order.technician_assigned === username && order.status === 'Closed'
-                  );
-                  setClosedTroubleshootOrders(closedTroubleshoot);
-                  setClosedTroubleshootLoading(false);
-                })
-                .catch(err => {
-                  console.error('Failed to fetch closed troubleshooting orders:', err);
-                  setClosedTroubleshootOrders([]);
-                  setClosedTroubleshootLoading(false);
-                });
-            }}
-            style={{
-              background: '#2563eb',
-              color: 'white',
-              border: 'none',
-              padding: '6px 16px',
-              borderRadius: 6,
-              fontSize: 14,
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            Refresh Closed Troubleshooting Orders
-          </button>
-        </div>
+       {/* Closed Work Orders Section */}
+       <div style={{ 
+         display: 'flex', 
+         justifyContent: 'space-between', 
+         alignItems: 'center', 
+         margin: '40px 30px 10px 30px',
+         fontFamily: 'Arial, Sans-Serif'
+       }}>
+         <div style={{ flex: 1 }}>
+           <button
+             onClick={() => {
+               setLoading(true);
+               API.get('/workorders')
+                 .then(res => {
+                   setWorkOrders(res.data.map(toCamelCaseDeep));
+                   setLoading(false);
+                 })
+                 .catch(() => {
+                   setWorkOrders([]);
+                   setLoading(false);
+                 });
+             }}
+             style={{
+               background: '#2563eb',
+               color: 'white',
+               border: 'none',
+               padding: '6px 16px',
+               borderRadius: 6,
+               fontSize: 14,
+               fontWeight: 'bold',
+               cursor: 'pointer'
+             }}
+           >
+             Refresh Closed Work Orders
+           </button>
+         </div>
 
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <h2 style={{ margin: 0 }}>
-            Your Closed Troubleshooting Orders
-          </h2>
-        </div>
+         <div style={{ flex: 1, textAlign: 'center' }}>
+           <h2 style={{ margin: 0 }}>
+             Closed Work Orders
+           </h2>
+         </div>
 
-        <div style={{ flex: 1 }} />
-      </div>
+         <div style={{ flex: 1 }} />
+       </div>
 
-      <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', margin: '20px 30px 40px 30px',}}>
-        <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif' }}>
-          <thead>
-            <tr>
-              <th>Company Name</th>
-              <th>Date</th>
-              <th>Make / Model / Serial#</th>
-              <th>Work Description</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {closedTroubleshootLoading ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center' }}>Loading closed troubleshooting orders...</td>
-              </tr>
-            ) : closedTroubleshootOrders.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center' }}>No closed troubleshooting orders.</td>
-              </tr>
-            ) : (
-              closedTroubleshootOrders.map(order => (
-                <tr key={order.id}>
-                  <td>{order.company_name || 'N/A'}</td>
-                  <td>
-                    {order.date 
-                      ? new Date(order.date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit'
-                        })
-                      : 'N/A'
-                    }
-                  </td>
-                  <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
-                    {`${order.make || ''} / ${order.model || ''} / ${order.serial_number || ''}`}
-                  </td>
-                  <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {order.work_description || 'N/A'}
-                  </td>
-                  <td>
-                    <span style={{
-                      display: "inline-block",
-                      padding: "2px 10px",
-                      borderRadius: "12px",
-                      fontSize: "13px",
-                      background: '#6b7280',
-                      color: "#fff"
-                    }}>
-                      {order.status || 'Closed'}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      onClick={() => navigate(`/troubleshoot/${order.id}`)}
-                      style={{
-                        padding: '4px 10px',
-                        background: '#1d4ed8',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      View
-                    </button>
-                  </td>
+       <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', margin: '20px 30px 40px 30px',}}>
+         <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif' }}>
+           <thead>
+             <tr>
+               <th>Work Order #</th>
+               <th>Company</th>
+               <th>Make / Model / Serial#</th>
+               <th>Status</th>
+               <th>Date Assigned</th>
+               <th>Days Open</th>
+               <th>Action</th>
+             </tr>
+           </thead>
+                       <tbody>
+              {currentClosedOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center' }}>No closed work orders found.</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                currentClosedOrders.map(wo => {
+                 return (
+                   <tr key={wo.id}>
+                     <td>{String(wo.workOrderNo)}</td>
+                     <td>{String(wo.companyName)}</td>
+                     <td style={{ position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                       {`${wo.make || ''} / ${wo.model || ''} / ${wo.serialNumber || ''}`}
+                       <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} />
+                     </td>
+                     <td>{String(wo.status || 'Closed')}</td>
+                     <td>
+                       {wo.timeLogs?.[0]?.assignDate
+                         ? (
+                           typeof wo.timeLogs[0].assignDate === 'string'
+                             ? wo.timeLogs[0].assignDate.slice(0, 10)
+                             : (
+                               wo.timeLogs[0].assignDate instanceof Date
+                                 ? wo.timeLogs[0].assignDate.toLocaleDateString()
+                                 : ''
+                             )
+                         )
+                         : ''
+                       }
+                     </td>
+                     <td>
+                       {(() => {
+                         const assignedDate = wo.timeLogs?.[0]?.assignDate;
+                         if (!assignedDate) return '';
+                         const assigned = new Date(assignedDate);
+                         const now = new Date();
+                         const daysOpen = Math.floor((now - assigned) / (1000 * 60 * 60 * 24));
+                         return daysOpen;
+                       })()}
+                     </td>
+                     <td>
+                       <button
+                         onClick={() => handleOpenEdit(wo.workOrderNo)}
+                         style={{
+                           marginRight: 8,
+                           padding: '4px 10px',
+                           background: '#1d4ed8',
+                           color: '#fff',
+                           border: 'none',
+                           borderRadius: 4,
+                           cursor: 'pointer'
+                         }}
+                       >
+                         View
+                       </button>
+                       <button
+                         onClick={() => handleViewPDF(wo)}
+                         style={{
+                           padding: '4px 10px',
+                           background: 'white',
+                           color: '#2563eb',
+                           border: '1px solid #2563eb',
+                           borderRadius: 4,
+                           cursor: 'pointer'
+                         }}
+                       >
+                         PDF
+                       </button>
+                     </td>
+                   </tr>
+                 );
+               })
+             )}
+                       </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Controls */}
+        {closedWorkOrders.length > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            margin: '20px 0',
+            fontFamily: 'Arial, sans-serif'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px'
+            }}>
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '8px 12px',
+                  background: currentPage === 1 ? '#e5e7eb' : '#2563eb',
+                  color: currentPage === 1 ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Previous
+              </button>
+
+              <span style={{ fontSize: '14px', color: '#374151' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '8px 12px',
+                  background: currentPage === totalPages ? '#e5e7eb' : '#2563eb',
+                  color: currentPage === totalPages ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Next
+              </button>
+            </div>
+
+            <div style={{ 
+              marginLeft: '20px',
+              fontSize: '14px',
+              color: '#6b7280'
+            }}>
+              Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, closedWorkOrders.length)} of {closedWorkOrders.length} closed work orders
+            </div>
+          </div>
+        )}
+
+        {/* Closed Troubleshooting Orders Section */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          margin: '40px 30px 10px 30px',
+          fontFamily: 'Arial, Sans-Serif'
+        }}>
+          <div style={{ flex: 1 }}>
+            <button
+              onClick={() => {
+                setClosedTroubleshootLoading(true);
+                API.get('/api/troubleshoot')
+                  .then(res => {
+                    const troubleshootData = res.data || [];
+                    const closedTroubleshoot = troubleshootData.filter(order => 
+                      order.status === 'Closed'
+                    );
+                    setClosedTroubleshootOrders(closedTroubleshoot);
+                    setClosedTroubleshootLoading(false);
+                  })
+                  .catch(err => {
+                    console.error('Failed to fetch closed troubleshooting orders:', err);
+                    setClosedTroubleshootOrders([]);
+                    setClosedTroubleshootLoading(false);
+                  });
+              }}
+              style={{
+                background: '#2563eb',
+                color: 'white',
+                border: 'none',
+                padding: '6px 16px',
+                borderRadius: 6,
+                fontSize: 14,
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Refresh Closed Troubleshooting Orders
+            </button>
+          </div>
+
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <h2 style={{ margin: 0 }}>
+              Closed Troubleshooting Orders
+            </h2>
+          </div>
+
+          <div style={{ flex: 1 }} />
+        </div>
+
+        <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', margin: '20px 30px 40px 30px',}}>
+          <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif' }}>
+            <thead>
+              <tr>
+                <th>Company Name</th>
+                <th>Date</th>
+                <th>Make / Model / Serial#</th>
+                <th>Work Description</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {closedTroubleshootLoading ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center' }}>Loading closed troubleshooting orders...</td>
+                </tr>
+              ) : closedTroubleshootOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center' }}>No closed troubleshooting orders.</td>
+                </tr>
+              ) : (
+                closedTroubleshootOrders.map(order => (
+                  <tr key={order.id}>
+                    <td>{order.company_name || 'N/A'}</td>
+                    <td>
+                      {order.date 
+                        ? new Date(order.date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                          })
+                        : 'N/A'
+                      }
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                      {`${order.make || ''} / ${order.model || ''} / ${order.serial_number || ''}`}
+                    </td>
+                    <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {order.work_description || 'N/A'}
+                    </td>
+                    <td>
+                      <span style={{
+                        display: "inline-block",
+                        padding: "2px 10px",
+                        borderRadius: "12px",
+                        fontSize: "13px",
+                        background: '#6b7280',
+                        color: "#fff"
+                      }}>
+                        {order.status || 'Closed'}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => navigate(`/troubleshoot/${order.id}`)}
+                        style={{
+                          padding: '4px 10px',
+                          background: '#1d4ed8',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
