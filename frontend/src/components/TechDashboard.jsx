@@ -1213,75 +1213,77 @@ export default function TechDashboard({ username }) {
 
       <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif', margin: '20px 30px 40px 30px',}}>
         <table className="manager-table" style={{ width: '100%', marginTop: 0, fontFamily: 'Arial, Sans-Serif' }}>
-                     <thead>
-             <tr>
-               <th>Company Name</th>
-               <th>Date</th>
-               <th>Make / Model / Serial#</th>
-               <th>Work Description</th>
-               <th>Status</th>
-               <th>Action</th>
-             </tr>
-           </thead>
+                               <thead>
+            <tr>
+              <th>Company Name</th>
+              <th>Date</th>
+              <th>Technician</th>
+              <th>Make / Model / Serial#</th>
+              <th>Work Description</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
           <tbody>
-                         {troubleshootLoading ? (
-               <tr>
-                 <td colSpan={6} style={{ textAlign: 'center' }}>Loading troubleshooting orders...</td>
+            {troubleshootLoading ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center' }}>Loading troubleshooting orders...</td>
+              </tr>
+            ) : troubleshootOrders.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center' }}>No assigned troubleshooting orders.</td>
+              </tr>
+            ) : (
+              troubleshootOrders.map(order => (
+                <tr key={order.id}>
+                 <td>{order.company_name || 'N/A'}</td>
+                 <td>
+                   {order.date 
+                     ? new Date(order.date).toLocaleDateString('en-US', {
+                         year: 'numeric',
+                         month: '2-digit',
+                         day: '2-digit'
+                       })
+                     : 'N/A'
+                   }
+                 </td>
+                 <td>{order.technician_assigned || 'N/A'}</td>
+                 <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                   {`${order.make || ''} / ${order.model || ''} / ${order.serial_number || ''}`}
+                 </td>
+                 <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                   {order.work_description || 'N/A'}
+                 </td>
+                 <td>
+                   <span style={{
+                     display: "inline-block",
+                     padding: "2px 10px",
+                     borderRadius: "12px",
+                     fontSize: "13px",
+                     background: order.status === 'Active' ? '#10b981' : '#6b7280',
+                     color: "#fff"
+                   }}>
+                     {order.status || 'Active'}
+                   </span>
+                 </td>
+                 <td>
+                   <button
+                     onClick={() => navigate(`/troubleshoot/${order.id}`)}
+                     style={{
+                       padding: '4px 10px',
+                       background: '#1d4ed8',
+                       color: '#fff',
+                       border: 'none',
+                       borderRadius: 4,
+                       cursor: 'pointer'
+                     }}
+                   >
+                     View/Edit
+                   </button>
+                 </td>
                </tr>
-             ) : troubleshootOrders.length === 0 ? (
-               <tr>
-                 <td colSpan={6} style={{ textAlign: 'center' }}>No assigned troubleshooting orders.</td>
-               </tr>
-             ) : (
-               troubleshootOrders.map(order => (
-                 <tr key={order.id}>
-                  <td>{order.company_name || 'N/A'}</td>
-                  <td>
-                    {order.date 
-                      ? new Date(order.date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit'
-                        })
-                      : 'N/A'
-                    }
-                  </td>
-                  <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
-                    {`${order.make || ''} / ${order.model || ''} / ${order.serial_number || ''}`}
-                  </td>
-                  <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {order.work_description || 'N/A'}
-                  </td>
-                  <td>
-                    <span style={{
-                      display: "inline-block",
-                      padding: "2px 10px",
-                      borderRadius: "12px",
-                      fontSize: "13px",
-                      background: order.status === 'Active' ? '#10b981' : '#6b7280',
-                      color: "#fff"
-                    }}>
-                      {order.status || 'Active'}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      onClick={() => navigate(`/troubleshoot/${order.id}`)}
-                      style={{
-                        padding: '4px 10px',
-                        background: '#1d4ed8',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      View/Edit
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
+             ))
+           )}
           </tbody>
         </table>
       </div>
@@ -1343,6 +1345,7 @@ export default function TechDashboard({ username }) {
             <tr>
               <th>Company Name</th>
               <th>Date</th>
+              <th>Technician</th>
               <th>Make / Model / Serial#</th>
               <th>Work Description</th>
               <th>Status</th>
@@ -1352,11 +1355,11 @@ export default function TechDashboard({ username }) {
           <tbody>
             {closedTroubleshootLoading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center' }}>Loading closed troubleshooting orders...</td>
+                <td colSpan={7} style={{ textAlign: 'center' }}>Loading closed troubleshooting orders...</td>
               </tr>
             ) : closedTroubleshootOrders.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center' }}>No closed troubleshooting orders.</td>
+                <td colSpan={7} style={{ textAlign: 'center' }}>No closed troubleshooting orders.</td>
               </tr>
             ) : (
               closedTroubleshootOrders.map(order => (
@@ -1372,6 +1375,7 @@ export default function TechDashboard({ username }) {
                       : 'N/A'
                     }
                   </td>
+                  <td>{order.technician_assigned || 'N/A'}</td>
                   <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
                     {`${order.make || ''} / ${order.model || ''} / ${order.serial_number || ''}`}
                   </td>

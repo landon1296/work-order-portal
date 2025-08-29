@@ -1222,6 +1222,7 @@ export default function AllTechDashboard({ user }) {
             <tr>
               <th>Company Name</th>
               <th>Date</th>
+              <th>Technician</th>
               <th>Make / Model / Serial#</th>
               <th>Work Description</th>
               <th>Status</th>
@@ -1231,11 +1232,11 @@ export default function AllTechDashboard({ user }) {
           <tbody>
             {troubleshootLoading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center' }}>Loading troubleshooting orders...</td>
+                <td colSpan={7} style={{ textAlign: 'center' }}>Loading troubleshooting orders...</td>
               </tr>
             ) : troubleshootOrders.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center' }}>No troubleshooting orders found.</td>
+                <td colSpan={7} style={{ textAlign: 'center' }}>No troubleshooting orders found.</td>
               </tr>
             ) : (
               troubleshootOrders.map(order => (
@@ -1251,6 +1252,7 @@ export default function AllTechDashboard({ user }) {
                       : 'N/A'
                     }
                   </td>
+                  <td>{order.technician_assigned || 'N/A'}</td>
                   <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
                     {`${order.make || ''} / ${order.model || ''} / ${order.serial_number || ''}`}
                   </td>
@@ -1545,6 +1547,7 @@ export default function AllTechDashboard({ user }) {
               <tr>
                 <th>Company Name</th>
                 <th>Date</th>
+                <th>Technician</th>
                 <th>Make / Model / Serial#</th>
                 <th>Work Description</th>
                 <th>Status</th>
@@ -1554,11 +1557,11 @@ export default function AllTechDashboard({ user }) {
             <tbody>
               {closedTroubleshootLoading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center' }}>Loading closed troubleshooting orders...</td>
+                  <td colSpan={7} style={{ textAlign: 'center' }}>Loading closed troubleshooting orders...</td>
                 </tr>
               ) : closedTroubleshootOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center' }}>No closed troubleshooting orders.</td>
+                  <td colSpan={7} style={{ textAlign: 'center' }}>No closed troubleshooting orders.</td>
                 </tr>
               ) : (
                 closedTroubleshootOrders.map(order => (
@@ -1574,6 +1577,7 @@ export default function AllTechDashboard({ user }) {
                         : 'N/A'
                       }
                     </td>
+                    <td>{order.technician_assigned || 'N/A'}</td>
                     <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
                       {`${order.make || ''} / ${order.model || ''} / ${order.serial_number || ''}`}
                     </td>
