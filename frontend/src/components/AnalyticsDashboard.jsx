@@ -321,13 +321,21 @@ export default function AnalyticsDashboard({ user }) {
 
       <KPISection kpiData={kpiData} />
 
-      <ChartsSection chartData={chartData} filteredOrders={filteredOrders} />
+      <div style={{ display: "flex", gap: 36, marginLeft: 0, marginRight: 0 }}>
+        {/* Left Column - Charts */}
+        <div style={{ flex: 1 }}>
+          <ChartsSection chartData={chartData} filteredOrders={filteredOrders} />
+        </div>
 
-      <TablesSection 
-        slowMoversFiltered={slowMoversFiltered}
-        waitingOnPartsFiltered={waitingOnPartsFiltered}
-        onNavigateToWorkOrder={(workOrderNo) => navigate(`/dashboard/workorder/${workOrderNo}`)}
-      />
+        {/* Right Column - Tables */}
+        <div style={{ flex: 1, maxWidth: 800, marginRight: 30 }}>
+          <TablesSection 
+            slowMoversFiltered={slowMoversFiltered}
+            waitingOnPartsFiltered={waitingOnPartsFiltered}
+            onNavigateToWorkOrder={(workOrderNo) => navigate(`/dashboard/workorder/${workOrderNo}`)}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -628,7 +636,12 @@ const ChartsSection = ({ chartData, filteredOrders }) => (
 );
 
 const TablesSection = ({ slowMoversFiltered, waitingOnPartsFiltered, onNavigateToWorkOrder }) => (
-  <div style={{ marginTop: 48, marginLeft: 30, maxWidth: 800, fontFamily: 'Arial, sans-serif'}}>
+  <div style={{ marginTop: 0, marginLeft: 0, maxWidth: 800, fontFamily: 'Arial, sans-serif', backgroundColor: "#fff", padding: 30, borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.50)", }}>
+    <WaitingPartsTable 
+      waitingOnPartsFiltered={waitingOnPartsFiltered}
+      onNavigateToWorkOrder={onNavigateToWorkOrder}
+    />
+    
     <SlowMoversTable 
       slowMoversFiltered={slowMoversFiltered} 
       onNavigateToWorkOrder={onNavigateToWorkOrder}
@@ -770,6 +783,108 @@ const WaitingOnPartsTable = ({ waitingOnPartsFiltered, onNavigateToWorkOrder }) 
     </table>
   </div>
 );
+
+
+
+const WaitingPartsTable = ({ waitingOnPartsFiltered, onNavigateToWorkOrder }) => {
+  // Flatten all waiting parts from all work orders
+  const allWaitingParts = [];
+  waitingOnPartsFiltered.forEach(wo => {
+    if (Array.isArray(wo.parts)) {
+      wo.parts.forEach(part => {
+        if (part.waiting) {
+          allWaitingParts.push({
+            workOrderNo: wo.work_order_no,
+            partNumber: part.partNumber || part.part_number || '',
+            description: part.description || 'No description',
+            quantity: part.quantity || 1,
+            createdAt: wo.created_at
+          });
+        }
+      });
+    }
+  });
+
+  // Sort by days waiting (most recent first)
+  allWaitingParts.sort((a, b) => {
+    const daysA = calculateDaysOpen(a.createdAt);
+    const daysB = calculateDaysOpen(b.createdAt);
+    return daysB - daysA;
+  });
+
+  return (
+    <div>
+      <h2 style={{ 
+        fontSize: 22, 
+        marginBottom: 8, 
+        marginTop: 0,
+        borderBottom: '3px solid #2563eb', 
+        paddingBottom: 4 
+      }}>
+        Parts Marked "Waiting on Part"
+      </h2>
+      <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
+        <thead>
+          <tr style={{ background: "#e5e7eb" }}>
+            <th style={{ textAlign: "left", padding: 8 }}>Work Order #</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Part Number</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Description</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Quantity</th>
+            <th style={{ textAlign: "center", padding: 8 }}>Days Waiting</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allWaitingParts.length === 0 ? (
+            <tr>
+              <td colSpan={5} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>
+                No parts currently waiting on!
+              </td>
+            </tr>
+          ) : (
+            allWaitingParts.map((part, index) => {
+              const daysWaiting = calculateDaysOpen(part.createdAt);
+              
+              return (
+                <tr key={`${part.workOrderNo}-${part.partNumber}-${index}`}>
+                  <td style={{ padding: 8, fontWeight: 'bold' }}>{part.workOrderNo}</td>
+                  <td style={{ padding: 8, fontFamily: 'monospace' }}>{part.partNumber}</td>
+                  <td style={{ padding: 8 }}>{part.description}</td>
+                  <td style={{ padding: 8, textAlign: "center" }}>{part.quantity}</td>
+                  <td style={{ 
+                    padding: 8, 
+                    textAlign: "center",
+                    color: daysWaiting > 7 ? '#dc2626' : daysWaiting > 3 ? '#f59e0b' : '#10b981',
+                    fontWeight: 'bold'
+                  }}>
+                    {daysWaiting.toFixed(0)}
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    <button
+                      onClick={() => onNavigateToWorkOrder(part.workOrderNo)}
+                      style={{
+                        background: "#64748b",
+                        color: "white",
+                        padding: "4px 10px",
+                        border: "none",
+                        borderRadius: 4,
+                        cursor: "pointer"
+                      }}
+                      aria-label={`View work order ${part.workOrderNo}`}
+                    >
+                      View / Edit
+                    </button>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 
 const StatusBadge = ({ status }) => (
   <span style={{
