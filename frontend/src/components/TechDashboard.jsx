@@ -82,7 +82,9 @@ const generatePDF = (order) => {
         order.nonBillableRepair ? "Non-billable Repair" : ""
       ].filter(Boolean).join(", ")],
       ["Shop", order.shop],
-      ["Status", order.status]
+      ["Status", order.status],
+      ["Shipping Cost", order.shippingCost],
+      ["Shipping Comments", order.shippingComments]
     ];
 
     const infoStartY = y + 5;
