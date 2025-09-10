@@ -532,6 +532,47 @@ export default function AssignWorkOrderForm({ token, user, editMode = false }) {
     fetchWorkOrder();
   }, [id, setForm, setFormLoading]);
 
+  // STATUS AUTOMATION LOGIC (only run when editing existing work orders)
+  // Only monitors parts waiting status - no automatic Assigned → In Progress change
+  useEffect(() => {
+    if (!id || !form.workOrderNo) return; // Only run when editing existing work orders
+    if (!form.status || form.status.toLowerCase().startsWith('completed')) return;
+    
+    const anyWaiting = (form.parts || []).some(part => part.waiting);
+    const now = new Date().toISOString();
+
+    if (anyWaiting && form.status !== 'In Progress, Pending Parts') {
+      const updatedForm = {
+        ...form,
+        status: 'In Progress, Pending Parts',
+        statusHistory: [
+          ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
+          { status: 'In Progress, Pending Parts', date: now }
+        ]
+      };
+      
+      console.log("AUTOMATION: sending status update:", updatedForm);
+      setForm(updatedForm);
+
+      API.put(`/workorders/${form.workOrderNo}`, updatedForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
+    } else if (!anyWaiting && form.status === 'In Progress, Pending Parts') {
+      const updatedForm = {
+        ...form,
+        status: 'In Progress',
+        statusHistory: [
+          ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
+          { status: 'In Progress', date: now }
+        ]
+      };
+      setForm(updatedForm);
+      API.put(`/workorders/${form.workOrderNo}`, updatedForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
+    }
+  }, [form.parts, form.status, id, form.workOrderNo, token]);
+
   // Event handlers
   const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
