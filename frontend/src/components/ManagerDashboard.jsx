@@ -777,6 +777,7 @@ const WorkOrderTable = ({
   onCloseWorkOrder, 
   onViewPDF,
   onDelete,
+  onDuplicate,
   showStatus = true,
   showActions = true,
   emptyMessage = "No work orders found."
@@ -958,6 +959,23 @@ const WorkOrderTable = ({
                     View PDF
                   </button>
                 )}
+                {onDuplicate && (
+                  <button
+                    onClick={() => onDuplicate(order)}
+                    style={{ 
+                      padding: '4px 10px', 
+                      background: '#8b5cf6', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 4, 
+                      marginLeft: 4, 
+                      cursor: 'pointer' 
+                    }}
+                    aria-label={`Duplicate work order ${order.workOrderNo}`}
+                  >
+                    Duplicate
+                  </button>
+                )}
 
               </td>
             )}
@@ -1025,7 +1043,7 @@ const SectionHeader = ({ title, count, highlight = false }) => (
   </h2>
 );
 
-const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackToDashboard }) => {
+const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onDuplicate, onBackToDashboard }) => {
   const highlightText = (text, searchTerm) => {
     if (!text || !searchTerm) return text;
     const regex = new RegExp(`(${searchTerm})`, 'gi');
@@ -1155,6 +1173,22 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackT
                   >
                     PDF
                   </button>
+                  {onDuplicate && (
+                    <button
+                      onClick={() => onDuplicate(order)}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#8b5cf6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Duplicate
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1459,6 +1493,60 @@ export default function ManagerDashboard({ user }) {
     setWorkOrderToDelete(null);
   }, []);
 
+  // Duplicate work order handler
+  const handleDuplicateWorkOrder = useCallback(async (order) => {
+    if (!window.confirm(`Are you sure you want to duplicate work order ${order.workOrderNo}? This will create a new work order with all the same information except for the work order number.`)) {
+      return;
+    }
+
+    try {
+      // Get the next work order number
+      const nextNumberResponse = await API.get('/workorders/next-number', {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      const nextWorkOrderNo = nextNumberResponse.data.nextWorkOrderNo;
+
+      // Create a copy of the work order with the new work order number
+      const duplicatedOrder = {
+        ...order,
+        workOrderNo: nextWorkOrderNo,
+        date: new Date().toISOString().slice(0, 10), // Set to today's date
+        status: 'Assigned', // Reset status to assigned
+        statusHistory: [{ status: 'Assigned', date: new Date().toISOString() }], // Reset status history
+        assignedDays: 1, // Reset assigned days
+        inProgressDays: 0,
+        inProgressPendingPartsDays: 0,
+        completedPendingApprovalDays: 0,
+        submittedForBillingDays: 0,
+        closedDays: 0,
+        customerSignature: null, // Clear customer signature
+        customerSignaturePrinted: null, // Clear printed signature
+        signatureTimestamp: null, // Clear signature timestamp
+        // Reset time logs to just the assignment
+        timeLogs: order.timeLogs && order.timeLogs.length > 0 ? [{
+          technicianAssigned: order.timeLogs[0].technicianAssigned,
+          assignDate: new Date().toISOString().slice(0, 10),
+          startTime: '',
+          finishTime: '',
+          travelTime: ''
+        }] : [],
+        // Clear parts (start fresh)
+        parts: []
+      };
+
+      // Create the new work order
+      await API.post('/workorders', duplicatedOrder, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+
+      alert(`Work order ${order.workOrderNo} duplicated successfully as work order ${nextWorkOrderNo}!`);
+      refetch(); // Refresh the dashboard
+    } catch (err) {
+      console.error('Failed to duplicate work order:', err);
+      alert('Failed to duplicate work order. Please try again.');
+    }
+  }, [user.token, refetch]);
+
   // Loading and error states
   if (loading) {
     return (
@@ -1494,6 +1582,7 @@ export default function ManagerDashboard({ user }) {
         results={searchResults}
         onViewEdit={handleViewEdit}
         onViewPDF={handleViewPDF}
+        onDuplicate={handleDuplicateWorkOrder}
         onBackToDashboard={handleBackToDashboard}
       />
     );
@@ -1537,6 +1626,7 @@ export default function ManagerDashboard({ user }) {
         onViewEdit={handleViewEdit}
         onViewPDF={handleViewPDF}
         onDelete={handleDeleteClick}
+        onDuplicate={handleDuplicateWorkOrder}
         emptyMessage="No active work orders."
       />
 
@@ -1554,6 +1644,7 @@ export default function ManagerDashboard({ user }) {
         onCloseWorkOrder={handleCloseWorkOrder}
         onViewPDF={handleViewPDF}
         onDelete={handleDeleteClick}
+        onDuplicate={handleDuplicateWorkOrder}
         showStatus={false}
         emptyMessage="No work orders pending review."
       />
@@ -1570,6 +1661,7 @@ export default function ManagerDashboard({ user }) {
         orders={filteredSubmittedForBilling}
         onViewEdit={handleViewEdit}
         onViewPDF={handleViewPDF}
+        onDuplicate={handleDuplicateWorkOrder}
         emptyMessage="No submitted for billing work orders found."
       />
 
@@ -1585,6 +1677,7 @@ export default function ManagerDashboard({ user }) {
         orders={filteredClosedOrders.slice((closedPage - 1) * CLOSED_PAGE_SIZE, closedPage * CLOSED_PAGE_SIZE)}
         onViewEdit={handleViewEdit}
         onViewPDF={handleViewPDF}
+        onDuplicate={handleDuplicateWorkOrder}
         emptyMessage="No closed work orders found."
       />
       
