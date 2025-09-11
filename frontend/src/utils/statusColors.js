@@ -1,5 +1,4 @@
 export function getStatusColor(status) {
-    console.log("Status received in getStatusColor:", status);
   if (!status || typeof status !== 'string') return '#94a3b8';
 
   const normalized = status.toLowerCase();

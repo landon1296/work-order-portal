@@ -48,8 +48,12 @@ const getDateKey = (dateStr) => {
   if (!dateStr) return '';
   
   // Handle YYYY-MM-DD format directly to avoid timezone issues
-  if (dateStr.includes('-') && dateStr.length === 10) {
-    return dateStr; // Already in YYYY-MM-DD format
+  if (typeof dateStr === 'string' && dateStr.includes('-') && dateStr.length >= 10) {
+    // Extract just the date part (YYYY-MM-DD) from any datetime string
+    const datePart = dateStr.split('T')[0].split(' ')[0];
+    if (datePart.length === 10) {
+      return datePart; // Already in YYYY-MM-DD format
+    }
   }
   
   // Fallback to original method for other formats
@@ -379,7 +383,6 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
     e.preventDefault();
     setLoading(true);
     
-    console.log('Submitting form data:', form);
     
     try {
       await onSave(form);
@@ -985,7 +988,6 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
     setLoading(true);
     
     try {
-      console.log('Submitting form data:', form);
       await onSave(pickupData.id, form);
       setForm({
         companyName: '', address: '', city: '', state: '', zipcode: '',
@@ -1000,12 +1002,9 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
   };
 
   const handleDelete = async () => {
-    console.log('Delete button clicked, pickupData:', pickupData);
     if (window.confirm('Are you sure you want to cancel this pickup? This action cannot be undone.')) {
-      console.log('User confirmed deletion');
       setLoading(true);
       try {
-        console.log('Calling onDelete with pickup ID:', pickupData.id);
         await onDelete(pickupData.id);
         setForm({
           companyName: '', address: '', city: '', state: '', zipcode: '',
@@ -1018,7 +1017,6 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
         setLoading(false);
       }
     } else {
-      console.log('User cancelled deletion');
     }
   };
 
@@ -2490,6 +2488,7 @@ export default function SchedulerDashboard({ user }) {
   // Custom hooks
   const { orders, loading, error, refetch } = useWorkOrders(user);
   const { pickups, loading: pickupsLoading, error: pickupsError, refetch: refetchPickups } = useScheduledPickups(user);
+  
   const { shopFilter, updateShopFilter } = useShopFilter();
   const [viewType, setViewType] = useState('calendar');
   const [modalOpen, setModalOpen] = useState(false);
@@ -2641,11 +2640,9 @@ export default function SchedulerDashboard({ user }) {
 
   const handleDeletePickup = useCallback(async (pickupId) => {
     try {
-      console.log('Attempting to delete pickup with ID:', pickupId);
       const response = await API.delete(`/api/scheduler/${pickupId}`, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
-      console.log('Delete response:', response);
       alert('Pick-up cancelled successfully!');
       refetchPickups(); // Refresh the pickups list
       setEditModalOpen(false);
@@ -2696,8 +2693,6 @@ export default function SchedulerDashboard({ user }) {
       date: new Date().toISOString().split('T')[0]
     };
     
-    console.log('Preparing work order data from pickup:', pickupData);
-    console.log('Generated work order data:', workOrderData);
     
     setPrefilledWorkOrderData(workOrderData);
     setAssignWorkOrderOpen(true);
