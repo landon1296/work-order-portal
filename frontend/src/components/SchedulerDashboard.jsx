@@ -1881,6 +1881,46 @@ const Header = ({ onLogout, onRefresh, user, onSchedulePickup }) => (
           <span style={{ fontSize: '20px', fontWeight: 'bold' }}>Notifications</span>
           <NotificationBell user={user}/>
         </div>
+        
+        {/* Color Legend */}
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          gap: '8px', 
+          marginTop: '25px', 
+          position: 'absolute', 
+          right: '26%',
+          transform: 'translateX(-50%)'
+        }}>
+          <span style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px' }}>Status Legend</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#2563eb', borderRadius: '2px' }}></div>
+              <span>Assigned</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#10b981', borderRadius: '2px' }}></div>
+              <span>In Progress</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#8b5cf6', borderRadius: '2px' }}></div>
+              <span>Completed, Pending Approval</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#facc15', borderRadius: '2px' }}></div>
+              <span>Submitted for Billing</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#dc2626', borderRadius: '2px' }}></div>
+              <span>In Progress,Pending Parts</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#f97316', borderRadius: '2px' }}></div>
+              <span>Scheduled Pickup</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
