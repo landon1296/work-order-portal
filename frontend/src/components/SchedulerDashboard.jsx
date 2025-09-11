@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import API from '../api';
 import { getStatusColor } from '../utils/statusColors';
 import NotificationBell from './NotificationBell';
+import AssignWorkOrderForm from './AssignWorkOrderForm';
 import GLLSLogo from '../assets/GLLSLogo.png';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import logoBase64 from '../assets/logoBase64';
 
 
 // Constants
@@ -22,6 +26,15 @@ const VIEW_OPTIONS = [
 
 // Utility functions
 const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  
+  // Handle YYYY-MM-DD format directly to avoid timezone issues
+  if (dateStr.includes('-')) {
+    const [year, month, day] = dateStr.split('-');
+    return `${parseInt(month)}/${parseInt(day)}/${year}`;
+  }
+  
+  // Fallback to original method for other formats
   const date = new Date(dateStr);
   return isNaN(date) ? "" : `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
 };
@@ -34,6 +47,160 @@ const formatTime = (timeStr) => {
 const getDateKey = (dateStr) => {
   const date = new Date(dateStr);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+// Utility functions for PDF generation
+const drawRoundedRect = (doc, x, y, width, height, radius = 3) => {
+  doc.roundedRect(x, y, width, height, radius, radius);
+};
+
+// Professional PDF Generation function matching manager dashboard style
+const generatePickupPDF = (formData) => {
+  try {
+    const doc = new jsPDF({ margin: 20 });
+    const leftMargin = 20;
+    const rightMargin = 20;
+    const topMargin = 20;
+    const bottomMargin = 20;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    let y = 20;
+
+    // Header with logo and title
+    if (logoBase64) {
+      doc.addImage(logoBase64, "PNG", 13, y - 10, 93.75, 15);
+    }
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(`Pickup Schedule`, leftMargin, y + 15);
+    y += 25;
+
+    // Pickup Information Section
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+
+    const info = [
+      ["Scheduled Date", formatDate(formData.pickupDate)],
+      ["Company", formData.companyName],
+      ["Address", formData.address ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipcode}` : 'Not provided'],
+      ["Contact", `${formData.contactName || ""} (${formData.phoneNumber || ""})`],
+      ["Email", formData.email || 'Not provided'],
+      ["Make / Model / Serial", `${formData.make} / ${formData.model || 'N/A'} / ${formData.serialNumber || 'N/A'}`],
+      ["Shop", formData.shop],
+      ["Status", "Scheduled"]
+    ];
+
+    const infoStartY = y + 5;
+    let currentInfoY = infoStartY;
+
+    info.forEach(([label, value]) => {
+      if (currentInfoY > pageHeight - 40) {
+        doc.addPage();
+        currentInfoY = 20;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(`${label}:`, leftMargin, currentInfoY);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(value || 'N/A', 120);
+      doc.text(lines, leftMargin + 60, currentInfoY);
+      
+      currentInfoY += Math.max(lines.length * 4, 12);
+    });
+
+    // Notes Section
+    if (formData.notes) {
+      currentInfoY += 10;
+      
+      if (currentInfoY > pageHeight - 60) {
+        doc.addPage();
+        currentInfoY = 20;
+      }
+
+      // Notes header with rounded rectangle
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Notes:", leftMargin, currentInfoY);
+      currentInfoY += 8;
+
+      // Notes content in rounded rectangle
+      const notesStartY = currentInfoY;
+      const notesLines = doc.splitTextToSize(formData.notes, 160);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(notesLines, leftMargin + 5, currentInfoY);
+      
+      const notesHeight = Math.max(notesLines.length * 4 + 10, 20);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      drawRoundedRect(doc, leftMargin, notesStartY - 5, 160, notesHeight, 4);
+      
+      currentInfoY += notesHeight - 5;
+    }
+
+    // Pick up Confirmation Section
+    currentInfoY += 10;
+    
+    if (currentInfoY > pageHeight - 50) {
+      doc.addPage();
+      currentInfoY = 20;
+    }
+
+    // Split confirmation boxes
+    const confirmationStartY = currentInfoY;
+    const confirmationHeight = 45;
+    const boxWidth = 75; // Width for each half
+    const rightBoxStartX = leftMargin + boxWidth + 10; // 10px gap between boxes
+    
+    // Left box - Pick up Confirmation
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    drawRoundedRect(doc, leftMargin, confirmationStartY, boxWidth, confirmationHeight, 4);
+    
+    // Pick up Confirmation title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Pick up Confirmation", leftMargin + 5, confirmationStartY + 8);
+    
+    // Pick up signature lines
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Signature: ________________________", leftMargin + 5, confirmationStartY + 20);
+    doc.text("Printed Name: ____________________", leftMargin + 5, confirmationStartY + 30);
+    doc.text("Date: ____________________________", leftMargin + 5, confirmationStartY + 40);
+    
+    // Right box - Drop off Information
+    drawRoundedRect(doc, rightBoxStartX, confirmationStartY, boxWidth, confirmationHeight, 4);
+    
+    // Drop off Information title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Drop off Confirmation", rightBoxStartX + 5, confirmationStartY + 8);
+    
+    // Drop off signature lines
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Signature: ________________________", rightBoxStartX + 5, confirmationStartY + 20);
+    doc.text("Printed Name: ____________________", rightBoxStartX + 5, confirmationStartY + 30);
+    doc.text("Date: ____________________________", rightBoxStartX + 5, confirmationStartY + 40);
+
+    // Footer
+    const footerY = pageHeight - 15;
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, leftMargin, footerY);
+    doc.text('GLLS Work Orders System', pageWidth - rightMargin, footerY, { align: "right" });
+
+    return doc;
+  } catch (error) {
+    console.error("PDF generation failed:", error);
+    throw error;
+  }
 };
 
 // Custom hooks
@@ -129,7 +296,8 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
     model: '',
     serialNumber: '',
     shop: '',
-    pickupDate: ''
+    pickupDate: '',
+    notes: ''
   });
   const [loading, setLoading] = useState(false);
   const [makes, setMakes] = useState([]);
@@ -220,7 +388,47 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
         model: '',
         serialNumber: '',
         shop: '',
-        pickupDate: ''
+        pickupDate: '',
+        notes: ''
+      });
+      onClose();
+    } catch (error) {
+      console.error('Failed to save pickup schedule:', error);
+      alert('Failed to save pickup schedule. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleScheduleAndPrint = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      // Save the pickup first
+      await onSave(form);
+      
+      // Generate and open PDF
+      const pdf = generatePickupPDF(form);
+      const pdfUrl = pdf.output('bloburl');
+      window.open(pdfUrl, '_blank');
+      
+      // Reset form
+      setForm({
+        companyName: '',
+        address: '',
+        city: '',
+        state: '',
+        zipcode: '',
+        contactName: '',
+        phoneNumber: '',
+        email: '',
+        make: '',
+        model: '',
+        serialNumber: '',
+        shop: '',
+        pickupDate: '',
+        notes: ''
       });
       onClose();
     } catch (error) {
@@ -310,33 +518,60 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
             <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
               Pick-up Date *
             </label>
-            <input
-              type="date"
-              name="pickupDate"
-              value={form.pickupDate}
-              onChange={handleChange}
-              required
-              min={new Date().toISOString().split('T')[0]}
-              style={{
-                width: '100%',
-                padding: 8,
-                border: '1px solid #ccc',
-                borderRadius: 4,
-                fontSize: 14
-              }}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type="date"
+                name="pickupDate"
+                value={form.pickupDate}
+                onChange={handleChange}
+                required
+                min={new Date().toISOString().split('T')[0]}
+                style={{
+                  width: '100%',
+                  padding: '8px 40px 8px 8px',
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  fontSize: 14,
+                  cursor: 'pointer'
+                }}
+                onClick={(e) => e.target.showPicker && e.target.showPicker()}
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  const dateInput = e.target.previousElementSibling;
+                  dateInput.focus();
+                  dateInput.showPicker && dateInput.showPicker();
+                }}
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 4,
+                  fontSize: 16,
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Open calendar"
+              >
+                📅
+              </button>
+            </div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
-              Address *
+              Address
             </label>
             <input
               type="text"
               name="address"
               value={form.address}
               onChange={handleChange}
-              required
               style={{
                 width: '100%',
                 padding: 8,
@@ -350,14 +585,14 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
-                City *
+                City
               </label>
               <input
                 type="text"
                 name="city"
                 value={form.city}
                 onChange={handleChange}
-                required
+                
                 style={{
                   width: '100%',
                   padding: 8,
@@ -370,14 +605,14 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
             
             <div>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
-                State *
+                State
               </label>
               <input
                 type="text"
                 name="state"
                 value={form.state}
                 onChange={handleChange}
-                required
+                
                 style={{
                   width: '100%',
                   padding: 8,
@@ -544,7 +779,30 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+              Notes
+            </label>
+            <textarea
+              name="notes"
+              value={form.notes}
+              onChange={handleChange}
+              placeholder="Additional notes about the pickup..."
+              rows={3}
+              style={{
+                width: '100%',
+                padding: 8,
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                fontSize: 14,
+                fontFamily: 'Arial, sans-serif',
+                resize: 'vertical',
+                minHeight: '60px'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={onClose}
@@ -559,6 +817,23 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
               }}
             >
               Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleScheduleAndPrint}
+              disabled={loading}
+              style={{
+                padding: '10px 20px',
+                background: loading ? '#9ca3af' : '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: 6,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                fontWeight: 600
+              }}
+            >
+              {loading ? 'Saving...' : '📄 Schedule & Print PDF'}
             </button>
             <button
               type="submit"
@@ -583,7 +858,7 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
 };
 
 // Edit Pickup Modal Component
-const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
+const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssign, pickupData }) => {
   const [form, setForm] = useState({
     companyName: '',
     address: '',
@@ -597,7 +872,8 @@ const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
     model: '',
     serialNumber: '',
     shop: '',
-    pickupDate: ''
+    pickupDate: '',
+    notes: ''
   });
   const [loading, setLoading] = useState(false);
   const [makes, setMakes] = useState([]);
@@ -619,6 +895,14 @@ const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
   // Load pickup data when modal opens
   useEffect(() => {
     if (isOpen && pickupData) {
+      // Format the pickup date for the date input (YYYY-MM-DD format)
+      const formatDateForInput = (dateStr) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        if (isNaN(date)) return '';
+        return date.toISOString().split('T')[0];
+      };
+
       setForm({
         companyName: pickupData.company_name || '',
         address: pickupData.address || '',
@@ -632,7 +916,8 @@ const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
         model: pickupData.model || '',
         serialNumber: pickupData.serial_number || '',
         shop: pickupData.shop || '',
-        pickupDate: pickupData.pickup_date || ''
+        pickupDate: formatDateForInput(pickupData.pickup_date),
+        notes: pickupData.notes || ''
       });
       // Initialize the prevMakeRef to prevent clearing the model on initial load
       prevMakeRef.current = pickupData.make || '';
@@ -704,6 +989,40 @@ const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = async () => {
+    console.log('Delete button clicked, pickupData:', pickupData);
+    if (window.confirm('Are you sure you want to cancel this pickup? This action cannot be undone.')) {
+      console.log('User confirmed deletion');
+      setLoading(true);
+      try {
+        console.log('Calling onDelete with pickup ID:', pickupData.id);
+        await onDelete(pickupData.id);
+        setForm({
+          companyName: '', address: '', city: '', state: '', zipcode: '',
+          contactName: '', phoneNumber: '', email: '', make: '', model: '',
+          serialNumber: '', shop: '', pickupDate: ''
+        });
+      } catch (error) {
+        console.error('Failed to delete pickup:', error);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      console.log('User cancelled deletion');
+    }
+  };
+
+  const handleCompleteAndAssign = () => {
+    onCompleteAndAssign(pickupData);
+  };
+
+  const handlePrintPDF = () => {
+    // Generate and open PDF
+    const pdf = generatePickupPDF(form);
+    const pdfUrl = pdf.output('bloburl');
+    window.open(pdfUrl, '_blank');
   };
 
   if (!isOpen) return null;
@@ -783,33 +1102,60 @@ const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
             <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
               Pick-up Date *
             </label>
-            <input
-              type="date"
-              name="pickupDate"
-              value={form.pickupDate}
-              onChange={handleChange}
-              required
-              min={new Date().toISOString().split('T')[0]}
-              style={{
-                width: '100%',
-                padding: 8,
-                border: '1px solid #ccc',
-                borderRadius: 4,
-                fontSize: 14
-              }}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type="date"
+                name="pickupDate"
+                value={form.pickupDate}
+                onChange={handleChange}
+                required
+                min={new Date().toISOString().split('T')[0]}
+                style={{
+                  width: '100%',
+                  padding: '8px 40px 8px 8px',
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  fontSize: 14,
+                  cursor: 'pointer'
+                }}
+                onClick={(e) => e.target.showPicker && e.target.showPicker()}
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  const dateInput = e.target.previousElementSibling;
+                  dateInput.focus();
+                  dateInput.showPicker && dateInput.showPicker();
+                }}
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 4,
+                  fontSize: 16,
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Open calendar"
+              >
+                📅
+              </button>
+            </div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
-              Address *
+              Address
             </label>
             <input
               type="text"
               name="address"
               value={form.address}
               onChange={handleChange}
-              required
               style={{
                 width: '100%',
                 padding: 8,
@@ -823,14 +1169,14 @@ const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
-                City *
+                City
               </label>
               <input
                 type="text"
                 name="city"
                 value={form.city}
                 onChange={handleChange}
-                required
+
                 style={{
                   width: '100%',
                   padding: 8,
@@ -843,14 +1189,13 @@ const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
             
             <div>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
-                State *
+                State
               </label>
               <input
                 type="text"
                 name="state"
                 value={form.state}
                 onChange={handleChange}
-                required
                 style={{
                   width: '100%',
                   padding: 8,
@@ -1013,38 +1358,442 @@ const EditPickupModal = ({ isOpen, onClose, onSave, pickupData }) => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={onClose}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+              Notes
+            </label>
+            <textarea
+              name="notes"
+              value={form.notes}
+              onChange={handleChange}
+              placeholder="Additional notes about the pickup..."
+              rows={3}
               style={{
-                padding: '8px 16px',
+                width: '100%',
+                padding: 8,
                 border: '1px solid #ccc',
                 borderRadius: 4,
-                backgroundColor: 'white',
-                cursor: 'pointer',
-                fontSize: 14
+                fontSize: 14,
+                fontFamily: 'Arial, sans-serif',
+                resize: 'vertical',
+                minHeight: '60px'
               }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: 4,
-                backgroundColor: '#10b981',
-                color: 'white',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: 14
-              }}
-            >
-              {loading ? 'Updating...' : 'Update Pick-up'}
-            </button>
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={loading}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  borderRadius: 4,
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600
+                }}
+              >
+                {loading ? 'Deleting...' : 'Cancel Pick-up'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCompleteAndAssign}
+                disabled={loading}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  borderRadius: 4,
+                  backgroundColor: '#2563eb',
+                  color: 'white',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600
+                }}
+              >
+                Complete Pick-up & Assign
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintPDF}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  borderRadius: 4,
+                  backgroundColor: '#059669',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600
+                }}
+              >
+                📄 Print PDF
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  fontSize: 14
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  borderRadius: 4,
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: 14
+                }}
+              >
+                {loading ? 'Updating...' : 'Update Pick-up'}
+              </button>
+            </div>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+// Advanced Filter Modal Component
+const AdvancedFilterModal = ({ isOpen, onClose, onApply, orders, pickups }) => {
+  const [filters, setFilters] = useState({
+    technician: '',
+    make: '',
+    model: '',
+    status: '',
+    company: '',
+    shop: 'All Shops',
+    workOrderNo: ''
+  });
+
+  // Get unique values for dropdowns
+  const technicians = useMemo(() => {
+    const techs = new Set();
+    orders.forEach(order => {
+      if (order.timeLogs && order.timeLogs.length > 0) {
+        order.timeLogs.forEach(log => {
+          if (log.technicianAssigned) {
+            techs.add(log.technicianAssigned);
+          }
+        });
+      }
+    });
+    return Array.from(techs).sort();
+  }, [orders]);
+
+  const makes = useMemo(() => {
+    const makeSet = new Set();
+    orders.forEach(order => {
+      if (order.make) makeSet.add(order.make);
+    });
+    pickups.forEach(pickup => {
+      if (pickup.make) makeSet.add(pickup.make);
+    });
+    return Array.from(makeSet).sort();
+  }, [orders, pickups]);
+
+  const models = useMemo(() => {
+    const modelSet = new Set();
+    orders.forEach(order => {
+      if (order.model) modelSet.add(order.model);
+    });
+    pickups.forEach(pickup => {
+      if (pickup.model) modelSet.add(pickup.model);
+    });
+    return Array.from(modelSet).sort();
+  }, [orders, pickups]);
+
+  const statuses = useMemo(() => {
+    const statusSet = new Set();
+    orders.forEach(order => {
+      if (order.status) statusSet.add(order.status);
+      if (order.statusHistory && Array.isArray(order.statusHistory)) {
+        order.statusHistory.forEach(entry => {
+          if (entry.status) statusSet.add(entry.status);
+        });
+      }
+    });
+    return Array.from(statusSet).sort();
+  }, [orders]);
+
+  const companies = useMemo(() => {
+    const companySet = new Set();
+    orders.forEach(order => {
+      if (order.companyName) companySet.add(order.companyName);
+    });
+    pickups.forEach(pickup => {
+      if (pickup.company_name) companySet.add(pickup.company_name);
+    });
+    return Array.from(companySet).sort();
+  }, [orders, pickups]);
+
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleApply = () => {
+    onApply(filters);
+    onClose();
+  };
+
+  const handleClear = () => {
+    setFilters({
+      technician: '',
+      make: '',
+      model: '',
+      status: '',
+      company: '',
+      shop: 'All Shops',
+      workOrderNo: ''
+    });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        padding: 24,
+        borderRadius: 8,
+        width: '90%',
+        maxWidth: 600,
+        maxHeight: '90vh',
+        overflowY: 'auto'
+      }}>
+        <h2 style={{ marginTop: 0, marginBottom: 20 }}>Advanced Filter</h2>
+        
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+            Work Order #
+          </label>
+          <input
+            type="text"
+            value={filters.workOrderNo}
+            onChange={(e) => handleFilterChange('workOrderNo', e.target.value)}
+            placeholder="Enter work order number..."
+            style={{
+              width: '100%',
+              padding: 8,
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              fontSize: 14
+            }}
+          />
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+              Technician
+            </label>
+            <select
+              value={filters.technician}
+              onChange={(e) => handleFilterChange('technician', e.target.value)}
+              style={{
+                width: '100%',
+                padding: 8,
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                fontSize: 14
+              }}
+            >
+              <option value="">All Technicians</option>
+              {technicians.map(tech => (
+                <option key={tech} value={tech}>{tech}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+              Shop
+            </label>
+            <select
+              value={filters.shop}
+              onChange={(e) => handleFilterChange('shop', e.target.value)}
+              style={{
+                width: '100%',
+                padding: 8,
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                fontSize: 14
+              }}
+            >
+              <option value="All Shops">All Shops</option>
+              <option value="Texas Shop">Texas Shop</option>
+              <option value="Florida Shop">Florida Shop</option>
+              <option value="Peotone Shop">Peotone Shop</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+              Make
+            </label>
+            <select
+              value={filters.make}
+              onChange={(e) => handleFilterChange('make', e.target.value)}
+              style={{
+                width: '100%',
+                padding: 8,
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                fontSize: 14
+              }}
+            >
+              <option value="">All Makes</option>
+              {makes.map(make => (
+                <option key={make} value={make}>{make}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+              Model
+            </label>
+            <select
+              value={filters.model}
+              onChange={(e) => handleFilterChange('model', e.target.value)}
+              style={{
+                width: '100%',
+                padding: 8,
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                fontSize: 14
+              }}
+            >
+              <option value="">All Models</option>
+              {models.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+              Status
+            </label>
+            <select
+              value={filters.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+              style={{
+                width: '100%',
+                padding: 8,
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                fontSize: 14
+              }}
+            >
+              <option value="">All Statuses</option>
+              {statuses.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+              Company
+            </label>
+            <select
+              value={filters.company}
+              onChange={(e) => handleFilterChange('company', e.target.value)}
+              style={{
+                width: '100%',
+                padding: 8,
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                fontSize: 14
+              }}
+            >
+              <option value="">All Companies</option>
+              {companies.map(company => (
+                <option key={company} value={company}>{company}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={handleClear}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              backgroundColor: 'white',
+              cursor: 'pointer',
+              fontSize: 14
+            }}
+          >
+            Clear All
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              backgroundColor: 'white',
+              cursor: 'pointer',
+              fontSize: 14
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: 4,
+              backgroundColor: '#2563eb',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: 14
+            }}
+          >
+            Apply Filters
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1180,14 +1929,14 @@ const Header = ({ onLogout, onRefresh, user, onSchedulePickup }) => (
           onClick={onSchedulePickup}
           aria-label="Schedule a pick-up"
         >
-          Schedule Pick-up
+          Schedule Service
         </button>
       </div>
     </div>
   </div>
 );
 
-const FilterControls = ({ shopFilter, onShopFilterChange, viewType, onViewTypeChange }) => (
+const FilterControls = ({ shopFilter, onShopFilterChange, viewType, onViewTypeChange, onAdvancedFilter }) => (
   <div style={{ 
     marginBottom: 28, 
     marginLeft: 30, 
@@ -1251,10 +2000,29 @@ const FilterControls = ({ shopFilter, onShopFilterChange, viewType, onViewTypeCh
         <option key={opt.value} value={opt.value}>{opt.label}</option>
       ))}
     </select>
+
+    <button
+      onClick={onAdvancedFilter}
+      style={{
+        fontSize: 'clamp(14px, 3vw, 18px)',
+        padding: "6px 16px",
+        borderRadius: 8,
+        backgroundColor: '#2563eb',
+        color: 'white',
+        border: 'none',
+        cursor: 'pointer',
+        fontWeight: 600,
+        marginLeft: 20,
+        whiteSpace: 'nowrap'
+      }}
+      aria-label="Open advanced filter options"
+    >
+      Advanced Filter
+    </button>
   </div>
 );
 
-const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup }) => {
+const CalendarView = ({ orders, pickups, completedPickups, onViewEdit, onEditPickup }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   
   const ordersByDate = useMemo(() => {
@@ -1421,30 +2189,34 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup }) => {
               }}>
                 {day.getDate()}
               </div>
-              {dayOrders.map((item, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    if (item.type === 'workorder') {
-                      onViewEdit(item.workOrderNo);
-                    } else if (item.type === 'pickup') {
-                      onEditPickup(item);
-                    }
-                  }}
-                  style={{
-                    background: item.type === 'pickup' ? '#f97316' : getStatusColor(item.displayStatus || item.status),
-                    color: 'white',
-                    padding: '2px 6px',
-                    margin: '2px 0',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}
+              {dayOrders.map((item, idx) => {
+                const isCompleted = item.type === 'pickup' && completedPickups.has(item.id);
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (item.type === 'workorder') {
+                        onViewEdit(item.workOrderNo);
+                      } else if (item.type === 'pickup') {
+                        onEditPickup(item);
+                      }
+                    }}
+                    style={{
+                      background: item.type === 'pickup' ? '#f97316' : getStatusColor(item.displayStatus || item.status),
+                      color: 'white',
+                      padding: '2px 6px',
+                      margin: '2px 0',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      textDecoration: isCompleted ? 'line-through' : 'none',
+                      opacity: isCompleted ? 0.7 : 1
+                    }}
                   title={item.type === 'pickup' 
-                    ? `Pickup - ${item.company_name} - ${item.make} / ${item.model || 'N/A'} / ${item.serial_number || 'N/A'} (Click to edit)`
+                    ? `${isCompleted ? 'COMPLETED - ' : ''}Pickup - ${item.company_name} - ${item.make} / ${item.model || 'N/A'} / ${item.serial_number || 'N/A'} (Click to edit)`
                     : `${item.workOrderNo} - ${item.displayStatus || item.status} - ${item.shop} - ${item.make} / ${item.model} / ${item.serialNumber}`
                   }
                 >
@@ -1453,7 +2225,8 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup }) => {
                     : `${item.workOrderNo} - ${item.technicianAssigned} - ${item.companyName}`
                   }
                 </div>
-              ))}
+                );
+              })}
             </div>
           );
         })}
@@ -1670,21 +2443,86 @@ export default function SchedulerDashboard({ user }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedPickup, setSelectedPickup] = useState(null);
+  const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
+  const [assignWorkOrderOpen, setAssignWorkOrderOpen] = useState(false);
+  const [prefilledWorkOrderData, setPrefilledWorkOrderData] = useState(null);
+  const [completedPickups, setCompletedPickups] = useState(new Set());
+  const [advancedFilters, setAdvancedFilters] = useState({
+    technician: '',
+    make: '',
+    model: '',
+    status: '',
+    company: '',
+    shop: 'All Shops',
+    workOrderNo: ''
+  });
 
   // Memoized filtered orders and pickups
-  const filteredOrders = useMemo(() => 
-    shopFilter === 'All Shops' 
-      ? orders 
-      : orders.filter(order => order.shop === shopFilter),
-    [orders, shopFilter]
-  );
+  const filteredOrders = useMemo(() => {
+    let filtered = orders;
+    
+    // Apply shop filter
+    if (shopFilter !== 'All Shops') {
+      filtered = filtered.filter(order => order.shop === shopFilter);
+    }
+    
+    // Apply advanced filters
+    if (advancedFilters.technician) {
+      filtered = filtered.filter(order => 
+        order.timeLogs && order.timeLogs.some(log => 
+          log.technicianAssigned === advancedFilters.technician
+        )
+      );
+    }
+    
+    if (advancedFilters.make) {
+      filtered = filtered.filter(order => order.make === advancedFilters.make);
+    }
+    
+    if (advancedFilters.model) {
+      filtered = filtered.filter(order => order.model === advancedFilters.model);
+    }
+    
+    if (advancedFilters.status) {
+      filtered = filtered.filter(order => order.status === advancedFilters.status);
+    }
+    
+    if (advancedFilters.company) {
+      filtered = filtered.filter(order => order.companyName === advancedFilters.company);
+    }
+    
+    if (advancedFilters.workOrderNo) {
+      filtered = filtered.filter(order => 
+        order.workOrderNo && order.workOrderNo.toLowerCase().includes(advancedFilters.workOrderNo.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  }, [orders, shopFilter, advancedFilters]);
 
-  const filteredPickups = useMemo(() => 
-    shopFilter === 'All Shops' 
-      ? pickups 
-      : pickups.filter(pickup => pickup.shop === shopFilter),
-    [pickups, shopFilter]
-  );
+  const filteredPickups = useMemo(() => {
+    let filtered = pickups;
+    
+    // Apply shop filter
+    if (shopFilter !== 'All Shops') {
+      filtered = filtered.filter(pickup => pickup.shop === shopFilter);
+    }
+    
+    // Apply advanced filters
+    if (advancedFilters.make) {
+      filtered = filtered.filter(pickup => pickup.make === advancedFilters.make);
+    }
+    
+    if (advancedFilters.model) {
+      filtered = filtered.filter(pickup => pickup.model === advancedFilters.model);
+    }
+    
+    if (advancedFilters.company) {
+      filtered = filtered.filter(pickup => pickup.company_name === advancedFilters.company);
+    }
+    
+    return filtered;
+  }, [pickups, shopFilter, advancedFilters]);
 
   // Event handlers
   const handleLogout = useCallback(() => {
@@ -1749,6 +2587,77 @@ export default function SchedulerDashboard({ user }) {
     }
   }, [user.token, refetchPickups]);
 
+  const handleDeletePickup = useCallback(async (pickupId) => {
+    try {
+      console.log('Attempting to delete pickup with ID:', pickupId);
+      const response = await API.delete(`/api/scheduler/${pickupId}`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      console.log('Delete response:', response);
+      alert('Pick-up cancelled successfully!');
+      refetchPickups(); // Refresh the pickups list
+      setEditModalOpen(false);
+      setSelectedPickup(null);
+    } catch (error) {
+      console.error('Failed to delete pickup:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      alert(`Failed to cancel pickup: ${error.response?.data?.message || error.message}`);
+      throw error;
+    }
+  }, [user.token, refetchPickups]);
+
+  const handleAdvancedFilter = useCallback(() => {
+    setAdvancedFilterOpen(true);
+  }, []);
+
+  const handleCloseAdvancedFilter = useCallback(() => {
+    setAdvancedFilterOpen(false);
+  }, []);
+
+  const handleApplyAdvancedFilter = useCallback((filters) => {
+    setAdvancedFilters(filters);
+  }, []);
+
+  const handleCompleteAndAssign = useCallback((pickupData) => {
+    // Mark pickup as completed
+    setCompletedPickups(prev => new Set([...prev, pickupData.id]));
+    
+    // Generate next work order number
+    const nextWorkOrderNo = `WO${Date.now()}`;
+    
+    // Prepare pre-filled data for work order form
+    const workOrderData = {
+      workOrderNo: nextWorkOrderNo,
+      companyName: pickupData.company_name || '',
+      address: pickupData.address || '',
+      city: pickupData.city || '',
+      state: pickupData.state || '',
+      zipcode: pickupData.zipcode || '',
+      contactName: pickupData.contact_name || '',
+      phoneNumber: pickupData.phone_number || '',
+      email: pickupData.email || '',
+      make: pickupData.make || '',
+      model: pickupData.model || '',
+      serialNumber: pickupData.serial_number || '',
+      shop: pickupData.shop || '',
+      status: 'Assigned',
+      date: new Date().toISOString().split('T')[0]
+    };
+    
+    console.log('Preparing work order data from pickup:', pickupData);
+    console.log('Generated work order data:', workOrderData);
+    
+    setPrefilledWorkOrderData(workOrderData);
+    setAssignWorkOrderOpen(true);
+    setEditModalOpen(false);
+    setSelectedPickup(null);
+  }, []);
+
+  const handleCloseAssignWorkOrder = useCallback(() => {
+    setAssignWorkOrderOpen(false);
+    setPrefilledWorkOrderData(null);
+  }, []);
+
   // Loading and error states
   if (loading) {
     return (
@@ -1790,12 +2699,14 @@ export default function SchedulerDashboard({ user }) {
         onShopFilterChange={updateShopFilter}
         viewType={viewType}
         onViewTypeChange={handleViewTypeChange}
+        onAdvancedFilter={handleAdvancedFilter}
       />
 
       {viewType === 'calendar' && (
         <CalendarView 
           orders={filteredOrders}
           pickups={filteredPickups}
+          completedPickups={completedPickups}
           onViewEdit={handleViewEdit}
           onEditPickup={handleEditPickup}
         />
@@ -1825,8 +2736,69 @@ export default function SchedulerDashboard({ user }) {
         isOpen={editModalOpen}
         onClose={handleCloseEditModal}
         onSave={handleUpdatePickup}
+        onDelete={handleDeletePickup}
+        onCompleteAndAssign={handleCompleteAndAssign}
         pickupData={selectedPickup}
       />
+
+      <AdvancedFilterModal
+        isOpen={advancedFilterOpen}
+        onClose={handleCloseAdvancedFilter}
+        onApply={handleApplyAdvancedFilter}
+        orders={orders}
+        pickups={pickups}
+      />
+
+      {assignWorkOrderOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: 8,
+            width: '95%',
+            maxWidth: '1200px',
+            maxHeight: '95vh',
+            overflow: 'auto',
+            position: 'relative'
+          }}>
+            <button
+              onClick={handleCloseAssignWorkOrder}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: 30,
+                height: 30,
+                cursor: 'pointer',
+                fontSize: 16,
+                fontWeight: 'bold',
+                zIndex: 1001
+              }}
+            >
+              ×
+            </button>
+            <AssignWorkOrderForm
+              token={user.token}
+              user={user}
+              prefilledData={prefilledWorkOrderData}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

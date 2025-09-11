@@ -421,7 +421,7 @@ const useMasterData = () => {
 };
 
 // Main component
-export default function AssignWorkOrderForm({ token, user, editMode = false }) {
+export default function AssignWorkOrderForm({ token, user, editMode = false, prefilledData = null }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [nextWorkOrderNo, setNextWorkOrderNo] = useState('');
@@ -469,6 +469,47 @@ export default function AssignWorkOrderForm({ token, user, editMode = false }) {
 
     fetchNextWorkOrderNo();
   }, [id, updateFormField]);
+
+  // Handle prefilled data from scheduler
+  useEffect(() => {
+    if (prefilledData && !id) {
+      console.log('Applying prefilled data:', prefilledData);
+      setForm(prev => ({
+        ...prev,
+        ...prefilledData,
+        // Ensure required arrays exist
+        parts: prev.parts || [{ partNumber: '', description: '', quantity: '', waiting: false }],
+        timeLogs: prev.timeLogs || [{ technicianAssigned: '', assignDate: new Date().toISOString().slice(0, 10), startTime: '', finishTime: '', travelTime: '' }],
+        // Map pickup data to work order format - Company info only
+        companyStreet: prefilledData.address || '',
+        companyCity: prefilledData.city || '',
+        companyState: prefilledData.state || '',
+        companyZip: prefilledData.zipcode || '',
+        contactPhone: prefilledData.phoneNumber || '',
+        contactEmail: prefilledData.email || '',
+        // Field repair POC info - leave empty (not prefilled)
+        fieldContact: '',
+        fieldContactNumber: '',
+        fieldStreet: '',
+        fieldCity: '',
+        fieldState: '',
+        fieldZipcode: '',
+        // Set default values for other fields
+        poNumber: '',
+        salesName: '',
+        shippingCost: '',
+        shippingComments: '',
+        notes: '',
+        otherDesc: '',
+        workDescription: '',
+        repairType: '',
+        vendorWarranty: false,
+        billable: false,
+        maintenance: false,
+        nonBillableRepair: false
+      }));
+    }
+  }, [prefilledData, id]);
 
   useEffect(() => {
     if (!id) return;

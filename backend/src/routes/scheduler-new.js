@@ -20,13 +20,13 @@ router.post('/', async (req, res) => {
       model,
       serialNumber,
       shop,
-      pickupDate
+      pickupDate,
+      notes
     } = req.body;
 
     // Validate required fields
     const requiredFields = [
-      'companyName', 'address', 'city', 'state',
-      'contactName', 'phoneNumber', 'make', 'shop', 'pickupDate'
+      'companyName', 'contactName', 'phoneNumber', 'make', 'shop', 'pickupDate'
     ];
 
     for (const field of requiredFields) {
@@ -39,22 +39,27 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Insert into scheduler table - only insert required columns first
+    // Insert into scheduler table - handle optional address fields
     const result = await pool.query(`
       INSERT INTO scheduler (
-        company_name, address, city, state, contact_name, phone_number, make, shop, pickup_date
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        company_name, address, city, state, zipcode, contact_name, phone_number, email, make, model, serial_number, shop, pickup_date, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `, [
       companyName,    // company_name NOT NULL
-      address,        // address NOT NULL  
-      city,          // city NOT NULL
-      state,         // state NOT NULL
+      address && address.trim() !== '' ? address : null,        // address NULL
+      city && city.trim() !== '' ? city : null,                // city NULL
+      state && state.trim() !== '' ? state : null,             // state NULL
+      zipcode && zipcode.trim() !== '' ? zipcode : null,       // zipcode NULL
       contactName,   // contact_name NOT NULL
       phoneNumber,   // phone_number NOT NULL
+      email && email.trim() !== '' ? email : null,             // email NULL
       make,          // make NOT NULL
+      model && model.trim() !== '' ? model : null,             // model NULL
+      serialNumber && serialNumber.trim() !== '' ? serialNumber : null, // serial_number NULL
       shop,          // shop NOT NULL
-      pickupDate     // pickup_date NOT NULL
+      pickupDate,    // pickup_date NOT NULL
+      notes && notes.trim() !== '' ? notes : null              // notes NULL
     ]);
 
     res.status(201).json({
@@ -109,13 +114,13 @@ router.put('/:id', async (req, res) => {
       model,
       serialNumber,
       shop,
-      pickupDate
+      pickupDate,
+      notes
     } = req.body;
 
     // Validate required fields
     const requiredFields = [
-      'companyName', 'address', 'city', 'state',
-      'contactName', 'phoneNumber', 'make', 'shop', 'pickupDate'
+      'companyName', 'contactName', 'phoneNumber', 'make', 'shop', 'pickupDate'
     ];
 
     for (const field of requiredFields) {
@@ -144,8 +149,9 @@ router.put('/:id', async (req, res) => {
         serial_number = $11,
         shop = $12,
         pickup_date = $13,
+        notes = $14,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14
+      WHERE id = $15
       RETURNING *
     `, [
       companyName,
@@ -161,6 +167,7 @@ router.put('/:id', async (req, res) => {
       serialNumber && serialNumber.trim() !== '' ? serialNumber : null,
       shop,
       pickupDate,
+      notes && notes.trim() !== '' ? notes : null,
       id
     ]);
 
@@ -178,6 +185,37 @@ router.put('/:id', async (req, res) => {
     console.error('Request body:', req.body);
     res.status(500).json({ 
       error: 'Failed to update pickup schedule',
+      details: error.message 
+    });
+  }
+});
+
+// DELETE /api/scheduler/:id - Delete a scheduled pickup
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Deleting pickup ID:', id);
+    
+    const result = await pool.query(
+      'DELETE FROM scheduler WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Pickup schedule not found' 
+      });
+    }
+
+    res.json({
+      message: 'Pickup schedule deleted successfully',
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error deleting pickup schedule:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete pickup schedule',
       details: error.message 
     });
   }
