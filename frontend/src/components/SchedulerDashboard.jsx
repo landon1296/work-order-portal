@@ -45,6 +45,14 @@ const formatTime = (timeStr) => {
 };
 
 const getDateKey = (dateStr) => {
+  if (!dateStr) return '';
+  
+  // Handle YYYY-MM-DD format directly to avoid timezone issues
+  if (dateStr.includes('-') && dateStr.length === 10) {
+    return dateStr; // Already in YYYY-MM-DD format
+  }
+  
+  // Fallback to original method for other formats
   const date = new Date(dateStr);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
@@ -1918,6 +1926,10 @@ const Header = ({ onLogout, onRefresh, user, onSchedulePickup }) => (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <div style={{ width: '12px', height: '12px', backgroundColor: '#f97316', borderRadius: '2px' }}></div>
               <span>Scheduled Pickup</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#94a3b8', borderRadius: '2px' }}></div>
+              <span>Closed</span>
             </div>
           </div>
         </div>
