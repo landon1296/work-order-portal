@@ -2215,7 +2215,7 @@ const CalendarView = ({ orders, pickups, completedPickups, onViewEdit, onEditPic
             return <div key={index} style={{ minHeight: '120px' }} />;
           }
           
-          const dateKey = getDateKey(day.toISOString());
+          const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
           const dayOrders = ordersByDate[dateKey] || [];
           const isToday = day.toDateString() === new Date().toDateString();
           
