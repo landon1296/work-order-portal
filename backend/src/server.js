@@ -36,6 +36,9 @@ app.use('/api/troubleshoot', troubleshootRoutes);
 const notificationsRoutes = require('./routes/notifications');
 app.use('/api/notifications', notificationsRoutes);
 
+const schedulerRoutes = require('./routes/scheduler-new');
+app.use('/api/scheduler', schedulerRoutes);
+
 
 
 const PORT = process.env.PORT || 4000;

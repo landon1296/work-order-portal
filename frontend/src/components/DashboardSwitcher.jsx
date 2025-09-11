@@ -5,6 +5,7 @@ import AccountingDashboard from "./AccountingDashboard";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 import AllTechDashboard from "./AllTechDashboard";
 import ReceptionDashboard from "./ReceptionDashboard";
+import SchedulerDashboard from "./SchedulerDashboard";
 
 export default function DashboardSwitcher({ user }) {
   const [selected, setSelected] = useState("analytics");
@@ -16,6 +17,7 @@ export default function DashboardSwitcher({ user }) {
         { key: "accounting", name: "Accounting", component: <AccountingDashboard user={user} /> },
         { key: "reception", name: "Reception", component: <ReceptionDashboard user={user} /> },
         { key: "tech", name: "Tech", component: <AllTechDashboard user={user} /> },
+        { key: "scheduler", name: "Scheduler", component: <SchedulerDashboard user={user} /> },
         
       ];
 
