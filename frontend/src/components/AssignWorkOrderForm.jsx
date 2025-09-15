@@ -421,7 +421,7 @@ const useMasterData = () => {
 };
 
 // Main component
-export default function AssignWorkOrderForm({ token, user, editMode = false, prefilledData = null }) {
+export default function AssignWorkOrderForm({ token, user, editMode = false, prefilledData = null, onSuccess = null }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [nextWorkOrderNo, setNextWorkOrderNo] = useState('');
@@ -759,7 +759,13 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
 
         console.log('NEW MODE: sending to API:', newForm);
         await API.post('/workorders', newForm);
-        navigate('/dashboard');
+        
+        // Call onSuccess callback if provided (for scheduler integration)
+        if (onSuccess) {
+          onSuccess(newForm);
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       console.error('Failed to save work order:', err);
@@ -810,7 +816,12 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
       // Generate PDF after successful assignment
       generatePDF(cleanedForm);
 
-      navigate('/dashboard');
+      // Call onSuccess callback if provided (for scheduler integration)
+      if (onSuccess) {
+        onSuccess(cleanedForm);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       console.error('Failed to save work order:', err);
       alert('Failed to save work order. Please try again.');

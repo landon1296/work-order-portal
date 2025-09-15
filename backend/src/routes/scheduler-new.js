@@ -190,6 +190,37 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/scheduler/:id/complete - Mark a pickup as completed
+router.patch('/:id/complete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Marking pickup as completed, ID:', id);
+    
+    const result = await pool.query(
+      'UPDATE scheduler SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      ['Completed', id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Pickup schedule not found' 
+      });
+    }
+
+    res.json({
+      message: 'Pickup marked as completed successfully',
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error marking pickup as completed:', error);
+    res.status(500).json({ 
+      error: 'Failed to mark pickup as completed',
+      details: error.message 
+    });
+  }
+});
+
 // DELETE /api/scheduler/:id - Delete a scheduled pickup
 router.delete('/:id', async (req, res) => {
   try {

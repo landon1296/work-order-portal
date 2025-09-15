@@ -536,7 +536,6 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
                 value={form.pickupDate}
                 onChange={handleChange}
                 required
-                min={new Date().toISOString().split('T')[0]}
                 style={{
                   width: '100%',
                   padding: '8px 40px 8px 8px',
@@ -1115,7 +1114,6 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
                 value={form.pickupDate}
                 onChange={handleChange}
                 required
-                min={new Date().toISOString().split('T')[0]}
                 style={{
                   width: '100%',
                   padding: '8px 40px 8px 8px',
@@ -1926,6 +1924,10 @@ const Header = ({ onLogout, onRefresh, user, onSchedulePickup }) => (
               <span>Scheduled Pickup</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#f97316', borderRadius: '2px', opacity: 0.7, textDecoration: 'line-through' }}></div>
+              <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>Completed Pickup</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <div style={{ width: '12px', height: '12px', backgroundColor: '#94a3b8', borderRadius: '2px' }}></div>
               <span>Closed</span>
             </div>
@@ -1986,7 +1988,7 @@ const Header = ({ onLogout, onRefresh, user, onSchedulePickup }) => (
   </div>
 );
 
-const FilterControls = ({ shopFilter, onShopFilterChange, viewType, onViewTypeChange, onAdvancedFilter }) => (
+const FilterControls = ({ shopFilter, onShopFilterChange, viewType, onViewTypeChange, onAdvancedFilter, onAtAGlance }) => (
   <div style={{ 
     marginBottom: 28, 
     marginLeft: 30, 
@@ -2069,10 +2071,243 @@ const FilterControls = ({ shopFilter, onShopFilterChange, viewType, onViewTypeCh
     >
       Advanced Filter
     </button>
+    <button
+      onClick={onAtAGlance}
+      style={{
+        padding: '8px 16px',
+        backgroundColor: '#10b981',
+        color: 'white',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '500',
+        marginLeft: '10px'
+      }}
+      aria-label="View pickup summary"
+    >
+      At a Glance
+    </button>
   </div>
 );
 
-const CalendarView = ({ orders, pickups, completedPickups, onViewEdit, onEditPickup }) => {
+// At a Glance Modal Component
+const AtAGlanceModal = ({ isOpen, onClose, data }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '24px',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+        maxWidth: '600px',
+        width: '90%',
+        maxHeight: '80vh',
+        overflowY: 'auto',
+        position: 'relative'
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            background: 'none',
+            border: 'none',
+            fontSize: '20px',
+            cursor: 'pointer',
+            color: '#6b7280'
+          }}
+        >
+          ×
+        </button>
+        
+        <h2 style={{ 
+          marginTop: 0, 
+          marginBottom: '20px', 
+          color: '#1e293b',
+          fontSize: '20px',
+          fontWeight: '600'
+        }}>
+          📊 At a Glance
+        </h2>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Today */}
+          <div>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              marginBottom: '12px',
+              padding: '12px 16px',
+              backgroundColor: '#fef2f2',
+              borderRadius: '8px',
+              border: '1px solid #fecaca'
+            }}>
+              <span style={{ fontSize: '20px' }}>🔥</span>
+              <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '16px' }}>Today ({data.today.length})</span>
+            </div>
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {data.today.length === 0 ? (
+                <div style={{ 
+                  padding: '16px', 
+                  textAlign: 'center', 
+                  color: '#6b7280',
+                  fontStyle: 'italic'
+                }}>
+                  No pickups scheduled for today
+                </div>
+              ) : (
+                data.today.map((pickup, index) => (
+                  <div key={pickup.id} style={{
+                    padding: '12px 16px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '6px',
+                    marginBottom: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>
+                      {pickup.company_name}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                      {pickup.make} {pickup.model && `- ${pickup.model}`}
+                      {pickup.serial_number && ` (${pickup.serial_number})`}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                      {pickup.contact_name} • {pickup.phone_number}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* This Week */}
+          <div>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              marginBottom: '12px',
+              padding: '12px 16px',
+              backgroundColor: '#fffbeb',
+              borderRadius: '8px',
+              border: '1px solid #fed7aa'
+            }}>
+              <span style={{ fontSize: '20px' }}>📅</span>
+              <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '16px' }}>This Week ({data.thisWeek.length})</span>
+            </div>
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {data.thisWeek.length === 0 ? (
+                <div style={{ 
+                  padding: '16px', 
+                  textAlign: 'center', 
+                  color: '#6b7280',
+                  fontStyle: 'italic'
+                }}>
+                  No pickups scheduled this week
+                </div>
+              ) : (
+                data.thisWeek.map((pickup, index) => (
+                  <div key={pickup.id} style={{
+                    padding: '12px 16px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '6px',
+                    marginBottom: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>
+                      {pickup.company_name}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                      {pickup.make} {pickup.model && `- ${pickup.model}`}
+                      {pickup.serial_number && ` (${pickup.serial_number})`}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                      {pickup.contact_name} • {pickup.phone_number}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#f59e0b', marginTop: '4px', fontWeight: '500' }}>
+                      {new Date(pickup.pickup_date).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* This Month */}
+          <div>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              marginBottom: '12px',
+              padding: '12px 16px',
+              backgroundColor: '#eff6ff',
+              borderRadius: '8px',
+              border: '1px solid #bfdbfe'
+            }}>
+              <span style={{ fontSize: '20px' }}>📆</span>
+              <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '16px' }}>This Month ({data.thisMonth.length})</span>
+            </div>
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {data.thisMonth.length === 0 ? (
+                <div style={{ 
+                  padding: '16px', 
+                  textAlign: 'center', 
+                  color: '#6b7280',
+                  fontStyle: 'italic'
+                }}>
+                  No pickups scheduled this month
+                </div>
+              ) : (
+                data.thisMonth.map((pickup, index) => (
+                  <div key={pickup.id} style={{
+                    padding: '12px 16px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '6px',
+                    marginBottom: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>
+                      {pickup.company_name}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                      {pickup.make} {pickup.model && `- ${pickup.model}`}
+                      {pickup.serial_number && ` (${pickup.serial_number})`}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                      {pickup.contact_name} • {pickup.phone_number}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '4px', fontWeight: '500' }}>
+                      {new Date(pickup.pickup_date).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   
   const ordersByDate = useMemo(() => {
@@ -2240,7 +2475,7 @@ const CalendarView = ({ orders, pickups, completedPickups, onViewEdit, onEditPic
                 {day.getDate()}
               </div>
               {dayOrders.map((item, idx) => {
-                const isCompleted = item.type === 'pickup' && completedPickups.has(item.id);
+                const isCompleted = item.type === 'pickup' && item.status === 'Completed';
                 return (
                   <div
                     key={idx}
@@ -2495,9 +2730,9 @@ export default function SchedulerDashboard({ user }) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedPickup, setSelectedPickup] = useState(null);
   const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
+  const [atAGlanceOpen, setAtAGlanceOpen] = useState(false);
   const [assignWorkOrderOpen, setAssignWorkOrderOpen] = useState(false);
   const [prefilledWorkOrderData, setPrefilledWorkOrderData] = useState(null);
-  const [completedPickups, setCompletedPickups] = useState(new Set());
   const [advancedFilters, setAdvancedFilters] = useState({
     technician: '',
     make: '',
@@ -2574,6 +2809,44 @@ export default function SchedulerDashboard({ user }) {
     
     return filtered;
   }, [pickups, shopFilter, advancedFilters]);
+
+  // At a Glance calculations
+  const atAGlanceData = useMemo(() => {
+    if (!pickups) return { today: [], thisWeek: [], thisMonth: [] };
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekFromNow = new Date(today.getTime() + (7 * 24 * 60 * 60 * 1000));
+    const monthFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+    
+    let todayPickups = [];
+    let thisWeekPickups = [];
+    let thisMonthPickups = [];
+    
+    pickups.forEach(pickup => {
+      if (!pickup.pickup_date) return;
+      
+      const pickupDate = new Date(pickup.pickup_date);
+      const pickupDateOnly = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
+      
+      // Today
+      if (pickupDateOnly.getTime() === today.getTime()) {
+        todayPickups.push(pickup);
+      }
+      
+      // This week (next 7 days)
+      if (pickupDateOnly >= today && pickupDateOnly < weekFromNow) {
+        thisWeekPickups.push(pickup);
+      }
+      
+      // This month (next 30 days)
+      if (pickupDateOnly >= today && pickupDateOnly < monthFromNow) {
+        thisMonthPickups.push(pickup);
+      }
+    });
+    
+    return { today: todayPickups, thisWeek: thisWeekPickups, thisMonth: thisMonthPickups };
+  }, [pickups]);
 
   // Event handlers
   const handleLogout = useCallback(() => {
@@ -2659,6 +2932,14 @@ export default function SchedulerDashboard({ user }) {
     setAdvancedFilterOpen(true);
   }, []);
 
+  const handleAtAGlance = useCallback(() => {
+    setAtAGlanceOpen(true);
+  }, []);
+
+  const handleCloseAtAGlance = useCallback(() => {
+    setAtAGlanceOpen(false);
+  }, []);
+
   const handleCloseAdvancedFilter = useCallback(() => {
     setAdvancedFilterOpen(false);
   }, []);
@@ -2667,9 +2948,17 @@ export default function SchedulerDashboard({ user }) {
     setAdvancedFilters(filters);
   }, []);
 
-  const handleCompleteAndAssign = useCallback((pickupData) => {
-    // Mark pickup as completed
-    setCompletedPickups(prev => new Set([...prev, pickupData.id]));
+  const handleCompleteAndAssign = useCallback(async (pickupData) => {
+    // Mark pickup as completed in database
+    try {
+      await API.patch(`/api/scheduler/${pickupData.id}/complete`, {}, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+    } catch (error) {
+      console.error('Failed to mark pickup as completed:', error);
+      alert('Failed to mark pickup as completed. Please try again.');
+      return;
+    }
     
     // Generate next work order number
     const nextWorkOrderNo = `WO${Date.now()}`;
@@ -2698,11 +2987,26 @@ export default function SchedulerDashboard({ user }) {
     setAssignWorkOrderOpen(true);
     setEditModalOpen(false);
     setSelectedPickup(null);
-  }, []);
+    
+    // Refresh pickups to show the updated completed status
+    refetchPickups();
+  }, [user.token, refetchPickups]);
 
   const handleCloseAssignWorkOrder = useCallback(() => {
     setAssignWorkOrderOpen(false);
     setPrefilledWorkOrderData(null);
+  }, []);
+
+  const handleWorkOrderSuccess = useCallback((workOrderData) => {
+    // Show confirmation notification
+    alert(`Work Order #${workOrderData.workOrderNo} has been successfully created and assigned!`);
+    
+    // Close the assign work order form
+    setAssignWorkOrderOpen(false);
+    setPrefilledWorkOrderData(null);
+    
+    // Optionally refresh any relevant data
+    // You could add refetchWorkOrders() here if you have that function
   }, []);
 
   // Loading and error states
@@ -2747,13 +3051,13 @@ export default function SchedulerDashboard({ user }) {
         viewType={viewType}
         onViewTypeChange={handleViewTypeChange}
         onAdvancedFilter={handleAdvancedFilter}
+        onAtAGlance={handleAtAGlance}
       />
 
       {viewType === 'calendar' && (
         <CalendarView 
           orders={filteredOrders}
           pickups={filteredPickups}
-          completedPickups={completedPickups}
           onViewEdit={handleViewEdit}
           onEditPickup={handleEditPickup}
         />
@@ -2794,6 +3098,12 @@ export default function SchedulerDashboard({ user }) {
         onApply={handleApplyAdvancedFilter}
         orders={orders}
         pickups={pickups}
+      />
+
+      <AtAGlanceModal
+        isOpen={atAGlanceOpen}
+        onClose={handleCloseAtAGlance}
+        data={atAGlanceData}
       />
 
       {assignWorkOrderOpen && (
@@ -2842,6 +3152,7 @@ export default function SchedulerDashboard({ user }) {
               token={user.token}
               user={user}
               prefilledData={prefilledWorkOrderData}
+              onSuccess={handleWorkOrderSuccess}
             />
           </div>
         </div>
