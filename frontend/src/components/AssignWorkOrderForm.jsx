@@ -499,7 +499,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         salesName: '',
         shippingCost: '',
         shippingComments: '',
-        notes: '',
+        notes: prefilledData.notes || '',
         otherDesc: '',
         workDescription: '',
         repairType: '',

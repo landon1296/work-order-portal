@@ -3028,6 +3028,7 @@ export default function SchedulerDashboard({ user }) {
       model: pickupData.model || '',
       serialNumber: pickupData.serial_number || '',
       shop: pickupData.shop || '',
+      notes: pickupData.notes || '',
       status: 'Assigned',
       date: new Date().toISOString().split('T')[0]
     };
