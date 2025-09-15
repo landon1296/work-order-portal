@@ -294,7 +294,7 @@ const useShopFilter = () => {
 };
 
 // Schedule Pickup Modal Component
-const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
+const SchedulePickupModal = ({ isOpen, onClose, onSave, initialDate = null }) => {
   const [form, setForm] = useState({
     companyName: '',
     address: '',
@@ -346,6 +346,14 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave }) => {
       setModels([]);
     }
   }, [form.make, makeModelMap]);
+
+  // Set initial date when modal opens
+  useEffect(() => {
+    if (isOpen && initialDate) {
+      const dateString = initialDate.toISOString().split('T')[0];
+      setForm(prev => ({ ...prev, pickupDate: dateString }));
+    }
+  }, [isOpen, initialDate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -2307,8 +2315,9 @@ const AtAGlanceModal = ({ isOpen, onClose, data }) => {
   );
 };
 
-const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup }) => {
+const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup, onSchedulePickup }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [hoveredDate, setHoveredDate] = useState(null);
   
   const ordersByDate = useMemo(() => {
     const grouped = {};
@@ -2452,6 +2461,8 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup }) => {
           const dayOrders = ordersByDate[dateKey] || [];
           const isToday = day.toDateString() === new Date().toDateString();
           
+          const isHovered = hoveredDate === dateKey;
+          
           return (
             <div
               key={index}
@@ -2466,13 +2477,49 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup }) => {
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#cbd5e1 #f1f5f9'
               }}
+              onMouseEnter={() => setHoveredDate(dateKey)}
+              onMouseLeave={() => setHoveredDate(null)}
             >
               <div style={{
                 fontWeight: 'bold',
                 marginBottom: '4px',
-                color: isToday ? '#92400e' : 'inherit'
+                color: isToday ? '#92400e' : 'inherit',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
               }}>
-                {day.getDate()}
+                <span>{day.getDate()}</span>
+                {isHovered && onSchedulePickup && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSchedulePickup(day);
+                    }}
+                    style={{
+                      background: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '2px 6px',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = '#2563eb';
+                      e.target.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = '#3b82f6';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                    title={`Schedule pickup for ${day.toLocaleDateString()}`}
+                  >
+                    + Schedule
+                  </button>
+                )}
               </div>
               {dayOrders.map((item, idx) => {
                 const isCompleted = item.type === 'pickup' && item.status === 'Completed';
@@ -2733,6 +2780,7 @@ export default function SchedulerDashboard({ user }) {
   const [atAGlanceOpen, setAtAGlanceOpen] = useState(false);
   const [assignWorkOrderOpen, setAssignWorkOrderOpen] = useState(false);
   const [prefilledWorkOrderData, setPrefilledWorkOrderData] = useState(null);
+  const [selectedDateForPickup, setSelectedDateForPickup] = useState(null);
   const [advancedFilters, setAdvancedFilters] = useState({
     technician: '',
     make: '',
@@ -2865,12 +2913,14 @@ export default function SchedulerDashboard({ user }) {
     setViewType(newViewType);
   }, []);
 
-  const handleSchedulePickup = useCallback(() => {
+  const handleSchedulePickup = useCallback((date = null) => {
+    setSelectedDateForPickup(date);
     setModalOpen(true);
   }, []);
 
   const handleCloseModal = useCallback(() => {
     setModalOpen(false);
+    setSelectedDateForPickup(null);
   }, []);
 
   const handleSavePickup = useCallback(async (formData) => {
@@ -3060,6 +3110,7 @@ export default function SchedulerDashboard({ user }) {
           pickups={filteredPickups}
           onViewEdit={handleViewEdit}
           onEditPickup={handleEditPickup}
+          onSchedulePickup={handleSchedulePickup}
         />
       )}
 
@@ -3081,6 +3132,7 @@ export default function SchedulerDashboard({ user }) {
         isOpen={modalOpen}
         onClose={handleCloseModal}
         onSave={handleSavePickup}
+        initialDate={selectedDateForPickup}
       />
 
       <EditPickupModal
