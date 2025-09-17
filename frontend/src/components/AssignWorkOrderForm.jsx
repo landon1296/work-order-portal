@@ -429,6 +429,11 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
   const sigPadRef = useRef();
   
+  // Photo upload state
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [photoDescription, setPhotoDescription] = useState('');
+  
 
   const prevMakeRef = useRef();
 
@@ -686,6 +691,32 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
     }
   }, [form.workOrderNo]);
 
+  const handleUploadPhoto = useCallback(async () => {
+    if (!selectedPhoto || !form.workOrderNo) {
+      alert('Please select a photo and ensure Work Order No is loaded.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('photo', selectedPhoto);
+    formData.append('description', photoDescription);
+    formData.append('workOrderNo', form.workOrderNo);
+
+    try {
+      await API.post('/api/photos/upload', formData);
+      alert('Photo uploaded!');
+      // Refresh the photo list
+      const refreshed = await API.get(`/api/photos/${form.workOrderNo}`);
+      setWorkOrderPhotos(refreshed.data || []);
+      setSelectedPhoto(null);
+      setPhotoDescription('');
+      setPhotoModalOpen(false);
+    } catch (err) {
+      alert('Upload failed.');
+      console.error(err);
+    }
+  }, [selectedPhoto, photoDescription, form.workOrderNo]);
+
   const addTimeLog = useCallback(() => {
     setForm(prev => {
       const prevLogs = prev.timeLogs;
@@ -832,76 +863,123 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
 
   // PhotoSection component definition
   const PhotoSection = ({ workOrderPhotos, onDeletePhoto }) => {
-    const [selectedPhoto, setSelectedPhoto] = useState(null);
-    const [showModal, setShowModal] = useState(false);
+    const [viewingPhoto, setViewingPhoto] = useState(null);
+    const [showViewModal, setShowViewModal] = useState(false);
 
     const handlePhotoClick = (photo) => {
-      setSelectedPhoto(photo);
-      setShowModal(true);
+      setViewingPhoto(photo);
+      setShowViewModal(true);
     };
 
-    const handleCloseModal = () => {
-      setShowModal(false);
-      setSelectedPhoto(null);
+    const handleCloseViewModal = () => {
+      setShowViewModal(false);
+      setViewingPhoto(null);
     };
 
     return (
       <>
+        {/* Add Photo Button */}
+        <div style={{ marginTop: 32 }}>
+          <button
+            type="button"
+            style={{
+              marginBottom: 16,
+              padding: '10px 30px',
+              background: '#10b981',
+              color: '#fff',
+              borderRadius: 7,
+              fontWeight: 600,
+              fontSize: 18,
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onClick={() => setPhotoModalOpen(true)}
+          >
+            Add Photo(s)/Document(s)
+          </button>
+        </div>
+
         {workOrderPhotos.length > 0 && (
-          <div style={{ marginTop: 32 }}>
-            <h3 style={{ marginBottom: 12 }}>Uploaded Photos</h3>
+          <div style={{ marginTop: 16 }}>
+            <h3 style={{ marginBottom: 12 }}>Uploaded Photos & Documents</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-              {workOrderPhotos.map(photo => (
-                <div key={photo.id} style={{ width: 180, position: 'relative' }}>
-                  <img
-                    src={photo.url}
-                    alt="Work Order"
-                    style={{
-                      width: '100%',
-                      height: 120,
-                      objectFit: 'cover',
-                      borderRadius: 8,
-                      border: '1px solid #ccc',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => handlePhotoClick(photo)}
-                    title="Click to view larger image"
-                  />
-                  {photo.description && (
-                    <div style={{ marginTop: 6, fontSize: 13 }}>
-                      {photo.description}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onDeletePhoto(photo.id)}
-                    style={{
-                      position: 'absolute',
-                      top: 6,
-                      right: 6,
-                      background: '#f44336',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: 24,
-                      height: 24,
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      lineHeight: '24px',
-                      textAlign: 'center'
-                    }}
-                    title="Delete photo"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              {workOrderPhotos.map(photo => {
+                const isPDF = photo.url.toLowerCase().includes('.pdf') || photo.url.toLowerCase().includes('pdf');
+                
+                return (
+                  <div key={photo.id} style={{ width: 180, position: 'relative' }}>
+                    {isPDF ? (
+                      <div
+                        style={{
+                          width: '100%',
+                          height: 120,
+                          border: '1px solid #ccc',
+                          borderRadius: 8,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#f8f9fa',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => window.open(photo.url, '_blank')}
+                        title="Click to open PDF"
+                      >
+                        <div style={{ fontSize: 32, color: '#dc3545', marginBottom: 8 }}>📄</div>
+                        <div style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>PDF Document</div>
+                      </div>
+                    ) : (
+                      <img
+                        src={photo.url}
+                        alt="Work Order"
+                        style={{
+                          width: '100%',
+                          height: 120,
+                          objectFit: 'cover',
+                          borderRadius: 8,
+                          border: '1px solid #ccc',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => handlePhotoClick(photo)}
+                        title="Click to view larger image"
+                      />
+                    )}
+                    {photo.description && (
+                      <div style={{ marginTop: 6, fontSize: 13 }}>
+                        {photo.description}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onDeletePhoto(photo.id)}
+                      style={{
+                        position: 'absolute',
+                        top: 6,
+                        right: 6,
+                        background: '#f44336',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: 24,
+                        height: 24,
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        lineHeight: '24px',
+                        textAlign: 'center'
+                      }}
+                      title="Delete file"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Photo Modal */}
-        {showModal && selectedPhoto && (
+        {/* Photo Viewing Modal */}
+        {showViewModal && viewingPhoto && (
           <div
             style={{
               position: 'fixed',
@@ -916,7 +994,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
               zIndex: 10000,
               padding: '20px'
             }}
-            onClick={handleCloseModal}
+            onClick={handleCloseViewModal}
           >
             <div
               style={{
@@ -934,7 +1012,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
             >
               {/* Close button */}
               <button
-                onClick={handleCloseModal}
+                onClick={handleCloseViewModal}
                 style={{
                   position: 'absolute',
                   top: '12px',
@@ -959,7 +1037,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
 
               {/* Image */}
               <img
-                src={selectedPhoto.url}
+                src={viewingPhoto.url}
                 alt="Work Order"
                 style={{
                   maxWidth: '100%',
@@ -971,7 +1049,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
               />
 
               {/* Description */}
-              {selectedPhoto.description && (
+              {viewingPhoto.description && (
                 <div style={{ 
                   marginBottom: '16px', 
                   fontSize: '16px', 
@@ -979,7 +1057,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
                   color: '#333',
                   maxWidth: '600px'
                 }}>
-                  {selectedPhoto.description}
+                  {viewingPhoto.description}
                 </div>
               )}
             </div>
@@ -1070,6 +1148,93 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         workOrderPhotos={workOrderPhotos}
         onDeletePhoto={handleDeletePhoto}
       />
+
+      {/* Photo Upload Modal */}
+      {photoModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              padding: 28,
+              borderRadius: 14,
+              boxShadow: '0 6px 40px rgba(0,0,0,0.14)',
+              maxWidth: 500,
+              width: '90%',
+            }}
+          >
+            <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Upload Photo/Document</h2>
+
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              onChange={(e) => setSelectedPhoto(e.target.files[0])}
+              style={{ marginBottom: 12, width: '100%' }}
+            />
+
+            <textarea
+              rows={2}
+              placeholder="Optional description..."
+              value={photoDescription}
+              onChange={(e) => setPhotoDescription(e.target.value)}
+              style={{ marginBottom: 16, width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 4 }}
+            />
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                justifyContent: 'flex-end',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setPhotoModalOpen(false);
+                  setSelectedPhoto(null);
+                  setPhotoDescription('');
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#6b7280',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleUploadPhoto}
+                style={{
+                  padding: '8px 16px',
+                  background: '#10b981',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

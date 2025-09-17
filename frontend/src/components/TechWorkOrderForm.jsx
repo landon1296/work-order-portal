@@ -1455,56 +1455,81 @@ console.log("form", form);
   }}
   onClick={() => setPhotoModalOpen(true)}
 >
-  Add Photo(s)
+  Add Photo(s)/Document(s)
 </button>
 
 {workOrderPhotos.length > 0 && (
   <div style={{ marginTop: 24 }}>
-    <h3 style={{ marginBottom: 12 }}>Uploaded Photos</h3>
+    <h3 style={{ marginBottom: 12 }}>Uploaded Photos & Documents</h3>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-      {workOrderPhotos.map(photo => (
-<div key={photo.id} style={{ width: 180, position: 'relative' }}>
-  <img
-    src={photo.url}
-    alt="Work Order"
-    style={{
-      width: '100%',
-      height: 120,
-      objectFit: 'cover',
-      borderRadius: 8,
-      border: '1px solid #ccc'
-    }}
-  />
-  {photo.description && (
-    <div style={{ marginTop: 6, fontSize: 13 }}>
-      {photo.description}
-    </div>
-  )}
-  <button
-    type="button"
-    onClick={() => handleDeletePhoto(photo.id)}
-    style={{
-      position: 'absolute',
-      top: 6,
-      right: 6,
-      background: '#f44336',
-      color: '#fff',
-      border: 'none',
-      borderRadius: '50%',
-      width: 24,
-      height: 24,
-      cursor: 'pointer',
-      fontWeight: 'bold',
-      lineHeight: '24px',
-      textAlign: 'center'
-    }}
-    title="Delete photo"
-  >
-    ×
-  </button>
-</div>
-
-      ))}
+      {workOrderPhotos.map(photo => {
+        const isPDF = photo.url.toLowerCase().includes('.pdf') || photo.url.toLowerCase().includes('pdf');
+        
+        return (
+          <div key={photo.id} style={{ width: 180, position: 'relative' }}>
+            {isPDF ? (
+              <div
+                style={{
+                  width: '100%',
+                  height: 120,
+                  border: '1px solid #ccc',
+                  borderRadius: 8,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#f8f9fa',
+                  cursor: 'pointer'
+                }}
+                onClick={() => window.open(photo.url, '_blank')}
+                title="Click to open PDF"
+              >
+                <div style={{ fontSize: 32, color: '#dc3545', marginBottom: 8 }}>📄</div>
+                <div style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>PDF Document</div>
+              </div>
+            ) : (
+              <img
+                src={photo.url}
+                alt="Work Order"
+                style={{
+                  width: '100%',
+                  height: 120,
+                  objectFit: 'cover',
+                  borderRadius: 8,
+                  border: '1px solid #ccc'
+                }}
+              />
+            )}
+            {photo.description && (
+              <div style={{ marginTop: 6, fontSize: 13 }}>
+                {photo.description}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => handleDeletePhoto(photo.id)}
+              style={{
+                position: 'absolute',
+                top: 6,
+                right: 6,
+                background: '#f44336',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: 24,
+                height: 24,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                lineHeight: '24px',
+                textAlign: 'center'
+              }}
+              title="Delete file"
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
     </div>
   </div>
 )}
@@ -1535,11 +1560,11 @@ console.log("form", form);
         width: '90%',
       }}
     >
-      <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Upload Photo</h2>
+      <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Upload Photo/Document</h2>
 
       <input
         type="file"
-        accept="image/*"
+        accept="image/*,.pdf"
         onChange={(e) => setSelectedPhoto(e.target.files[0])}
       />
 
