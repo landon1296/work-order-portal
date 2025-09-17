@@ -16,6 +16,7 @@ router.post('/', async (req, res) => {
       contactName,
       phoneNumber,
       email,
+      poNumber,
       make,
       model,
       serialNumber,
@@ -26,7 +27,7 @@ router.post('/', async (req, res) => {
 
     // Validate required fields
     const requiredFields = [
-      'companyName', 'contactName', 'phoneNumber', 'make', 'shop', 'pickupDate'
+      'companyName', 'contactName', 'phoneNumber', 'poNumber', 'make', 'shop', 'pickupDate'
     ];
 
     for (const field of requiredFields) {
@@ -42,8 +43,8 @@ router.post('/', async (req, res) => {
     // Insert into scheduler table - handle optional address fields
     const result = await pool.query(`
       INSERT INTO scheduler (
-        company_name, address, city, state, zipcode, contact_name, phone_number, email, make, model, serial_number, shop, pickup_date, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        company_name, address, city, state, zipcode, contact_name, phone_number, email, po_number, make, model, serial_number, shop, pickup_date, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [
       companyName,    // company_name NOT NULL
@@ -54,6 +55,7 @@ router.post('/', async (req, res) => {
       contactName,   // contact_name NOT NULL
       phoneNumber,   // phone_number NOT NULL
       email && email.trim() !== '' ? email : null,             // email NULL
+      poNumber,      // po_number NOT NULL
       make,          // make NOT NULL
       model && model.trim() !== '' ? model : null,             // model NULL
       serialNumber && serialNumber.trim() !== '' ? serialNumber : null, // serial_number NULL
@@ -110,6 +112,7 @@ router.put('/:id', async (req, res) => {
       contactName,
       phoneNumber,
       email,
+      poNumber,
       make,
       model,
       serialNumber,
@@ -120,7 +123,7 @@ router.put('/:id', async (req, res) => {
 
     // Validate required fields
     const requiredFields = [
-      'companyName', 'contactName', 'phoneNumber', 'make', 'shop', 'pickupDate'
+      'companyName', 'contactName', 'phoneNumber', 'poNumber', 'make', 'shop', 'pickupDate'
     ];
 
     for (const field of requiredFields) {
@@ -144,14 +147,15 @@ router.put('/:id', async (req, res) => {
         contact_name = $6,
         phone_number = $7,
         email = $8,
-        make = $9,
-        model = $10,
-        serial_number = $11,
-        shop = $12,
-        pickup_date = $13,
-        notes = $14,
+        po_number = $9,
+        make = $10,
+        model = $11,
+        serial_number = $12,
+        shop = $13,
+        pickup_date = $14,
+        notes = $15,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $15
+      WHERE id = $16
       RETURNING *
     `, [
       companyName,
@@ -162,6 +166,7 @@ router.put('/:id', async (req, res) => {
       contactName,
       phoneNumber,
       email && email.trim() !== '' ? email : null,
+      poNumber,
       make,
       model && model.trim() !== '' ? model : null,
       serialNumber && serialNumber.trim() !== '' ? serialNumber : null,

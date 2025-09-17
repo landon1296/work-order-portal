@@ -516,13 +516,14 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave, initialDate = null }) =>
             
             <div>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
-                PO Number
+                PO Number *
               </label>
               <input
                 type="text"
                 name="poNumber"
                 value={form.poNumber}
                 onChange={handleChange}
+                required
                 style={{
                   width: '100%',
                   padding: 8,
@@ -1115,13 +1116,14 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
             
             <div>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
-                PO Number
+                PO Number *
               </label>
               <input
                 type="text"
                 name="poNumber"
                 value={form.poNumber}
                 onChange={handleChange}
+                required
                 style={{
                   width: '100%',
                   padding: 8,
@@ -3070,6 +3072,7 @@ export default function SchedulerDashboard({ user }) {
       contactName: pickupData.contact_name || '',
       phoneNumber: pickupData.phone_number || '',
       email: pickupData.email || '',
+      poNumber: pickupData.po_number || '',
       make: pickupData.make || '',
       model: pickupData.model || '',
       serialNumber: pickupData.serial_number || '',
