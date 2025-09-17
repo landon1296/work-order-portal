@@ -113,6 +113,7 @@ const generatePDF = (order) => {
       ["Date", formatDate(order.date)],
       ["Company", order.company_name],
       ["Contact", `${order.contact_name || ""} (${order.contact_phone || ""})`],
+      ["PO Number", order.poNumber || ""],
       ["Contact Email", order.contact_email || ""],
       ["Technician", order.technician_assigned || ""],
       ["Assign Date", formatDate(order.assign_date)],

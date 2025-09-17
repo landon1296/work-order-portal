@@ -290,6 +290,7 @@ const generatePDF = (order) => {
       ["Company", order.companyName],
       ["Address", `${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}`],
       ["Contact", `${order.contactName || ""} (${order.contactPhone || ""})`],
+      ["PO Number", order.poNumber || ""],
       ["Technician(s)", [...new Set((order.timeLogs || []).map(t => t.technicianAssigned).filter(Boolean))].join(", ")],
       ["Make / Model / Serial", `${order.make} / ${order.model} / ${order.serialNumber}`],
       ["Repair Type", order.repairType],
