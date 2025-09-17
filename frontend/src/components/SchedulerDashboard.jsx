@@ -96,6 +96,7 @@ const generatePickupPDF = (formData) => {
     const info = [
       ["Scheduled Date", formatDate(formData.pickupDate)],
       ["Company", formData.companyName],
+      ["PO Number", formData.poNumber || ""],
       ["Address", formData.address ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipcode}` : 'Not provided'],
       ["Contact", `${formData.contactName || ""} (${formData.phoneNumber || ""})`],
       ["Email", formData.email || 'Not provided'],
@@ -304,6 +305,7 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave, initialDate = null }) =>
     contactName: '',
     phoneNumber: '',
     email: '',
+    poNumber: '',
     make: '',
     model: '',
     serialNumber: '',
@@ -502,6 +504,25 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave, initialDate = null }) =>
                 value={form.companyName}
                 onChange={handleChange}
                 required
+                style={{
+                  width: '100%',
+                  padding: 8,
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  fontSize: 14
+                }}
+              />
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+                PO Number
+              </label>
+              <input
+                type="text"
+                name="poNumber"
+                value={form.poNumber}
+                onChange={handleChange}
                 style={{
                   width: '100%',
                   padding: 8,
@@ -890,6 +911,7 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
     contactName: '',
     phoneNumber: '',
     email: '',
+    poNumber: '',
     make: '',
     model: '',
     serialNumber: '',
@@ -934,6 +956,7 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
         contactName: pickupData.contact_name || '',
         phoneNumber: pickupData.phone_number || '',
         email: pickupData.email || '',
+        poNumber: pickupData.po_number || '',
         make: pickupData.make || '',
         model: pickupData.model || '',
         serialNumber: pickupData.serial_number || '',
@@ -1002,7 +1025,7 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
       await onSave(pickupData.id, form);
       setForm({
         companyName: '', address: '', city: '', state: '', zipcode: '',
-        contactName: '', phoneNumber: '', email: '', make: '', model: '',
+        contactName: '', phoneNumber: '', email: '', poNumber: '', make: '', model: '',
         serialNumber: '', shop: '', pickupDate: ''
       });
     } catch (error) {
@@ -1080,6 +1103,25 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
                 value={form.companyName}
                 onChange={handleChange}
                 required
+                style={{
+                  width: '100%',
+                  padding: 8,
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  fontSize: 14
+                }}
+              />
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+                PO Number
+              </label>
+              <input
+                type="text"
+                name="poNumber"
+                value={form.poNumber}
+                onChange={handleChange}
                 style={{
                   width: '100%',
                   padding: 8,
