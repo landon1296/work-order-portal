@@ -350,8 +350,12 @@ const SchedulePickupModal = ({ isOpen, onClose, onSave, initialDate = null }) =>
   // Set initial date when modal opens
   useEffect(() => {
     if (isOpen && initialDate) {
-      const dateString = initialDate.toISOString().split('T')[0];
-      setForm(prev => ({ ...prev, pickupDate: dateString }));
+      // Ensure initialDate is a Date object
+      const date = initialDate instanceof Date ? initialDate : new Date(initialDate);
+      if (!isNaN(date.getTime())) {
+        const dateString = date.toISOString().split('T')[0];
+        setForm(prev => ({ ...prev, pickupDate: dateString }));
+      }
     }
   }, [isOpen, initialDate]);
 
@@ -1986,7 +1990,7 @@ const Header = ({ onLogout, onRefresh, user, onSchedulePickup }) => (
             cursor: 'pointer',
             whiteSpace: 'nowrap'
           }}
-          onClick={onSchedulePickup}
+          onClick={() => onSchedulePickup(new Date())}
           aria-label="Schedule a pick-up"
         >
           Schedule Service
