@@ -2363,7 +2363,7 @@ const AtAGlanceModal = ({ isOpen, onClose, data }) => {
   );
 };
 
-const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup, onSchedulePickup }) => {
+const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup, onSchedulePickup, highlightedWorkOrderNo, onHighlightWorkOrder, onClearHighlight }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [hoveredDate, setHoveredDate] = useState(null);
   
@@ -2443,6 +2443,15 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup, onSchedulePic
 
   return (
     <div style={{ margin: '0 30px' }}>
+      <style>
+        {`
+          @keyframes pulse {
+            0% { transform: scale(1.15); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1.15); }
+          }
+        `}
+      </style>
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -2480,14 +2489,17 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup, onSchedulePic
         </button>
       </div>
 
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(7, 1fr)', 
-        gap: '1px',
-        border: '1px solid #e5e7eb',
-        borderRadius: 8,
-        overflow: 'hidden'
-      }}>
+      <div 
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(7, 1fr)', 
+          gap: '1px',
+          border: '1px solid #e5e7eb',
+          borderRadius: 8,
+          overflow: 'hidden'
+        }}
+        onClick={onClearHighlight}
+      >
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} style={{
             background: '#f3f4f6',
@@ -2571,6 +2583,7 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup, onSchedulePic
               </div>
               {dayOrders.map((item, idx) => {
                 const isCompleted = item.type === 'pickup' && item.status === 'Completed';
+                const isHighlighted = item.type === 'workorder' && highlightedWorkOrderNo === item.workOrderNo;
                 return (
                   <div
                     key={idx}
@@ -2581,23 +2594,36 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup, onSchedulePic
                         onEditPickup(item);
                       }
                     }}
+                    onContextMenu={(e) => {
+                      if (item.type === 'workorder') {
+                        onHighlightWorkOrder(item.workOrderNo, e);
+                      }
+                    }}
                     style={{
                       background: item.type === 'pickup' ? '#f97316' : getStatusColor(item.displayStatus || item.status),
                       color: 'white',
-                      padding: '2px 6px',
+                      padding: isHighlighted ? '4px 8px' : '2px 6px',
                       margin: '2px 0',
                       borderRadius: '4px',
-                      fontSize: '12px',
+                      fontSize: isHighlighted ? '14px' : '12px',
                       cursor: 'pointer',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                       textDecoration: isCompleted ? 'line-through' : 'none',
-                      opacity: isCompleted ? 0.7 : 1
+                      opacity: isCompleted ? 0.7 : 1,
+                      fontWeight: isHighlighted ? 'bold' : 'normal',
+                      transform: isHighlighted ? 'scale(1.15)' : 'scale(1)',
+                      boxShadow: isHighlighted ? '0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 2px #fff' : 'none',
+                      border: isHighlighted ? '2px solid #fff' : 'none',
+                      transition: 'all 0.3s ease',
+                      animation: isHighlighted ? 'pulse 2s infinite' : 'none',
+                      zIndex: isHighlighted ? 10 : 1,
+                      position: 'relative'
                     }}
                   title={item.type === 'pickup' 
                     ? `${isCompleted ? 'COMPLETED - ' : ''}Pickup - ${item.company_name} - ${item.make} / ${item.model || 'N/A'} / ${item.serial_number || 'N/A'} (Click to edit)`
-                    : `${item.workOrderNo} - ${item.displayStatus || item.status} - ${item.shop} - ${item.make} / ${item.model} / ${item.serialNumber}`
+                    : `${item.workOrderNo} - ${item.displayStatus || item.status} - ${item.shop} - ${item.make} / ${item.model} / ${item.serialNumber} (Right-click to highlight all instances)`
                   }
                 >
                   {item.type === 'pickup' 
@@ -2615,7 +2641,7 @@ const CalendarView = ({ orders, pickups, onViewEdit, onEditPickup, onSchedulePic
   );
 };
 
-const ListView = ({ orders, onViewEdit }) => {
+const ListView = ({ orders, onViewEdit, highlightedWorkOrderNo, onHighlightWorkOrder, onClearHighlight }) => {
   const sortedOrders = useMemo(() => {
     return [...orders].sort((a, b) => {
       const aDate = a.timeLogs?.[0]?.assignDate || a.date || '';
@@ -2626,12 +2652,24 @@ const ListView = ({ orders, onViewEdit }) => {
 
   return (
     <div style={{ margin: '0 30px' }}>
+      <style>
+        {`
+          @keyframes listPulse {
+            0% { transform: scale(1.05); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1.05); }
+          }
+        `}
+      </style>
       <h2 style={{ marginBottom: 20 }}>Scheduled Work Orders</h2>
-      <div style={{ 
-        border: '1px solid #e5e7eb', 
-        borderRadius: 8,
-        overflow: 'hidden'
-      }}>
+      <div 
+        style={{ 
+          border: '1px solid #e5e7eb', 
+          borderRadius: 8,
+          overflow: 'hidden'
+        }}
+        onClick={onClearHighlight}
+      >
         <table style={{ 
           width: '100%', 
           borderCollapse: 'collapse',
@@ -2651,15 +2689,29 @@ const ListView = ({ orders, onViewEdit }) => {
           <tbody>
             {sortedOrders.map(order => {
               const timeLog = order.timeLogs?.[0];
+              const isHighlighted = highlightedWorkOrderNo === order.workOrderNo;
               return (
                 <tr 
                   key={order.workOrderNo}
                   style={{ 
                     cursor: 'pointer',
                     borderBottom: '1px solid #f3f4f6',
-                    background: 'white'
+                    background: 'white',
+                    color: 'inherit',
+                    fontWeight: isHighlighted ? 'bold' : 'normal',
+                    transform: isHighlighted ? 'scale(1.05)' : 'scale(1)',
+                    boxShadow: isHighlighted ? '0 4px 12px rgba(0, 0, 0, 0.2), 0 0 0 2px #3b82f6' : 'none',
+                    transition: 'all 0.3s ease',
+                    animation: isHighlighted ? 'listPulse 2s infinite' : 'none',
+                    zIndex: isHighlighted ? 5 : 1,
+                    position: 'relative'
                   }}
                   onClick={() => onViewEdit(order.workOrderNo)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onHighlightWorkOrder(order.workOrderNo, e);
+                  }}
                   onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                 >
@@ -2706,7 +2758,7 @@ const ListView = ({ orders, onViewEdit }) => {
   );
 };
 
-const TechnicianView = ({ orders, onViewEdit }) => {
+const TechnicianView = ({ orders, onViewEdit, highlightedWorkOrderNo, onHighlightWorkOrder, onClearHighlight }) => {
   const ordersByTechnician = useMemo(() => {
     const grouped = {};
     orders.forEach(order => {
@@ -2722,7 +2774,19 @@ const TechnicianView = ({ orders, onViewEdit }) => {
   }, [orders]);
 
   return (
-    <div style={{ margin: '0 30px' }}>
+    <div 
+      style={{ margin: '0 30px' }}
+      onClick={onClearHighlight}
+    >
+      <style>
+        {`
+          @keyframes techPulse {
+            0% { transform: scale(1.05); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1.05); }
+          }
+        `}
+      </style>
       <h2 style={{ marginBottom: 20 }}>Work Orders by Technician</h2>
       {Object.entries(ordersByTechnician).map(([technician, techOrders]) => (
         <div key={technician} style={{ marginBottom: 30 }}>
@@ -2757,17 +2821,32 @@ const TechnicianView = ({ orders, onViewEdit }) => {
                 </tr>
               </thead>
               <tbody>
-                {techOrders.map(order => (
-                  <tr 
-                    key={order.workOrderNo}
-                    style={{ 
-                      cursor: 'pointer',
-                      background: 'white'
-                    }}
-                    onClick={() => onViewEdit(order.workOrderNo)}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                  >
+                {techOrders.map(order => {
+                  const isHighlighted = highlightedWorkOrderNo === order.workOrderNo;
+                  return (
+                    <tr 
+                      key={order.workOrderNo}
+                      style={{ 
+                        cursor: 'pointer',
+                        background: 'white',
+                        color: 'inherit',
+                        fontWeight: isHighlighted ? 'bold' : 'normal',
+                        transform: isHighlighted ? 'scale(1.05)' : 'scale(1)',
+                        boxShadow: isHighlighted ? '0 4px 12px rgba(0, 0, 0, 0.2), 0 0 0 2px #3b82f6' : 'none',
+                        transition: 'all 0.3s ease',
+                        animation: isHighlighted ? 'techPulse 2s infinite' : 'none',
+                        zIndex: isHighlighted ? 5 : 1,
+                        position: 'relative'
+                      }}
+                      onClick={() => onViewEdit(order.workOrderNo)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onHighlightWorkOrder(order.workOrderNo, e);
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                    >
                     <td style={{ padding: '8px 12px' }}>
                       {formatDate(order.timeLog?.assignDate || order.date)}
                     </td>
@@ -2796,7 +2875,8 @@ const TechnicianView = ({ orders, onViewEdit }) => {
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2838,6 +2918,7 @@ export default function SchedulerDashboard({ user }) {
     shop: 'All Shops',
     workOrderNo: ''
   });
+  const [highlightedWorkOrderNo, setHighlightedWorkOrderNo] = useState(null);
 
   // Memoized filtered orders and pickups
   const filteredOrders = useMemo(() => {
@@ -2956,6 +3037,16 @@ export default function SchedulerDashboard({ user }) {
   const handleViewEdit = useCallback((workOrderNo) => {
     navigate(`/dashboard/workorder/${workOrderNo}`);
   }, [navigate]);
+
+  const handleHighlightWorkOrder = useCallback((workOrderNo, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setHighlightedWorkOrderNo(workOrderNo);
+  }, []);
+
+  const handleClearHighlight = useCallback(() => {
+    setHighlightedWorkOrderNo(null);
+  }, []);
 
   const handleViewTypeChange = useCallback((newViewType) => {
     setViewType(newViewType);
@@ -3161,6 +3252,9 @@ export default function SchedulerDashboard({ user }) {
           onViewEdit={handleViewEdit}
           onEditPickup={handleEditPickup}
           onSchedulePickup={handleSchedulePickup}
+          highlightedWorkOrderNo={highlightedWorkOrderNo}
+          onHighlightWorkOrder={handleHighlightWorkOrder}
+          onClearHighlight={handleClearHighlight}
         />
       )}
 
@@ -3168,6 +3262,9 @@ export default function SchedulerDashboard({ user }) {
         <ListView 
           orders={filteredOrders}
           onViewEdit={handleViewEdit}
+          highlightedWorkOrderNo={highlightedWorkOrderNo}
+          onHighlightWorkOrder={handleHighlightWorkOrder}
+          onClearHighlight={handleClearHighlight}
         />
       )}
 
@@ -3175,6 +3272,9 @@ export default function SchedulerDashboard({ user }) {
         <TechnicianView 
           orders={filteredOrders}
           onViewEdit={handleViewEdit}
+          highlightedWorkOrderNo={highlightedWorkOrderNo}
+          onHighlightWorkOrder={handleHighlightWorkOrder}
+          onClearHighlight={handleClearHighlight}
         />
       )}
 
