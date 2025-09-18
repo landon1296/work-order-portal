@@ -36,14 +36,21 @@ function setupAuthRoutes(app) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      const [ , hash, role ] = userRow;
+      const [ , hash, roleString ] = userRow;
       const valid = await bcrypt.compare(password, hash);
       if (!valid) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      const token = jwt.sign({ username, role }, process.env.JWT_SECRET, { expiresIn: '8h' });
-      res.json({ token, role, username });
+      // Parse comma-separated roles and create roles array
+      const roles = roleString.split(',').map(r => r.trim()).filter(r => r);
+      const primaryRole = roles[0]; // First role is the primary/default role
+      const role = primaryRole; // For backward compatibility
+
+      console.log(`🔑 User ${username} has roles:`, roles, `(primary: ${primaryRole})`);
+
+      const token = jwt.sign({ username, role, roles, primaryRole }, process.env.JWT_SECRET, { expiresIn: '8h' });
+      res.json({ token, role, roles, primaryRole, username });
     } catch (error) {
       console.error('Error fetching Users sheet:', error);
       res.status(500).json({ error: 'Internal server error' });

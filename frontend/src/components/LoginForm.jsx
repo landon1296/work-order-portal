@@ -29,11 +29,23 @@ export default function LoginForm({ onLogin }) {
     console.log("submitting form!");
     try {
       const { data } = await API.post('/login', { username, password });
-      const userInfo = jwtDecode(data.token); // <-- 2. decode the token!
-      onLogin({ token: data.token, ...userInfo }); // <-- 3. pass user object
-      if (userInfo.role === 'analytics' || userInfo.role === 'owner') {
+      const userInfo = jwtDecode(data.token); // <-- decode the token!
+      
+      // Include roles and primaryRole from backend response
+      const userWithRoles = { 
+        token: data.token, 
+        ...userInfo,
+        roles: data.roles || [data.role], // Use roles array from backend or fallback to single role
+        primaryRole: data.primaryRole || data.role
+      };
+      
+      onLogin(userWithRoles);
+      
+      // Route based on primary role
+      const primaryRole = userWithRoles.primaryRole || userWithRoles.role;
+      if (primaryRole === 'analytics' || primaryRole === 'owner') {
         navigate('/dashboard');
-      } else if (userInfo.role === 'manager') {
+      } else if (primaryRole === 'manager') {
         navigate('/dashboard');
       } else {
         navigate('/tech-dashboard');

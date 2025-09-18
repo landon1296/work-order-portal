@@ -9,7 +9,19 @@ import AccountingDashboard from './components/AccountingDashboard';
 import ReceptionDashboard from './components/ReceptionDashboard';
 import TroubleshootForm from './components/TroubleshootForm';
 import DashboardSwitcher from "./components/DashboardSwitcher";
+import RoleSwitcher from "./components/RoleSwitcher";
 import { useEffect } from 'react';
+
+// Utility function to check if user has specific role(s)
+const hasRole = (user, roleOrRoles) => {
+  if (!user) return false;
+  
+  const userRoles = user.roles || [user.role];
+  if (Array.isArray(roleOrRoles)) {
+    return roleOrRoles.some(role => userRoles.includes(role));
+  }
+  return userRoles.includes(roleOrRoles);
+};
 
 // 
 
@@ -55,9 +67,9 @@ function App() {
         <Route path="/" element={
           user
             ? (
-              ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
+              hasRole(user, ['manager', 'accounting', 'analytics', 'owner'])
                 ? <Navigate to="/dashboard" replace />
-                : user.role === 'reception'
+                : hasRole(user, 'reception')
                 ? <Navigate to="/reception-dashboard" replace />
                 : <Navigate to="/tech-dashboard" replace />
               )
@@ -67,12 +79,17 @@ function App() {
         {/* Main Dashboard Route */}
         <Route path="/dashboard" element={
           <RequireAuth user={user}>
-            {user?.role === 'manager'
-              ? <ManagerDashboard user={user} />
-              : user?.role === 'accounting'
-              ? <AccountingDashboard user={user} />
-              : (user?.role === 'analytics' || user?.role === 'owner')
-              ? <DashboardSwitcher user={user} />
+            {hasRole(user, ['manager', 'accounting', 'analytics', 'owner'])
+              ? (user?.roles && user.roles.length > 1 
+                  ? <RoleSwitcher user={user} />
+                  : user?.role === 'manager'
+                  ? <ManagerDashboard user={user} />
+                  : user?.role === 'accounting'
+                  ? <AccountingDashboard user={user} />
+                  : (user?.role === 'analytics' || user?.role === 'owner')
+                  ? <DashboardSwitcher user={user} />
+                  : <Navigate to="/" />
+                )
               : <Navigate to="/" />
             }
           </RequireAuth>
@@ -127,15 +144,18 @@ function App() {
         {/* Technician Dashboard */}
         <Route path="/tech-dashboard" element={
           <RequireAuth user={user}>
-            {user?.role === 'technician'
-              ? <TechDashboard username={user.username} />
+            {hasRole(user, ['technician', 'tech'])
+              ? (user?.roles && user.roles.length > 1
+                  ? <RoleSwitcher user={user} />
+                  : <TechDashboard username={user.username} />
+                )
               : <Navigate to="/" />
             }
           </RequireAuth>
         } />
         <Route path="/tech-dashboard/workorder/:id" element={
           <RequireAuth user={user}>
-            {user?.role === 'technician'
+            {hasRole(user, ['technician', 'tech'])
               ? <TechWorkOrderForm token={user.token} user= {user} />
               : <Navigate to="/" />
             }

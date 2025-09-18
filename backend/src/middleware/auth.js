@@ -7,7 +7,12 @@ function requireAnalyticsRole(req, res, next) {
   const token = authHeader.replace(/^Bearer /, '');
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role === 'analytics' || decoded.role === 'owner') {
+    
+    // Support both single role (backward compatibility) and multiple roles
+    const userRoles = decoded.roles || [decoded.role];
+    const hasAnalyticsAccess = userRoles.includes('analytics') || userRoles.includes('owner');
+    
+    if (hasAnalyticsAccess) {
       req.user = decoded; // attach user info if needed
       next();
     } else {
