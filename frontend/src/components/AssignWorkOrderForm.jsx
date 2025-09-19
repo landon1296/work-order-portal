@@ -594,7 +594,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         status: 'In Progress, Pending Parts',
         statusHistory: [
           ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
-          { status: 'In Progress, Pending Parts', date: now }
+          { status: 'In Progress, Pending Parts', date: now, updatedBy: user.username || user.name || 'System' }
         ]
       };
       
@@ -610,7 +610,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         status: 'In Progress',
         statusHistory: [
           ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
-          { status: 'In Progress', date: now }
+          { status: 'In Progress', date: now, updatedBy: user.username || user.name || 'System' }
         ]
       };
       setForm(updatedForm);
@@ -785,7 +785,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         const newForm = {
           ...cleanedForm,
           status: "Assigned",
-          statusHistory: [{ status: "Assigned", date: assignedTimestamp }],
+          statusHistory: [{ status: "Assigned", date: assignedTimestamp, updatedBy: user.username || user.name || 'System' }],
           assignedDays: 1
         };
 
@@ -837,7 +837,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         const newForm = {
           ...cleanedForm,
           status: "Assigned",
-          statusHistory: [{ status: "Assigned", date: assignedTimestamp }],
+          statusHistory: [{ status: "Assigned", date: assignedTimestamp, updatedBy: user.username || user.name || 'System' }],
           assignedDays: 1
         };
 
@@ -1316,6 +1316,7 @@ const FormTable = ({
                 {form.statusHistory.map((s, i) => (
                   <li key={i}>
                     <strong>{s.status}</strong>: {new Date(s.date).toLocaleString()}
+                    {s.updatedBy && <span style={{ color: '#666', marginLeft: '8px' }}>(by {s.updatedBy})</span>}
                   </li>
                 ))}
               </ul>

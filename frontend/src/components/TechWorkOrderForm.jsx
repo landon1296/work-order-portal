@@ -258,7 +258,7 @@ if (
         statusHistory: [
           ...(Array.isArray(form.statusHistory) ? form.statusHistory : [])
 ,
-          { status: 'In Progress', date: now }
+          { status: 'In Progress', date: now, updatedBy: user.username || user.name || 'System' }
         ]
       };
       
@@ -283,7 +283,7 @@ if (
         status: 'In Progress, Pending Parts',
 statusHistory: [
   ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
-  { status: 'In Progress, Pending Parts', date: now }
+  { status: 'In Progress, Pending Parts', date: now, updatedBy: user.username || user.name || 'System' }
 ]
       };
       
@@ -297,7 +297,7 @@ statusHistory: [
         status: 'In Progress',
 statusHistory: [
   ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
-  { status: 'In Progress', date: now }
+  { status: 'In Progress', date: now, updatedBy: user.username || user.name || 'System' }
 ]
       };
       setForm(updatedForm);
@@ -597,7 +597,7 @@ const updatedForm = {
   status: "Completed, Pending Approval",
   statusHistory: [
     ...((Array.isArray(form.statusHistory) ? form.statusHistory : [])),
-    { status: "Completed, Pending Approval", date: now }
+    { status: "Completed, Pending Approval", date: now, updatedBy: user.username || user.name || 'System' }
   ]
 };
 
@@ -1389,6 +1389,7 @@ console.log("form", form);
                     {form.statusHistory.map((s, i) => (
                       <li key={i}>
                         <strong>{s.status}</strong>: {new Date(s.date).toLocaleString()}
+                        {s.updatedBy && <span style={{ color: '#666', marginLeft: '8px' }}>(by {s.updatedBy})</span>}
                       </li>
                     ))}
                   </ul>
