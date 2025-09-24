@@ -10,6 +10,7 @@ import ReceptionDashboard from './components/ReceptionDashboard';
 import TroubleshootForm from './components/TroubleshootForm';
 import DashboardSwitcher from "./components/DashboardSwitcher";
 import RoleSwitcher from "./components/RoleSwitcher";
+import CallLogDashboard from './components/CallLogDashboard';
 import { useEffect } from 'react';
 
 // Utility function to check if user has specific role(s)
@@ -167,6 +168,16 @@ function App() {
           <RequireAuth user={user}>
             {user?.role === 'reception'
               ? <ReceptionDashboard user={user} />
+              : <Navigate to="/" />
+            }
+          </RequireAuth>
+        } />
+
+        {/* Call Log Dashboard */}
+        <Route path="/call-log-dashboard" element={
+          <RequireAuth user={user}>
+            {hasRole(user, ['manager', 'accounting', 'analytics', 'owner', 'reception'])
+              ? <CallLogDashboard user={user} />
               : <Navigate to="/" />
             }
           </RequireAuth>

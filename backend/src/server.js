@@ -39,6 +39,12 @@ app.use('/api/notifications', notificationsRoutes);
 const schedulerRoutes = require('./routes/scheduler-new');
 app.use('/api/scheduler', schedulerRoutes);
 
+const callLogsRoutes = require('./routes/calllogs');
+app.use('/api/calllogs', callLogsRoutes);
+
+const callLogNotesRoutes = require('./routes/calllognotes');
+app.use('/api/calllognotes', callLogNotesRoutes);
+
 
 
 const PORT = process.env.PORT || 4000;

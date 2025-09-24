@@ -1,5 +1,19 @@
 const jwt = require('jsonwebtoken');
 
+// General auth middleware - requires any valid token
+function auth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'No token' });
+  const token = authHeader.replace(/^Bearer /, '');
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded; // attach user info
+    next();
+  } catch (e) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
 // Only allows users with 'analytics' or 'owner' role
 function requireAnalyticsRole(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -23,4 +37,4 @@ function requireAnalyticsRole(req, res, next) {
   }
 }
 
-module.exports = { requireAnalyticsRole };
+module.exports = { auth, requireAnalyticsRole };
