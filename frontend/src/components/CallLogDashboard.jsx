@@ -80,7 +80,15 @@ const CallLogDashboard = ({ user }) => {
 
   const generateRecurringDates = (callLog) => {
     const dates = [];
-    const startDate = new Date(callLog.date);
+    // Parse date string directly to avoid timezone issues
+    let startDate;
+    if (typeof callLog.date === 'string' && callLog.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = callLog.date.split('-').map(Number);
+      startDate = new Date(year, month - 1, day); // month is 0-indexed
+    } else {
+      startDate = new Date(callLog.date);
+    }
+    
     const endDate = callLog.schedule_end_date ? new Date(callLog.schedule_end_date) : new Date(startDate.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year default
     
     let current = new Date(startDate);
@@ -136,12 +144,19 @@ const CallLogDashboard = ({ user }) => {
     const grouped = {};
     
     callLogs.forEach(log => {
-      // Add the original date
-      const originalDate = new Date(log.date);
-      const year = originalDate.getFullYear();
-      const month = String(originalDate.getMonth() + 1).padStart(2, '0');
-      const day = String(originalDate.getDate()).padStart(2, '0');
-      const dateKey = `${year}-${month}-${day}`;
+      // Parse date string directly to avoid timezone issues
+      // If log.date is already in YYYY-MM-DD format, use it directly
+      let dateKey;
+      if (typeof log.date === 'string' && log.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        dateKey = log.date;
+      } else {
+        // Fallback for other date formats
+        const originalDate = new Date(log.date);
+        const year = originalDate.getFullYear();
+        const month = String(originalDate.getMonth() + 1).padStart(2, '0');
+        const day = String(originalDate.getDate()).padStart(2, '0');
+        dateKey = `${year}-${month}-${day}`;
+      }
       
       if (!grouped[dateKey]) grouped[dateKey] = [];
       // Create a copy of the log with date-specific completion status
