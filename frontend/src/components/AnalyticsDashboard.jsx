@@ -798,7 +798,7 @@ const WaitingPartsTable = ({ waitingOnPartsFiltered, onNavigateToWorkOrder }) =>
             partNumber: part.partNumber || part.part_number || '',
             description: part.description || 'No description',
             quantity: part.quantity || 1,
-            createdAt: wo.created_at
+            waitingDays: part.waiting_days || part.waitingDays || 0
           });
         }
       });
@@ -807,8 +807,8 @@ const WaitingPartsTable = ({ waitingOnPartsFiltered, onNavigateToWorkOrder }) =>
 
   // Sort by days waiting (most recent first)
   allWaitingParts.sort((a, b) => {
-    const daysA = calculateDaysOpen(a.createdAt);
-    const daysB = calculateDaysOpen(b.createdAt);
+    const daysA = Number(a.waitingDays) || 0;
+    const daysB = Number(b.waitingDays) || 0;
     return daysB - daysA;
   });
 
@@ -837,13 +837,13 @@ const WaitingPartsTable = ({ waitingOnPartsFiltered, onNavigateToWorkOrder }) =>
         <tbody>
           {allWaitingParts.length === 0 ? (
             <tr>
-              <td colSpan={5} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>
+              <td colSpan={6} style={{ padding: 8, textAlign: "center", color: "#aaa" }}>
                 No parts currently waiting on!
               </td>
             </tr>
           ) : (
             allWaitingParts.map((part, index) => {
-              const daysWaiting = calculateDaysOpen(part.createdAt);
+              const daysWaiting = Number(part.waitingDays) || 0;
               
               return (
                 <tr key={`${part.workOrderNo}-${part.partNumber}-${index}`}>

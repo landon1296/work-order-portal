@@ -112,21 +112,25 @@ async function addLineItem(lineItem) {
 
   const result = await pool.query(
     `INSERT INTO line_items
-      (work_order_no, part_number, description, quantity, waiting)
+      (work_order_no, part_number, description, quantity, waiting, waiting_from, ordered_date, estimated_delivery_date)
      VALUES
-      ($1, $2, $3, $4, $5)
+      ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       lineItem.workOrderNo,
       partNumber,
       description,
       quantity,
-      lineItem.waiting
+      lineItem.waiting,
+      lineItem.waiting ? new Date() : null,
+      null,
+      lineItem.estimatedDeliveryDate || null
     ]
   );
 
   return result.rows[0];
 }
+
 
 
 
@@ -258,5 +262,5 @@ module.exports = {
   addTimeEntry,
   updateStatus,
   getById,
-  updateWorkOrderByNo,
+  updateWorkOrderByNo
 };

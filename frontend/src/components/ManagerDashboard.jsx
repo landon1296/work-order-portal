@@ -16,6 +16,7 @@ const mobileStyles = `
     100% { transform: rotate(360deg); }
   }
   
+  
   @media (max-width: 768px) {
     .manager-table-wrapper {
       margin-left: 15px !important;
@@ -782,7 +783,10 @@ const WorkOrderTable = ({
   showStatus = true,
   showActions = true,
   emptyMessage = "No work orders found."
-}) => (
+}) => {
+  const [hoveredOrderId, setHoveredOrderId] = useState(null);
+
+  return (
   <div className="manager-table-wrapper" style={{ 
     overflowX: 'auto', 
     fontFamily: 'Arial, sans-serif', 
@@ -864,16 +868,75 @@ const WorkOrderTable = ({
             <td>{order.shop}</td>
             {showStatus && (
               <td style={{ fontWeight: 600 }}>
-                <span style={{
-                  display: "inline-block",
-                  padding: "2px 10px",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  background: getStatusColor(order.status || 'Assigned'),
-                  color: "#fff"
-                }}>
-                  {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Assigned'}
-                </span>
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <span 
+                    style={{
+                      display: "inline-block",
+                      padding: "2px 10px",
+                      borderRadius: "12px",
+                      fontSize: "13px",
+                      background: getStatusColor(order.status || 'Assigned'),
+                      color: "#fff",
+                      cursor: order.status && order.status.toLowerCase().includes('pending parts') ? 'help' : 'default'
+                    }}
+                    onMouseEnter={() => {
+                      if (order.status && order.status.toLowerCase().includes('pending parts')) {
+                        setHoveredOrderId(order.workOrderNo);
+                      }
+                    }}
+                    onMouseLeave={() => setHoveredOrderId(null)}
+                  >
+                    {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Assigned'}
+                  </span>
+                  {order.status && order.status.toLowerCase().includes('pending parts') && hoveredOrderId === order.workOrderNo && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      backgroundColor: '#1f2937',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap',
+                      zIndex: 1000,
+                      marginBottom: '5px',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      pointerEvents: 'none'
+                    }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Pending Parts:</div>
+                      {order.parts && order.parts.length > 0 ? (
+                        (() => {
+                          const pendingParts = order.parts.filter(part => 
+                            part && 
+                            part.waiting === true && 
+                            (part.partNumber || part.description || part.quantity)
+                          );
+                          
+                          if (pendingParts.length === 0) {
+                            return <div style={{ fontSize: '11px', fontStyle: 'italic' }}>No parts currently pending</div>;
+                          }
+                          
+                          return pendingParts.map((part, index) => (
+                            <div key={index} style={{ fontSize: '11px', marginBottom: '2px' }}>
+                              {part.partNumber && `${part.partNumber} - `}
+                              {part.description || 'No description'}
+                              {part.quantity && ` (Qty: ${part.quantity})`}
+                              {part.estimatedDeliveryDate && (
+                                <div style={{ fontSize: '10px', color: '#d1d5db', marginTop: '1px' }}>
+                                  Est. Delivery: {part.estimatedDeliveryDate}
+                                </div>
+                              )}
+                            </div>
+                          ));
+                        })()
+                      ) : (
+                        <div style={{ fontSize: '11px', fontStyle: 'italic' }}>No parts data available</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </td>
             )}
             {showActions && (
@@ -985,7 +1048,8 @@ const WorkOrderTable = ({
       </tbody>
     </table>
   </div>
-);
+  );
+};
 
 const Pagination = ({ currentPage, totalPages, onPageChange }) => (
   <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center', gap: 16 }}>

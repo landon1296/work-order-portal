@@ -5,6 +5,7 @@ export function getStatusColor(status) {
 
   if (normalized.includes('pending parts')) return '#dc2626';     // red = highest priority
   if (normalized.includes('submitted for billing')) return '#facc15'; // yellow
+  if (normalized.includes('customer invoiced')) return '#059669'; // green
   if (normalized.includes('in progress')) return '#10b981';       // green
   if (normalized.includes('assigned')) return '#2563eb';          // blue
   if (normalized.includes('completed')) return '#8b5cf6';

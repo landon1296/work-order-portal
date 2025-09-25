@@ -67,7 +67,7 @@ export default function TechWorkOrderForm({ token, user }) {
     shippingCost: '',
     shippingComments: '',
     notes: '',
-    parts: [{ description:'', partNumber:'', quantity:'', waiting: false }],
+    parts: [{ description:'', partNumber:'', quantity:'', waiting: false, estimatedDeliveryDate: '' }],
     status: 'Assigned',
     statusHistory: [],
     customerSignature: null,
@@ -139,21 +139,24 @@ const handleDeletePhoto = async (photoId) => {
 
   // Track if we have loaded work order from API yet
   const [loaded, setLoaded] = useState(false);
+  
+  // Track when form was last modified to prevent refresh during editing
+  const [lastModified, setLastModified] = useState(null);
 
   // Fetch work order data
-useEffect(() => {
-  if (!id) return;
-  API.get(`/workorders/${id}`)
-    .then(res => {
-      if (res.data) {
-        let formObj = toCamelCaseDeep(res.data);
+  const fetchWorkOrderData = useCallback(() => {
+    if (!id) return;
+    API.get(`/workorders/${id}`)
+      .then(res => {
+        if (res.data) {
+          let formObj = toCamelCaseDeep(res.data);
 
-        // Map legacy fieldContactName to fieldContact if needed
-        if (!formObj.fieldContact && formObj.fieldContactName)
-          formObj.fieldContact = formObj.fieldContactName;
+          // Map legacy fieldContactName to fieldContact if needed
+          if (!formObj.fieldContact && formObj.fieldContactName)
+            formObj.fieldContact = formObj.fieldContactName;
 
-        // Format main date
-        if (formObj.date) formObj.date = String(formObj.date).slice(0, 10);
+          // Format main date
+          if (formObj.date) formObj.date = String(formObj.date).slice(0, 10);
 
         // Format timeLogs dates
         formObj.timeLogs = Array.isArray(formObj.timeLogs) ? formObj.timeLogs.map(log => ({
@@ -174,7 +177,8 @@ useEffect(() => {
           partNumber: "",
           description: "",
           quantity: "",
-          waiting: false
+          waiting: false,
+          estimatedDeliveryDate: ""
         }];
 
         // Patch all string fields
@@ -206,7 +210,28 @@ if (!formObj.status) formObj.status = "Assigned";
       setLoaded(true);
     })
     .catch(() => { setLoaded(true); });
-}, [id]);
+  }, [id]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchWorkOrderData();
+  }, [fetchWorkOrderData]);
+
+  // Periodic refresh every 5 seconds to catch external changes
+  // Only refresh if form hasn't been modified in the last 10 seconds
+  useEffect(() => {
+    if (!loaded) return;
+    
+    const interval = setInterval(() => {
+      const now = Date.now();
+      // Only refresh if form hasn't been modified in the last 10 seconds
+      if (!lastModified || (now - lastModified) > 10000) {
+        fetchWorkOrderData();
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [loaded, fetchWorkOrderData, lastModified]);
 
 
 
@@ -271,40 +296,51 @@ if (
   }, [form.status, id, loaded]);
 
   // in progress ↔ in progress, pending parts (only after loaded)
+  // Track previous waiting state to only run automation when it changes
+  const [prevWaitingState, setPrevWaitingState] = useState(null);
+  
   useEffect(() => {
     if (!loaded) return;
     if (!form.status || form.status.toLowerCase().startsWith('completed')) return;
+    
     const anyWaiting = (form.parts || []).some(part => part.waiting);
+    
+    // Only run automation if the waiting state actually changed
+    if (prevWaitingState === anyWaiting) return;
+    setPrevWaitingState(anyWaiting);
+    
     const now = new Date().toISOString();
 
-    if (anyWaiting && form.status !== 'In Progress, Pending Parts') {
+    if (anyWaiting && form.status !== 'In Progress, Pending Parts' && form.status !== 'In Progress, Pending Parts (Ordered)') {
+      // When parts are first marked as waiting, set to "In Progress, Pending Parts"
       const updatedForm = {
         ...form,
         status: 'In Progress, Pending Parts',
-statusHistory: [
-  ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
-  { status: 'In Progress, Pending Parts', date: now, updatedBy: user.username || user.name || 'System' }
-]
+        statusHistory: [
+          ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
+          { status: 'In Progress, Pending Parts', date: now, updatedBy: user.username || user.name || 'System' }
+        ]
       };
       
       console.log("AUTOMATION: sending status update:", updatedForm);
       setForm(updatedForm);
 
       API.put(`/workorders/${form.workOrderNo}`, updatedForm).catch(() => {});
-    } else if (!anyWaiting && form.status === 'In Progress, Pending Parts') {
+    } else if (!anyWaiting && (form.status === 'In Progress, Pending Parts' || form.status === 'In Progress, Pending Parts (Ordered)')) {
+      // When parts are no longer waiting, go back to "In Progress"
       const updatedForm = {
         ...form,
         status: 'In Progress',
-statusHistory: [
-  ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
-  { status: 'In Progress', date: now, updatedBy: user.username || user.name || 'System' }
-]
+        statusHistory: [
+          ...(Array.isArray(form.statusHistory) ? form.statusHistory : []),
+          { status: 'In Progress', date: now, updatedBy: user.username || user.name || 'System' }
+        ]
       };
       setForm(updatedForm);
       API.put(`/workorders/${form.workOrderNo}`, updatedForm).catch(() => {});
     }
     // eslint-disable-next-line
-  }, [form.parts, form.status, id, loaded]);
+  }, [form.parts, form.status, id, loaded, prevWaitingState]);
 
   // Dropdown options
   const [technicians, setTechnicians] = useState([]);
@@ -343,6 +379,9 @@ useEffect(() => {
 const handleChange = e => {
   const { name, value, type, checked } = e.target;
 
+  // Update last modified timestamp
+  setLastModified(Date.now());
+
   let newValue = value;
 
   // Auto-format phone numbers
@@ -361,7 +400,7 @@ const handleChange = e => {
 };
 
   const addPart = () => {
-    setForm(prev => ({ ...prev, parts: [...prev.parts, { description:'', partNumber:'', quantity:'', waiting: false }] }));
+    setForm(prev => ({ ...prev, parts: [...prev.parts, { description:'', partNumber:'', quantity:'', waiting: false, estimatedDeliveryDate: '' }] }));
   };
 
   // Helper: Notify Office via backend API
@@ -422,6 +461,9 @@ Date: ${workOrder.date || ''}`;
 
 
 const handlePartChange = (idx, field, value) => {
+  // Update last modified timestamp
+  setLastModified(Date.now());
+  
   setForm(prev => {
     const updated = [...prev.parts];
     updated[idx][field] = value;
@@ -468,6 +510,10 @@ const handlePartChange = (idx, field, value) => {
   };
   const handleTimeLogChange = (idx, e) => {
     const { name, value } = e.target;
+    
+    // Update last modified timestamp
+    setLastModified(Date.now());
+    
     setForm(prev => {
       const updated = [...prev.timeLogs];
       updated[idx][name] = value;
@@ -1207,13 +1253,13 @@ console.log("form", form);
                   Part Name/ Description
                 </th>
                 <th className="assign-table-header" colSpan={1}>
-                  
-                </th>
-                <th className="assign-table-header" colSpan={1}>
                   Quantity
                 </th>
                 <th className="assign-table-header" colSpan={1}>
                   Pending Parts?
+                </th>
+                <th className="assign-table-header" colSpan={1}>
+                  Est. Delivery Date
                 </th>
             </tr>
               {form.parts.map((part, idx) => {
@@ -1240,7 +1286,7 @@ console.log("form", form);
                   </datalist>
 
                 </td>
-                <td colSpan={2}>
+                <td>
                   <input
                     name="description"
                     value={part.description || ""}                    
@@ -1305,6 +1351,20 @@ console.log("form", form);
                       >-</button>
                     )}
                   </div>
+                </td>
+                <td>
+                  <input
+                    type="date"
+                    value={part.estimatedDeliveryDate || ""}
+                    onChange={e => handlePartChange(idx, 'estimatedDeliveryDate', e.target.value)}
+                    style={{
+                      width: '100%',
+                      opacity: part.waiting ? 1 : 0.5,
+                      pointerEvents: part.waiting ? 'auto' : 'none'
+                    }}
+                    disabled={!part.waiting}
+                    placeholder="Est. Delivery Date"
+                  />
                 </td>
 
                 </tr>

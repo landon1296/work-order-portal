@@ -335,14 +335,17 @@ if (updates.parts && Array.isArray(updates.parts)) {
     if (!partNumber && !description && quantity === 0) continue;
 
     await pool.query(
-      `INSERT INTO line_items (work_order_no, part_number, description, quantity, waiting)
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO line_items (work_order_no, part_number, description, quantity, waiting, waiting_from, ordered_date, estimated_delivery_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         workOrderNo,
         partNumber,
         description,
         quantity,
-        part.waiting || false
+        part.waiting || false,
+        part.waiting ? new Date() : null,
+        null,
+        part.estimatedDeliveryDate || null
       ]
     );
   }
@@ -657,6 +660,120 @@ const updateResult = await pool.query(
     } catch (err) {
       console.error('Error deleting work order:', err);
       res.status(500).json({ error: 'Failed to delete work order. Please try again.' });
+    }
+  });
+
+  // === ENDPOINT: Update Part Status (Ordered/Arrived)
+  app.put('/workorders/:workOrderNo/parts/:partId/status', async (req, res) => {
+    try {
+      const { workOrderNo, partId } = req.params;
+      const { action, estimatedDeliveryDate } = req.body; // 'ordered' or 'arrived', optional estimatedDeliveryDate
+      
+      console.log('DEBUG: Update part status request:', { workOrderNo, partId, action, estimatedDeliveryDate });
+      
+      if (!action || !['ordered', 'arrived'].includes(action)) {
+        return res.status(400).json({ error: 'Invalid action. Must be "ordered" or "arrived".' });
+      }
+
+      // Get the current work order
+      const workOrderResult = await pool.query(
+        'SELECT * FROM workorders WHERE work_order_no = $1',
+        [workOrderNo]
+      );
+      
+      if (workOrderResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Work order not found' });
+      }
+      
+      const workOrder = workOrderResult.rows[0];
+      
+      // Get the part
+      const partResult = await pool.query(
+        'SELECT * FROM line_items WHERE id = $1 AND work_order_no = $2',
+        [partId, workOrderNo]
+      );
+      
+      if (partResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+      
+      const part = partResult.rows[0];
+      
+      if (action === 'ordered') {
+        // Mark part as ordered and update work order status
+        await pool.query(
+          'UPDATE line_items SET ordered_date = $1, estimated_delivery_date = $2 WHERE id = $3',
+          [new Date(), estimatedDeliveryDate || null, partId]
+        );
+        
+        // Update work order status to "In Progress, Pending Parts (Ordered)"
+        const now = new Date().toISOString();
+        let statusHistory = workOrder.status_history;
+        
+        if (typeof statusHistory === "string") {
+          statusHistory = JSON.parse(statusHistory);
+        }
+        
+        if (!Array.isArray(statusHistory)) {
+          statusHistory = [];
+        }
+        
+        statusHistory.push({ 
+          status: 'In Progress, Pending Parts (Ordered)', 
+          date: now,
+          updatedBy: req.user?.username || req.user?.name || 'System'
+        });
+        
+        // Update work order status (no need to update parts array since it's stored in line_items table)
+        await pool.query(
+          'UPDATE workorders SET status = $1, status_history = $2 WHERE work_order_no = $3',
+          ['In Progress, Pending Parts (Ordered)', JSON.stringify(statusHistory), workOrderNo]
+        );
+        
+        res.json({ 
+          message: 'Part marked as ordered and work order status updated.',
+          newStatus: 'In Progress, Pending Parts (Ordered)'
+        });
+        
+      } else if (action === 'arrived') {
+        // Mark part as arrived and update work order status back to "In Progress"
+        await pool.query(
+          'UPDATE line_items SET waiting_to = $1, waiting = FALSE WHERE id = $2',
+          [new Date(), partId]
+        );
+        
+        // Update work order status back to "In Progress"
+        const now = new Date().toISOString();
+        let statusHistory = workOrder.status_history;
+        
+        if (typeof statusHistory === "string") {
+          statusHistory = JSON.parse(statusHistory);
+        }
+        
+        if (!Array.isArray(statusHistory)) {
+          statusHistory = [];
+        }
+        
+        statusHistory.push({ 
+          status: 'In Progress', 
+          date: now,
+          updatedBy: req.user?.username || req.user?.name || 'System'
+        });
+        
+        await pool.query(
+          'UPDATE workorders SET status = $1, status_history = $2 WHERE work_order_no = $3',
+          ['In Progress', JSON.stringify(statusHistory), workOrderNo]
+        );
+        
+        res.json({ 
+          message: 'Part marked as arrived and work order status updated.',
+          newStatus: 'In Progress'
+        });
+      }
+      
+    } catch (err) {
+      console.error('Failed to update part status:', err);
+      res.status(500).json({ error: 'Failed to update part status.' });
     }
   });
 

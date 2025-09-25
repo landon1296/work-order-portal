@@ -338,7 +338,7 @@ const useFormData = (id) => {
     shippingCost: '',
     shippingComments: '',
     notes: '',
-    parts: [{ partNumber: '', description: '', quantity: '', waiting: false }],
+    parts: [{ partNumber: '', description: '', quantity: '', waiting: false, estimatedDeliveryDate: '' }],
     otherDesc: '',
     workDescription: '',
     customerSignature: null,
@@ -484,7 +484,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         ...prev,
         ...prefilledData,
         // Ensure required arrays exist
-        parts: prev.parts || [{ partNumber: '', description: '', quantity: '', waiting: false }],
+        parts: prev.parts || [{ partNumber: '', description: '', quantity: '', waiting: false, estimatedDeliveryDate: '' }],
         timeLogs: prev.timeLogs || [{ technicianAssigned: '', assignDate: new Date().toISOString().slice(0, 10), startTime: '', finishTime: '', travelTime: '' }],
         // Map pickup data to work order format - Company info only
         companyStreet: prefilledData.address || '',
@@ -536,7 +536,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
           }
           
           // Ensure arrays exist
-          formObj.parts = Array.isArray(formObj.parts) ? formObj.parts : [{ partNumber: '', description: '', quantity: '', waiting: false }];
+          formObj.parts = Array.isArray(formObj.parts) ? formObj.parts : [{ partNumber: '', description: '', quantity: '', waiting: false, estimatedDeliveryDate: '' }];
           formObj.timeLogs = Array.isArray(formObj.timeLogs) ? formObj.timeLogs : [{ technicianAssigned: '', assignDate: '', startTime: '', finishTime: '', travelTime: '' }];
           
           // Format time log dates
@@ -579,16 +579,96 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
     fetchWorkOrder();
   }, [id, setForm, setFormLoading]);
 
+  // Track when form was last modified to prevent refresh during editing
+  const [lastModified, setLastModified] = useState(null);
+
+  // Periodic refresh every 5 seconds to catch external changes
+  // Only refresh if form hasn't been modified in the last 10 seconds
+  useEffect(() => {
+    if (!id) return;
+    
+    const interval = setInterval(async () => {
+      const now = Date.now();
+      // Only refresh if form hasn't been modified in the last 10 seconds
+      if (!lastModified || (now - lastModified) > 10000) {
+        try {
+          const res = await API.get(`/workorders/${id}`);
+          if (res.data) {
+            let formObj = toCamelCaseDeep(res.data);
+          
+          // Format dates
+          if (formObj.date) formObj.date = String(formObj.date).slice(0, 10);
+          
+          // Handle field contact fallback
+          if (!formObj.fieldContact && formObj.fieldContactName) {
+            formObj.fieldContact = formObj.fieldContactName;
+          }
+          
+          // Ensure arrays exist
+          formObj.parts = Array.isArray(formObj.parts) ? formObj.parts : [{ partNumber: '', description: '', quantity: '', waiting: false, estimatedDeliveryDate: '' }];
+          formObj.timeLogs = Array.isArray(formObj.timeLogs) ? formObj.timeLogs : [{ technicianAssigned: '', assignDate: '', startTime: '', finishTime: '', travelTime: '' }];
+          
+          // Format time log dates
+          formObj.timeLogs = formObj.timeLogs.map(log => ({
+            ...log,
+            assignDate: log.assignDate ? String(log.assignDate).slice(0, 10) : new Date().toISOString().slice(0, 10)
+          }));
+
+          // Set default values for required fields
+          const requiredFields = [
+            'companyName', 'companyStreet', 'companyCity', 'companyState', 'companyZip',
+            'fieldContact', 'fieldContactNumber', 'fieldStreet', 'fieldCity', 'fieldState', 'fieldZipcode',
+            'poNumber', 'make', 'model', 'serialNumber', 'date',
+            'contactName', 'contactPhone', 'contactEmail', 'salesName', 'shippingCost', 'shippingComments', 'notes', 'otherDesc', 'workDescription'
+          ];
+          
+          requiredFields.forEach(field => {
+            if (formObj[field] === undefined || formObj[field] === null) formObj[field] = '';
+          });
+
+          // Patch customerSignature
+          let sig = formObj.customerSignature;
+          if (typeof sig !== "string" || !sig) sig = null;
+          formObj.customerSignature = sig;
+
+          // Patch statusHistory
+          formObj.statusHistory = Array.isArray(formObj.statusHistory) ? formObj.statusHistory : [];
+
+          if (!formObj.status) formObj.status = "Assigned";
+
+          setForm(prev => ({
+            ...prev,
+            ...formObj,
+          }));
+        }
+      } catch (err) {
+        // Silently fail for periodic refresh
+      }
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [id, setForm, lastModified]);
+
   // STATUS AUTOMATION LOGIC (only run when editing existing work orders)
   // Only monitors parts waiting status - no automatic Assigned → In Progress change
+  // Track previous waiting state to only run automation when it changes
+  const [prevWaitingState, setPrevWaitingState] = useState(null);
+  
   useEffect(() => {
     if (!id || !form.workOrderNo) return; // Only run when editing existing work orders
     if (!form.status || form.status.toLowerCase().startsWith('completed')) return;
     
     const anyWaiting = (form.parts || []).some(part => part.waiting);
+    
+    // Only run automation if the waiting state actually changed
+    if (prevWaitingState === anyWaiting) return;
+    setPrevWaitingState(anyWaiting);
+    
     const now = new Date().toISOString();
 
-    if (anyWaiting && form.status !== 'In Progress, Pending Parts') {
+    if (anyWaiting && form.status !== 'In Progress, Pending Parts' && form.status !== 'In Progress, Pending Parts (Ordered)') {
+      // When parts are first marked as waiting, set to "In Progress, Pending Parts"
       const updatedForm = {
         ...form,
         status: 'In Progress, Pending Parts',
@@ -604,7 +684,8 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
       API.put(`/workorders/${form.workOrderNo}`, updatedForm, {
         headers: { Authorization: `Bearer ${token}` }
       }).catch(() => {});
-    } else if (!anyWaiting && form.status === 'In Progress, Pending Parts') {
+    } else if (!anyWaiting && (form.status === 'In Progress, Pending Parts' || form.status === 'In Progress, Pending Parts (Ordered)')) {
+      // When parts are no longer waiting, go back to "In Progress"
       const updatedForm = {
         ...form,
         status: 'In Progress',
@@ -618,11 +699,15 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         headers: { Authorization: `Bearer ${token}` }
       }).catch(() => {});
     }
-  }, [form.parts, form.status, id, form.workOrderNo, token]);
+  }, [form.parts, form.status, id, form.workOrderNo, token, prevWaitingState]);
 
   // Event handlers
   const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Update last modified timestamp
+    setLastModified(Date.now());
+    
     let newValue = value;
 
     // Auto-format phone numbers
@@ -651,7 +736,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   const addPart = useCallback(() => {
     setForm(prev => ({
       ...prev,
-      parts: [...prev.parts, { description: '', partNumber: '', quantity: '', waiting: false }]
+      parts: [...prev.parts, { description: '', partNumber: '', quantity: '', waiting: false, estimatedDeliveryDate: '' }]
     }));
   }, [setForm]);
 
@@ -664,6 +749,9 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   }, [setForm]);
 
   const handlePartChange = useCallback((idx, field, value) => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
+    
     setForm(prev => {
       const updated = [...prev.parts];
       updated[idx][field] = value;
@@ -740,6 +828,10 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
 
   const handleTimeLogChange = useCallback((idx, e) => {
     const { name, value } = e.target;
+    
+    // Update last modified timestamp
+    setLastModified(Date.now());
+    
     setForm(prev => {
       const updated = [...prev.timeLogs];
       updated[idx][name] = value;
@@ -1873,13 +1965,13 @@ const PartsRow = ({ form, onAddPart, onRemovePart, onPartChange, onPartWaitingCh
         Part Name/ Description
       </th>
       <th className="assign-table-header" colSpan={1}>
-        
-      </th>
-      <th className="assign-table-header" colSpan={1}>
         Quantity
       </th>
       <th className="assign-table-header" colSpan={1}>
         Pending Parts?
+      </th>
+      <th className="assign-table-header" colSpan={1}>
+        Est. Delivery Date
       </th>
     </tr>
     {form.parts.map((part, idx) => {
@@ -1896,7 +1988,7 @@ const PartsRow = ({ form, onAddPart, onRemovePart, onPartChange, onPartWaitingCh
               placeholder="Part Number"
             />
           </td>
-          <td colSpan={2}>
+          <td>
             <input
               name="description"
               value={part.description}
@@ -1961,6 +2053,20 @@ const PartsRow = ({ form, onAddPart, onRemovePart, onPartChange, onPartWaitingCh
                 >-</button>
               )}
             </div>
+          </td>
+          <td>
+            <input
+              type="date"
+              value={part.estimatedDeliveryDate || ""}
+              onChange={e => onPartChange(idx, 'estimatedDeliveryDate', e.target.value)}
+              style={{
+                width: '100%',
+                opacity: part.waiting ? 1 : 0.5,
+                pointerEvents: part.waiting ? 'auto' : 'none'
+              }}
+              disabled={!part.waiting}
+              placeholder="Est. Delivery Date"
+            />
           </td>
         </tr>
       );

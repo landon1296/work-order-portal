@@ -1056,7 +1056,12 @@ const EditPickupModal = ({ isOpen, onClose, onSave, onDelete, onCompleteAndAssig
   };
 
   const handleCompleteAndAssign = () => {
-    onCompleteAndAssign(pickupData);
+    // Create updated pickup data with current form values (including PO Number)
+    const updatedPickupData = {
+      ...pickupData,
+      po_number: form.poNumber
+    };
+    onCompleteAndAssign(updatedPickupData);
   };
 
   const handlePrintPDF = () => {

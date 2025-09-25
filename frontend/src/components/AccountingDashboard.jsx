@@ -620,12 +620,17 @@ const WorkOrderTable = ({
   onViewEdit, 
   onRework, 
   onCloseWorkOrder, 
+  onCustomerInvoiced,
+  onPaidClosed,
   onViewPDF,
   onDelete,
   showStatus = true,
   showActions = true,
   emptyMessage = "No work orders found."
-}) => (
+}) => {
+  const [hoveredOrderId, setHoveredOrderId] = useState(null);
+  
+  return (
   <div className="manager-table-wrapper" style={{ overflowX: 'auto', fontFamily: 'Arial, sans-serif' }}>
     <table className='manager-table' style={{ minWidth: 900, marginBottom: 40 }}>
       <thead>
@@ -693,16 +698,75 @@ const WorkOrderTable = ({
             <td>{order.shop}</td>
             {showStatus && (
               <td style={{ fontWeight: 600 }}>
-                <span style={{
-                  display: "inline-block",
-                  padding: "2px 10px",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  background: getStatusColor(order.status || 'Assigned'),
-                  color: "#fff"
-                }}>
-                  {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Assigned'}
-                </span>
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <span 
+                    style={{
+                      display: "inline-block",
+                      padding: "2px 10px",
+                      borderRadius: "12px",
+                      fontSize: "13px",
+                      background: getStatusColor(order.status || 'Assigned'),
+                      color: "#fff",
+                      cursor: order.status && order.status.toLowerCase().includes('pending parts') ? 'help' : 'default'
+                    }}
+                    onMouseEnter={() => {
+                      if (order.status && order.status.toLowerCase().includes('pending parts')) {
+                        setHoveredOrderId(order.workOrderNo);
+                      }
+                    }}
+                    onMouseLeave={() => setHoveredOrderId(null)}
+                  >
+                    {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Assigned'}
+                  </span>
+                  {order.status && order.status.toLowerCase().includes('pending parts') && hoveredOrderId === order.workOrderNo && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      backgroundColor: '#1f2937',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap',
+                      zIndex: 1000,
+                      marginBottom: '5px',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      pointerEvents: 'none'
+                    }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Pending Parts:</div>
+                      {order.parts && order.parts.length > 0 ? (
+                        (() => {
+                          const pendingParts = order.parts.filter(part => 
+                            part && 
+                            part.waiting === true && 
+                            (part.partNumber || part.description || part.quantity)
+                          );
+                          
+                          if (pendingParts.length === 0) {
+                            return <div style={{ fontSize: '11px', fontStyle: 'italic' }}>No parts currently pending</div>;
+                          }
+                          
+                          return pendingParts.map((part, index) => (
+                            <div key={index} style={{ fontSize: '11px', marginBottom: '2px' }}>
+                              {part.partNumber && `${part.partNumber} - `}
+                              {part.description || 'No description'}
+                              {part.quantity && ` (Qty: ${part.quantity})`}
+                              {part.estimatedDeliveryDate && (
+                                <div style={{ fontSize: '10px', color: '#d1d5db', marginTop: '1px' }}>
+                                  Est. Delivery: {part.estimatedDeliveryDate}
+                                </div>
+                              )}
+                            </div>
+                          ));
+                        })()
+                      ) : (
+                        <div style={{ fontSize: '11px', fontStyle: 'italic' }}>No parts data available</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </td>
             )}
             {showActions && (
@@ -739,7 +803,48 @@ const WorkOrderTable = ({
                     Rework
                   </button>
                 )}
-                {onCloseWorkOrder && (
+                {/* Show different buttons based on status */}
+                {order.status === 'Submitted for Billing' && onCustomerInvoiced && (
+                  <button
+                    onClick={() => onCustomerInvoiced(order)}
+                    style={{
+                      padding: '4px 10px',
+                      background: '#059669',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      marginLeft: 0,
+                      whiteSpace: 'nowrap',
+                      minWidth: 135,
+                      cursor: 'pointer'
+                    }}
+                    title="Mark as Customer Invoiced"
+                    aria-label={`Mark work order ${order.workOrderNo} as Customer Invoiced`}
+                  >
+                    Customer Invoiced
+                  </button>
+                )}
+                {order.status === 'Customer Invoiced' && onPaidClosed && (
+                  <button
+                    onClick={() => onPaidClosed(order)}
+                    style={{
+                      padding: '4px 10px',
+                      background: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      marginLeft: 0,
+                      whiteSpace: 'nowrap',
+                      minWidth: 135,
+                      cursor: 'pointer'
+                    }}
+                    title="Mark as Paid/Closed"
+                    aria-label={`Mark work order ${order.workOrderNo} as Paid/Closed`}
+                  >
+                    Paid/Closed
+                  </button>
+                )}
+                {onCloseWorkOrder && order.status !== 'Submitted for Billing' && order.status !== 'Customer Invoiced' && (
                   <button
                     onClick={() => onCloseWorkOrder(order)}
                     style={{
@@ -823,13 +928,257 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => (
       Next
     </button>
   </div>
-);
+  );
+};
 
 const SectionHeader = ({ title }) => (
   <h2 style={{ fontFamily: 'Arial, sans-serif' }}>
     {title}
   </h2>
 );
+
+// Get days waiting from the part's waitingDays field (camelCase from backend)
+const getDaysWaiting = (part) => {
+  return part.waitingDays || 0;
+};
+
+// Parts to Order Table Component
+const PartsToOrderTable = ({ orders, onViewEdit, onViewPDF, onUpdatePartStatus, onMarkAsOrderedClick }) => {
+  // Collect all pending parts from all orders
+  const pendingParts = useMemo(() => {
+    const parts = [];
+    
+    orders.forEach(order => {
+      if (order.parts && Array.isArray(order.parts)) {
+        order.parts.forEach(part => {
+          if (part && part.waiting === true && (part.partNumber || part.description || part.quantity)) {
+            parts.push({
+              id: part.id,
+              workOrderNo: order.workOrderNo,
+              partNumber: part.partNumber || '',
+              description: part.description || '',
+              quantity: part.quantity || '',
+              daysWaiting: getDaysWaiting(part),
+              companyName: order.companyName || '',
+              shop: order.shop || '',
+              orderedDate: part.orderedDate,
+              status: order.status || ''
+            });
+          }
+        });
+      }
+    });
+    
+    // Sort by days waiting (highest first)
+    return parts.sort((a, b) => b.daysWaiting - a.daysWaiting);
+  }, [orders]);
+
+  if (pendingParts.length === 0) {
+    return (
+      <div style={{ 
+        marginBottom: 40, 
+        fontFamily: 'Arial, sans-serif',
+        textAlign: 'center',
+        color: '#6b7280',
+        fontSize: '16px',
+        padding: '20px'
+      }}>
+        No parts currently pending order.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ 
+      overflowX: 'auto', 
+      fontFamily: 'Arial, sans-serif', 
+      marginBottom: 40,
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px'
+    }}>
+      <table style={{ 
+        minWidth: 800, 
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontSize: '14px'
+      }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f8fafc' }}>
+            <th style={{ 
+              padding: '12px 8px', 
+              textAlign: 'left', 
+              borderBottom: '2px solid #e5e7eb',
+              fontWeight: 'bold'
+            }}>
+              Work Order #
+            </th>
+            <th style={{ 
+              padding: '12px 8px', 
+              textAlign: 'left', 
+              borderBottom: '2px solid #e5e7eb',
+              fontWeight: 'bold'
+            }}>
+              Part Number
+            </th>
+            <th style={{ 
+              padding: '12px 8px', 
+              textAlign: 'left', 
+              borderBottom: '2px solid #e5e7eb',
+              fontWeight: 'bold'
+            }}>
+              Description
+            </th>
+            <th style={{ 
+              padding: '12px 8px', 
+              textAlign: 'center', 
+              borderBottom: '2px solid #e5e7eb',
+              fontWeight: 'bold'
+            }}>
+              Qty
+            </th>
+            <th style={{ 
+              padding: '12px 8px', 
+              textAlign: 'center', 
+              borderBottom: '2px solid #e5e7eb',
+              fontWeight: 'bold'
+            }}>
+              Days Waiting
+            </th>
+            <th style={{ 
+              padding: '12px 8px', 
+              textAlign: 'left', 
+              borderBottom: '2px solid #e5e7eb',
+              fontWeight: 'bold'
+            }}>
+              Company
+            </th>
+            <th style={{ 
+              padding: '12px 8px', 
+              textAlign: 'left', 
+              borderBottom: '2px solid #e5e7eb',
+              fontWeight: 'bold'
+            }}>
+              Shop
+            </th>
+            <th style={{ 
+              padding: '12px 8px', 
+              textAlign: 'center', 
+              borderBottom: '2px solid #e5e7eb',
+              fontWeight: 'bold'
+            }}>
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {pendingParts.map((part, index) => (
+            <tr 
+              key={`${part.workOrderNo}-${index}`}
+              style={{ 
+                backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8fafc',
+                borderBottom: '1px solid #e5e7eb'
+              }}
+            >
+              <td style={{ 
+                padding: '10px 8px',
+                fontWeight: '600',
+                color: '#2563eb'
+              }}>
+                {part.workOrderNo}
+              </td>
+              <td style={{ padding: '10px 8px' }}>
+                {part.partNumber || '-'}
+              </td>
+              <td style={{ padding: '10px 8px' }}>
+                {part.description || '-'}
+              </td>
+              <td style={{ 
+                padding: '10px 8px', 
+                textAlign: 'center' 
+              }}>
+                {part.quantity || '-'}
+              </td>
+              <td style={{ 
+                padding: '10px 8px', 
+                textAlign: 'center',
+                fontWeight: 'bold',
+                color: part.daysWaiting > 7 ? '#dc2626' : part.daysWaiting > 3 ? '#f59e0b' : '#059669'
+              }}>
+                {part.daysWaiting}
+              </td>
+              <td style={{ padding: '10px 8px' }}>
+                {part.companyName || '-'}
+              </td>
+              <td style={{ padding: '10px 8px' }}>
+                {part.shop || '-'}
+              </td>
+              <td style={{ 
+                padding: '10px 8px', 
+                textAlign: 'center' 
+              }}>
+                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => onViewEdit(part.workOrderNo)}
+                    style={{ 
+                      padding: '4px 8px', 
+                      background: '#64748b', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 4, 
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                    title="View/Edit Work Order"
+                  >
+                    View/Edit
+                  </button>
+                  <button
+                    onClick={() => onViewPDF({ workOrderNo: part.workOrderNo, companyName: part.companyName })}
+                    style={{ 
+                      padding: '4px 8px', 
+                      background: 'white', 
+                      color: '#2563eb', 
+                      border: '1px solid #2563eb', 
+                      borderRadius: 4, 
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                    title="View PDF"
+                  >
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (part.orderedDate) {
+                        // If already ordered, mark as arrived
+                        onUpdatePartStatus(part.workOrderNo, part.id, 'arrived');
+                      } else {
+                        // If not ordered yet, show modal to ask about delivery date
+                        onMarkAsOrderedClick(part.workOrderNo, part.id);
+                      }
+                    }}
+                    style={{ 
+                      padding: '4px 8px', 
+                      background: part.orderedDate ? '#059669' : '#f59e0b', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 4, 
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                    title={part.orderedDate ? "Mark as Parts Arrived" : "Mark as Ordered"}
+                  >
+                    {part.orderedDate ? 'Parts Arrived' : 'Mark as Ordered'}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackToDashboard }) => {
   const highlightText = (text, searchTerm) => {
@@ -1093,6 +1442,11 @@ export default function AccountingDashboard({ user }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [workOrderToDelete, setWorkOrderToDelete] = useState(null);
 
+  // Modal state for estimated delivery date
+  const [showDeliveryDateModal, setShowDeliveryDateModal] = useState(false);
+  const [pendingPartAction, setPendingPartAction] = useState(null);
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
+
   // Memoized filtered orders
   const filteredOrders = useMemo(() => 
     shopFilter === 'All Shops' 
@@ -1104,7 +1458,7 @@ export default function AccountingDashboard({ user }) {
   // Memoized order categories
   const orderCategories = useMemo(() => {
     const submittedForBilling = filteredOrders.filter(
-      o => o.status && o.status.toLowerCase() === 'submitted for billing'
+      o => o.status && (o.status.toLowerCase() === 'submitted for billing' || o.status.toLowerCase() === 'customer invoiced')
     );
 
     const closed = filteredOrders.filter(
@@ -1177,6 +1531,43 @@ export default function AccountingDashboard({ user }) {
     }
   }, [refetch]);
 
+  const handleCustomerInvoiced = useCallback(async (order) => {
+    if (!window.confirm("Mark this work order as 'Customer Invoiced'?")) return;
+    try {
+      await API.put(`/workorders/${order.workOrderNo}`, {
+        status: 'Customer Invoiced',
+        statusHistory: [
+          ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
+          { 
+            status: 'Customer Invoiced', 
+            date: new Date().toISOString(),
+            updatedBy: user.username || user.name || 'System'
+          }
+        ]
+      });
+      alert("Work order marked as Customer Invoiced!");
+      refetch();
+    } catch (err) {
+      alert("Failed to update work order status.");
+      console.error(err);
+    }
+  }, [refetch, user]);
+
+  const handlePaidClosed = useCallback(async (order) => {
+    if (!window.confirm("Mark this work order as 'Paid/Closed'?")) return;
+    try {
+      await API.put(`/workorders/close/${order.id}`);
+      alert("Work order marked as Paid/Closed!");
+      refetch();
+    } catch (err) {
+      alert(
+        err?.response?.data?.error ||
+        "Failed to close work order. Make sure this work order is ready for close."
+      );
+      console.error(err);
+    }
+  }, [refetch]);
+
   const handleCloseWorkOrder = useCallback(async (order) => {
     if (!window.confirm("Are you sure you want to close this work order? This will post it to the database.")) return;
     try {
@@ -1195,6 +1586,44 @@ export default function AccountingDashboard({ user }) {
   const handleViewPDF = useCallback((order) => {
     generatePDF(order);
   }, []);
+
+  const handleUpdatePartStatus = useCallback(async (workOrderNo, partId, action, estimatedDeliveryDate = null) => {
+    try {
+      console.log('DEBUG: Calling API with:', { workOrderNo, partId, action, estimatedDeliveryDate });
+      const response = await API.put(`/workorders/${workOrderNo}/parts/${partId}/status`, {
+        action: action,
+        estimatedDeliveryDate: estimatedDeliveryDate
+      }, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      
+      alert(response.data.message);
+      refetch(); // Refresh the data
+    } catch (err) {
+      console.error('Failed to update part status:', err);
+      alert('Failed to update part status. Please try again.');
+    }
+  }, [user.token, refetch]);
+
+  const handleMarkAsOrderedClick = useCallback((workOrderNo, partId) => {
+    setPendingPartAction({ workOrderNo, partId, action: 'ordered' });
+    setEstimatedDeliveryDate('');
+    setShowDeliveryDateModal(true);
+  }, []);
+
+  const handleDeliveryDateModalConfirm = useCallback(async (addDate) => {
+    if (pendingPartAction) {
+      const { workOrderNo, partId, action } = pendingPartAction;
+      const deliveryDate = addDate ? estimatedDeliveryDate : null;
+      
+      console.log('DEBUG: Modal confirmed with:', { workOrderNo, partId, action, deliveryDate, addDate });
+      await handleUpdatePartStatus(workOrderNo, partId, action, deliveryDate);
+    }
+    
+    setShowDeliveryDateModal(false);
+    setPendingPartAction(null);
+    setEstimatedDeliveryDate('');
+  }, [pendingPartAction, estimatedDeliveryDate, handleUpdatePartStatus]);
 
   const handleSearchChange = useCallback((e) => {
     setSearch(e.target.value);
@@ -1310,8 +1739,18 @@ export default function AccountingDashboard({ user }) {
         onClearAlert={clearAlert}
       />
 
+      {/* Parts to Order Table */}
+      <SectionHeader title="Parts to Order:" />
+      <PartsToOrderTable 
+        orders={filteredOrders} 
+        onViewEdit={handleViewEdit}
+        onViewPDF={handleViewPDF}
+        onUpdatePartStatus={handleUpdatePartStatus}
+        onMarkAsOrderedClick={handleMarkAsOrderedClick}
+      />
+
       {/* Submitted for Billing Table */}
-      <SectionHeader title="Submitted for Billing (To Close)" />
+      <SectionHeader title="Submitted for Billing / Customer Invoiced" />
       <SearchInput
         value={searchBilling}
         onChange={handleSearchBillingChange}
@@ -1323,6 +1762,8 @@ export default function AccountingDashboard({ user }) {
         onViewEdit={handleViewEdit}
         onRework={handleRework}
         onCloseWorkOrder={handleCloseWorkOrder}
+        onCustomerInvoiced={handleCustomerInvoiced}
+        onPaidClosed={handlePaidClosed}
         onViewPDF={handleViewPDF}
         onDelete={handleDeleteClick}
         emptyMessage="There are no work orders submitted for billing."
@@ -1375,6 +1816,96 @@ export default function AccountingDashboard({ user }) {
         onDeleteSuccess={handleDeleteSuccess}
         onDeleteError={handleDeleteError}
       />
+
+      {/* Estimated Delivery Date Modal */}
+      {showDeliveryDateModal && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              padding: 28,
+              borderRadius: 14,
+              boxShadow: '0 6px 40px rgba(0,0,0,0.14)',
+              maxWidth: 400,
+              width: '90%',
+            }}
+          >
+            <h2 style={{ textAlign: 'center', marginBottom: 16 }}>
+              Add Estimated Delivery Date?
+            </h2>
+            
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
+                Estimated Delivery Date:
+              </label>
+              <input
+                type="date"
+                value={estimatedDeliveryDate}
+                onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                justifyContent: 'center',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handleDeliveryDateModalConfirm(false)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#6b7280',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeliveryDateModalConfirm(true)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#2563eb',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
