@@ -7,7 +7,7 @@ const { auth } = require('../middleware/auth');
 router.get('/', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT *, TO_CHAR(date, \'YYYY-MM-DD\') as date FROM call_logs ORDER BY date DESC'
+      'SELECT *, TO_CHAR(date, \'YYYY-MM-DD\') as date_string FROM call_logs ORDER BY date DESC'
     );
     res.json(result.rows);
   } catch (error) {
@@ -26,7 +26,7 @@ router.get('/date-range', auth, async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT *, TO_CHAR(date, \'YYYY-MM-DD\') as date FROM call_logs WHERE date >= $1 AND date <= $2 ORDER BY date ASC',
+      'SELECT *, TO_CHAR(date, \'YYYY-MM-DD\') as date_string FROM call_logs WHERE date >= $1 AND date <= $2 ORDER BY date ASC',
       [startDate, endDate]
     );
     res.json(result.rows);
@@ -42,7 +42,7 @@ router.get('/date/:date', auth, async (req, res) => {
     const { date } = req.params;
     
     const result = await pool.query(
-      'SELECT *, TO_CHAR(date, \'YYYY-MM-DD\') as date FROM call_logs WHERE date = $1 ORDER BY created_at ASC',
+      'SELECT *, TO_CHAR(date, \'YYYY-MM-DD\') as date_string FROM call_logs WHERE date = $1 ORDER BY created_at ASC',
       [date]
     );
     res.json(result.rows);
@@ -87,7 +87,7 @@ router.post('/', auth, async (req, res) => {
         completed_dates, original_date_key, lead_potential, converted_dates
       )
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-       RETURNING *, TO_CHAR(date, 'YYYY-MM-DD') as date`,
+       RETURNING *, TO_CHAR(date, 'YYYY-MM-DD') as date_string`,
       [
         date,
         company_name,
@@ -149,7 +149,7 @@ router.put('/:id', auth, async (req, res) => {
            schedule_custom_days = $11, call_completed = $12, completed_dates = $13,
            lead_potential = $14, converted_dates = $15
        WHERE id = $16
-       RETURNING *, TO_CHAR(date, 'YYYY-MM-DD') as date`,
+       RETURNING *, TO_CHAR(date, 'YYYY-MM-DD') as date_string`,
       [
         date,
         company_name,
@@ -230,7 +230,7 @@ router.post('/:id/complete-date', auth, async (req, res) => {
       const updatedCompletedDates = [...currentCompletedDates, date];
       
       const result = await pool.query(
-        'UPDATE call_logs SET completed_dates = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *, TO_CHAR(date, \'YYYY-MM-DD\') as date',
+        'UPDATE call_logs SET completed_dates = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *, TO_CHAR(date, \'YYYY-MM-DD\') as date_string',
         [updatedCompletedDates, id]
       );
 
@@ -272,7 +272,7 @@ router.post('/:id/uncomplete-date', auth, async (req, res) => {
     const updatedCompletedDates = currentCompletedDates.filter(d => d !== date);
     
     const result = await pool.query(
-      'UPDATE call_logs SET completed_dates = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *, TO_CHAR(date, \'YYYY-MM-DD\') as date',
+      'UPDATE call_logs SET completed_dates = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *, TO_CHAR(date, \'YYYY-MM-DD\') as date_string',
       [updatedCompletedDates, id]
     );
 
@@ -305,7 +305,7 @@ router.post('/:id/convert-date', auth, async (req, res) => {
     }
 
     const result = await pool.query(
-      'UPDATE call_logs SET converted_dates = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *, TO_CHAR(date, \'YYYY-MM-DD\') as date',
+      'UPDATE call_logs SET converted_dates = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *, TO_CHAR(date, \'YYYY-MM-DD\') as date_string',
       [updatedConvertedDates, id]
     );
 

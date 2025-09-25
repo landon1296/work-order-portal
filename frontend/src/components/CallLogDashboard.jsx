@@ -82,7 +82,10 @@ const CallLogDashboard = ({ user }) => {
     const dates = [];
     // Parse date string directly to avoid timezone issues
     let startDate;
-    if (typeof callLog.date === 'string' && callLog.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    if (callLog.date_string) {
+      const [year, month, day] = callLog.date_string.split('-').map(Number);
+      startDate = new Date(year, month - 1, day); // month is 0-indexed
+    } else if (typeof callLog.date === 'string' && callLog.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const [year, month, day] = callLog.date.split('-').map(Number);
       startDate = new Date(year, month - 1, day); // month is 0-indexed
     } else {
@@ -144,10 +147,11 @@ const CallLogDashboard = ({ user }) => {
     const grouped = {};
     
     callLogs.forEach(log => {
-      // Parse date string directly to avoid timezone issues
-      // If log.date is already in YYYY-MM-DD format, use it directly
+      // Use the date_string field from backend (YYYY-MM-DD format) or fallback to original date
       let dateKey;
-      if (typeof log.date === 'string' && log.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (log.date_string) {
+        dateKey = log.date_string;
+      } else if (typeof log.date === 'string' && log.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
         dateKey = log.date;
       } else {
         // Fallback for other date formats
