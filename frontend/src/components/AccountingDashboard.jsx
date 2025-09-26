@@ -888,7 +888,8 @@ const WorkOrderTable = ({
       </tbody>
     </table>
   </div>
-);
+  );
+};
 
 const Pagination = ({ currentPage, totalPages, onPageChange }) => (
   <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center', gap: 16 }}>
@@ -928,8 +929,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => (
       Next
     </button>
   </div>
-  );
-};
+);
 
 const SectionHeader = ({ title }) => (
   <h2 style={{ fontFamily: 'Arial, sans-serif' }}>

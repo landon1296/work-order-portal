@@ -582,73 +582,72 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   // Track when form was last modified to prevent refresh during editing
   const [lastModified, setLastModified] = useState(null);
 
-  // Periodic refresh every 5 seconds to catch external changes
-  // Only refresh if form hasn't been modified in the last 10 seconds
-  useEffect(() => {
-    if (!id) return;
-    
-    const interval = setInterval(async () => {
-      const now = Date.now();
-      // Only refresh if form hasn't been modified in the last 10 seconds
-      if (!lastModified || (now - lastModified) > 10000) {
-        try {
-          const res = await API.get(`/workorders/${id}`);
-          if (res.data) {
-            let formObj = toCamelCaseDeep(res.data);
-          
-          // Format dates
-          if (formObj.date) formObj.date = String(formObj.date).slice(0, 10);
-          
-          // Handle field contact fallback
-          if (!formObj.fieldContact && formObj.fieldContactName) {
-            formObj.fieldContact = formObj.fieldContactName;
-          }
-          
-          // Ensure arrays exist
-          formObj.parts = Array.isArray(formObj.parts) ? formObj.parts : [{ partNumber: '', description: '', quantity: '', waiting: false, estimatedDeliveryDate: '' }];
-          formObj.timeLogs = Array.isArray(formObj.timeLogs) ? formObj.timeLogs : [{ technicianAssigned: '', assignDate: '', startTime: '', finishTime: '', travelTime: '' }];
-          
-          // Format time log dates
-          formObj.timeLogs = formObj.timeLogs.map(log => ({
-            ...log,
-            assignDate: log.assignDate ? String(log.assignDate).slice(0, 10) : new Date().toISOString().slice(0, 10)
-          }));
+  // Periodic refresh disabled - was causing form content to be deleted
+  // useEffect(() => {
+  //   if (!id) return;
+  //   
+  //   const interval = setInterval(async () => {
+  //     const now = Date.now();
+  //     // Only refresh if form hasn't been modified in the last 10 seconds
+  //     if (!lastModified || (now - lastModified) > 10000) {
+  //       try {
+  //         const res = await API.get(`/workorders/${id}`);
+  //         if (res.data) {
+  //           let formObj = toCamelCaseDeep(res.data);
+  //         
+  //         // Format dates
+  //         if (formObj.date) formObj.date = String(formObj.date).slice(0, 10);
+  //         
+  //         // Handle field contact fallback
+  //         if (!formObj.fieldContact && formObj.fieldContactName) {
+  //           formObj.fieldContact = formObj.fieldContactName;
+  //         }
+  //         
+  //         // Ensure arrays exist
+  //         formObj.parts = Array.isArray(formObj.parts) ? formObj.parts : [{ partNumber: '', description: '', quantity: '', waiting: false, estimatedDeliveryDate: '' }];
+  //         formObj.timeLogs = Array.isArray(formObj.timeLogs) ? formObj.timeLogs : [{ technicianAssigned: '', assignDate: '', startTime: '', finishTime: '', travelTime: '' }];
+  //         
+  //         // Format time log dates
+  //         formObj.timeLogs = formObj.timeLogs.map(log => ({
+  //           ...log,
+  //           assignDate: log.assignDate ? String(log.assignDate).slice(0, 10) : new Date().toISOString().slice(0, 10)
+  //         }));
 
-          // Set default values for required fields
-          const requiredFields = [
-            'companyName', 'companyStreet', 'companyCity', 'companyState', 'companyZip',
-            'fieldContact', 'fieldContactNumber', 'fieldStreet', 'fieldCity', 'fieldState', 'fieldZipcode',
-            'poNumber', 'make', 'model', 'serialNumber', 'date',
-            'contactName', 'contactPhone', 'contactEmail', 'salesName', 'shippingCost', 'shippingComments', 'notes', 'otherDesc', 'workDescription'
-          ];
-          
-          requiredFields.forEach(field => {
-            if (formObj[field] === undefined || formObj[field] === null) formObj[field] = '';
-          });
+  //         // Set default values for required fields
+  //         const requiredFields = [
+  //           'companyName', 'companyStreet', 'companyCity', 'companyState', 'companyZip',
+  //           'fieldContact', 'fieldContactNumber', 'fieldStreet', 'fieldCity', 'fieldState', 'fieldZipcode',
+  //           'poNumber', 'make', 'model', 'serialNumber', 'date',
+  //           'contactName', 'contactPhone', 'contactEmail', 'salesName', 'shippingCost', 'shippingComments', 'notes', 'otherDesc', 'workDescription'
+  //         ];
+  //         
+  //         requiredFields.forEach(field => {
+  //           if (formObj[field] === undefined || formObj[field] === null) formObj[field] = '';
+  //         });
 
-          // Patch customerSignature
-          let sig = formObj.customerSignature;
-          if (typeof sig !== "string" || !sig) sig = null;
-          formObj.customerSignature = sig;
+  //         // Patch customerSignature
+  //         let sig = formObj.customerSignature;
+  //         if (typeof sig !== "string" || !sig) sig = null;
+  //         formObj.customerSignature = sig;
 
-          // Patch statusHistory
-          formObj.statusHistory = Array.isArray(formObj.statusHistory) ? formObj.statusHistory : [];
+  //         // Patch statusHistory
+  //         formObj.statusHistory = Array.isArray(formObj.statusHistory) ? formObj.statusHistory : [];
 
-          if (!formObj.status) formObj.status = "Assigned";
+  //         if (!formObj.status) formObj.status = "Assigned";
 
-          setForm(prev => ({
-            ...prev,
-            ...formObj,
-          }));
-        }
-      } catch (err) {
-        // Silently fail for periodic refresh
-      }
-      }
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [id, setForm, lastModified]);
+  //         setForm(prev => ({
+  //           ...prev,
+  //           ...formObj,
+  //         }));
+  //       }
+  //     } catch (err) {
+  //       // Silently fail for periodic refresh
+  //     }
+  //     }
+  //   }, 5000);
+  //   
+  //   return () => clearInterval(interval);
+  // }, [id, setForm, lastModified]);
 
   // STATUS AUTOMATION LOGIC (only run when editing existing work orders)
   // Only monitors parts waiting status - no automatic Assigned → In Progress change
@@ -734,6 +733,8 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   }, [updateFormField]);
 
   const addPart = useCallback(() => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
     setForm(prev => ({
       ...prev,
       parts: [...prev.parts, { description: '', partNumber: '', quantity: '', waiting: false, estimatedDeliveryDate: '' }]
@@ -741,6 +742,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   }, [setForm]);
 
   const handlePartWaitingChange = useCallback((idx, checked) => {
+    setLastModified(Date.now());
     setForm(prev => {
       const updated = [...prev.parts];
       updated[idx] = { ...updated[idx], waiting: checked };
@@ -760,6 +762,8 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   }, [setForm]);
 
   const removePart = useCallback((idx) => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
     setForm(prev => {
       if (prev.parts.length === 1) return prev; // Keep at least one
       const updated = prev.parts.filter((_, i) => i !== idx);
@@ -807,6 +811,8 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   }, [selectedPhoto, photoDescription, form.workOrderNo]);
 
   const addTimeLog = useCallback(() => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
     setForm(prev => {
       const prevLogs = prev.timeLogs;
       const lastTech = prevLogs.length > 0 ? prevLogs[prevLogs.length - 1].technicianAssigned : '';
@@ -840,6 +846,8 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   }, [setForm]);
 
   const removeTimeLog = useCallback((idx) => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
     setForm(prev => {
       if (prev.timeLogs.length === 1) return prev;
       const updated = prev.timeLogs.filter((_, i) => i !== idx);
@@ -2309,6 +2317,7 @@ const SignatureSection = ({ form, signatureModalOpen, setSignatureModalOpen, sig
                   .getCanvas()
                   .toDataURL('image/png');
 
+                setLastModified(Date.now());
                 setForm(prev => ({
                   ...prev,
                   customerSignature: dataURL,

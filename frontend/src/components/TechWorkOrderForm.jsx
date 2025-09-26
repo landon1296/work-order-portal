@@ -217,21 +217,20 @@ if (!formObj.status) formObj.status = "Assigned";
     fetchWorkOrderData();
   }, [fetchWorkOrderData]);
 
-  // Periodic refresh every 5 seconds to catch external changes
-  // Only refresh if form hasn't been modified in the last 10 seconds
-  useEffect(() => {
-    if (!loaded) return;
-    
-    const interval = setInterval(() => {
-      const now = Date.now();
-      // Only refresh if form hasn't been modified in the last 10 seconds
-      if (!lastModified || (now - lastModified) > 10000) {
-        fetchWorkOrderData();
-      }
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [loaded, fetchWorkOrderData, lastModified]);
+  // Periodic refresh disabled - was causing form content to be deleted
+  // useEffect(() => {
+  //   if (!loaded) return;
+  //   
+  //   const interval = setInterval(() => {
+  //     const now = Date.now();
+  //     // Only refresh if form hasn't been modified in the last 10 seconds
+  //     if (!lastModified || (now - lastModified) > 10000) {
+  //       fetchWorkOrderData();
+  //     }
+  //   }, 5000);
+  //   
+  //   return () => clearInterval(interval);
+  // }, [loaded, fetchWorkOrderData, lastModified]);
 
 
 
@@ -256,6 +255,7 @@ useEffect(() => {
     setModels(makeModelMap[form.make]);
     // Only clear the model if the make actually changed (not on mount)
     if (prevMakeRef.current !== undefined && prevMakeRef.current !== form.make) {
+      setLastModified(Date.now());
       setForm(prev => ({ ...prev, model: '' }));
     }
     prevMakeRef.current = form.make;
@@ -400,6 +400,8 @@ const handleChange = e => {
 };
 
   const addPart = () => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
     setForm(prev => ({ ...prev, parts: [...prev.parts, { description:'', partNumber:'', quantity:'', waiting: false, estimatedDeliveryDate: '' }] }));
   };
 
@@ -452,6 +454,7 @@ Date: ${workOrder.date || ''}`;
     if (wantsNotify) {
       // Fire off notification (we'll fill this in next)
       notifyOffice(form, idx);}}
+    setLastModified(Date.now());
     setForm(prev => {
       const updated = [...prev.parts];
       updated[idx] = { ...updated[idx], waiting: checked };
@@ -482,6 +485,8 @@ const handlePartChange = (idx, field, value) => {
 
 
   const removePart = idx => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
     setForm(prev => {
       if (prev.parts.length === 1) return prev;
       const updated = prev.parts.filter((_, i) => i !== idx);
@@ -490,6 +495,8 @@ const handlePartChange = (idx, field, value) => {
   };
 
   const addTimeLog = () => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
     setForm(prev => {
       const prevLogs = prev.timeLogs;
       const lastTech = prevLogs.length > 0 ? prevLogs[prevLogs.length - 1].technicianAssigned : '';
@@ -521,6 +528,8 @@ const handlePartChange = (idx, field, value) => {
     });
   };
   const removeTimeLog = (idx) => {
+    // Update last modified timestamp
+    setLastModified(Date.now());
     setForm(prev => {
       if (prev.timeLogs.length === 1) return prev;
       const updated = prev.timeLogs.filter((_, i) => i !== idx);
@@ -539,6 +548,7 @@ const handlePartChange = (idx, field, value) => {
     const { name, value } = e.target;
     
     if (name === 'repairType') {
+      setLastModified(Date.now());
       setForm(prev => ({ ...prev, repairType: value }));
       
       if (value === 'GLLS Machine') {
@@ -556,6 +566,7 @@ const handlePartChange = (idx, field, value) => {
     } else {
       // Handle other fields normally
       const { type, checked } = e.target;
+      setLastModified(Date.now());
       setForm(prev => ({
         ...prev,
         [name]: type === 'checkbox' ? checked : value
@@ -1785,6 +1796,7 @@ console.log("form", form);
               .toDataURL('image/png');
 
 
+            setLastModified(Date.now());
             setForm(prev => ({
               ...prev,
               customerSignature: dataURL,
