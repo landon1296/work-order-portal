@@ -224,23 +224,19 @@ const generatePDF = (order) => {
 
     const info = [
       ["Date", formatDate(order.date)],
-      ["Company", order.companyName],
-      ["Address", `${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}`],
+      ["Company Address", `${order.companyName}, ${order.companyStreet}, ${order.companyCity}, ${order.companyState} ${order.companyZip}`],
       ["Contact", `${order.contactName || ""} (${order.contactPhone || ""})`],
+      ["Contact Email", order.contactEmail || ""],
       ["PO Number", order.poNumber || ""],
-      ["Technician(s)", [...new Set((order.timeLogs || []).map(t => t.technicianAssigned).filter(Boolean))].join(", ")],
       ["Make / Model / Serial", `${order.make} / ${order.model} / ${order.serialNumber}`],
-      ["Repair Type", order.repairType],
       ["Work Type", [
         order.vendorWarranty ? "Vendor Warranty" : "",
         order.billable ? "Billable" : "",
         order.maintenance ? "Maintenance" : "",
         order.nonBillableRepair ? "Non-billable Repair" : ""
       ].filter(Boolean).join(", ")],
-      ["Shop", order.shop],
-      ["Status", order.status],
-      ["Shipping Cost", order.shippingCost],
-      ["Shipping Comments", order.shippingComments]
+      ["Shipping Cost", order.shippingCost || ""],
+      ["Shipping Comments", order.shippingComments || ""]
     ];
 
     const infoStartY = y + 5;
