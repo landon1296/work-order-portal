@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import API from '../api';
+import WorkOrderCompletionStatus from './WorkOrderCompletionStatus';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import GLLSLogo from '../assets/GLLSLogo.png';
@@ -801,7 +802,8 @@ const WorkOrderTable = ({
     }}>
       <thead>
         <tr>
-          <th>Work Order Number</th>
+          <th>Work Order Number
+          </th>
           <th>Date Assigned</th>
           <th>Technician Username</th>
           <th>Company Name</th>
@@ -847,7 +849,7 @@ const WorkOrderTable = ({
                   ×
                 </span>
               )}
-              {order.workOrderNo}
+              <WorkOrderCompletionStatus workOrder={order} />
             </td>
             <td>
               {order.date
@@ -1360,6 +1362,7 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onDupli
 // Main component
 export default function ManagerDashboard({ user }) {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Defensive: handle loading state to prevent crash
   if (!user || !user.token) {
@@ -1454,8 +1457,14 @@ export default function ManagerDashboard({ user }) {
   }, [refetch]);
 
   const handleViewEdit = useCallback((workOrderNo) => {
-    navigate(`/dashboard/workorder/${workOrderNo}`);
-  }, [navigate]);
+    console.log('ManagerDashboard: Navigating to work order with referrer:', location.pathname + location.search);
+    navigate(`/dashboard/workorder/${workOrderNo}`, { 
+      state: { 
+        from: location.pathname + location.search,
+        dashboard: 'manager'
+      } 
+    });
+  }, [navigate, location.pathname, location.search]);
 
   const handleRework = useCallback(async (order) => {
     try {

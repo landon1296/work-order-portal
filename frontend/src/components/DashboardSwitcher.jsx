@@ -1,5 +1,6 @@
 // src/components/DashboardSwitcher.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import ManagerDashboard from "./ManagerDashboard";
 import AccountingDashboard from "./AccountingDashboard";
 import AnalyticsDashboard from "./AnalyticsDashboard";
@@ -9,7 +10,21 @@ import SchedulerDashboard from "./SchedulerDashboard";
 import CallLogDashboard from "./CallLogDashboard";
 
 export default function DashboardSwitcher({ user }) {
-  const [selected, setSelected] = useState("analytics");
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Initialize selected dashboard from URL params or default to analytics
+  const [selected, setSelected] = useState(() => {
+    const urlParams = new URLSearchParams(location.search);
+    return urlParams.get('dashboard') || "analytics";
+  });
+
+  // Update URL when dashboard selection changes
+  useEffect(() => {
+    const url = new URL(window.location);
+    url.searchParams.set('dashboard', selected);
+    navigate(url.pathname + url.search, { replace: true });
+  }, [selected, navigate]);
 
   // What dashboards can your boss see?
     const dashboards = [

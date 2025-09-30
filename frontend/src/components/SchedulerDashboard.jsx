@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
+import WorkOrderCompletionStatus from './WorkOrderCompletionStatus';
 import { getStatusColor } from '../utils/statusColors';
 import NotificationBell from './NotificationBell';
 import AssignWorkOrderForm from './AssignWorkOrderForm';
@@ -2724,7 +2725,7 @@ const ListView = ({ orders, onViewEdit, highlightedWorkOrderNo, onHighlightWorkO
                     {formatDate(timeLog?.assignDate || order.date)}
                   </td>
                   <td style={{ padding: '12px', fontWeight: 'bold' }}>
-                    {order.workOrderNo}
+                    <WorkOrderCompletionStatus workOrder={order} />
                   </td>
                   <td style={{ padding: '12px' }}>
                     {order.companyName}
@@ -2894,6 +2895,7 @@ const TechnicianView = ({ orders, onViewEdit, highlightedWorkOrderNo, onHighligh
 // Main component
 export default function SchedulerDashboard({ user }) {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Defensive: handle loading state to prevent crash
   if (!user || !user.token) {
@@ -3040,8 +3042,10 @@ export default function SchedulerDashboard({ user }) {
   }, [refetch]);
 
   const handleViewEdit = useCallback((workOrderNo) => {
-    navigate(`/dashboard/workorder/${workOrderNo}`);
-  }, [navigate]);
+    navigate(`/dashboard/workorder/${workOrderNo}`, { 
+      state: { from: location.pathname } 
+    });
+  }, [navigate, location.pathname]);
 
   const handleHighlightWorkOrder = useCallback((workOrderNo, event) => {
     event.preventDefault();

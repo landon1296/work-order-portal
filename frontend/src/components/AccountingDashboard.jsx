@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
+import WorkOrderCompletionStatus from './WorkOrderCompletionStatus';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import GLLSLogo from '../assets/GLLSLogo.png';
@@ -677,7 +678,7 @@ const WorkOrderTable = ({
                   ×
                 </span>
               )}
-              {order.workOrderNo}
+              <WorkOrderCompletionStatus workOrder={order} />
             </td>
             <td>
               {order.date
@@ -1416,6 +1417,7 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackT
 // Main component
 export default function AccountingDashboard({ user }) {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Defensive: handle loading state to prevent crash
   if (!user || !user.token) {
@@ -1510,8 +1512,10 @@ export default function AccountingDashboard({ user }) {
   }, [refetch]);
 
   const handleViewEdit = useCallback((workOrderNo) => {
-    navigate(`/dashboard/workorder/${workOrderNo}`);
-  }, [navigate]);
+    navigate(`/dashboard/workorder/${workOrderNo}`, { 
+      state: { from: location.pathname } 
+    });
+  }, [navigate, location.pathname]);
 
   const handleRework = useCallback(async (order) => {
     try {

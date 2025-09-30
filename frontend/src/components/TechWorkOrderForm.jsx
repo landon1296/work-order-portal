@@ -28,6 +28,32 @@ export default function TechWorkOrderForm({ token, user }) {
   const location = useLocation();
   const isPreview = new URLSearchParams(location.search).get('preview') === 'true';
   const navigate = useNavigate();
+  
+  // Smart back navigation based on user role and referrer
+  const getBackRoute = () => {
+    // Check if we have a referrer in location state
+    if (location.state?.from) {
+      return location.state.from;
+    }
+    
+    // Default back routes based on user role
+    switch (user?.role) {
+      case 'manager':
+      case 'analytics':
+      case 'owner':
+        return '/dashboard';
+      case 'accounting':
+        return '/dashboard';
+      case 'reception':
+        return '/reception-dashboard';
+      case 'technician':
+      case 'tech':
+        return '/tech-dashboard';
+      default:
+        return '/dashboard';
+    }
+  };
+  
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [photoDescription, setPhotoDescription] = useState('');
@@ -682,7 +708,7 @@ console.log("form", form);
     if (isPreview) {
       navigate('/dashboard');
     } else {
-      navigate(-1);
+      navigate(getBackRoute());
     }
   }}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
 import '../index.css';
 import { default as SignaturePad } from 'react-signature-canvas';
@@ -427,6 +427,47 @@ const useMasterData = () => {
 export default function AssignWorkOrderForm({ token, user, editMode = false, prefilledData = null, onSuccess = null }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Smart back navigation based on user role and referrer
+  const getBackRoute = () => {
+    // Check if we have a specific dashboard type in location state
+    if (location.state?.dashboard) {
+      console.log('Navigating back to dashboard type:', location.state.dashboard);
+      // If we know the specific dashboard, we can navigate back to it
+      // For now, just go to the main dashboard route
+      return location.state.from || '/dashboard';
+    }
+    
+    // Check if we have a referrer in location state
+    if (location.state?.from) {
+      console.log('Navigating back to:', location.state.from);
+      return location.state.from;
+    }
+    
+    // Default back routes based on user role
+    const defaultRoute = (() => {
+      switch (user?.role) {
+        case 'manager':
+        case 'analytics':
+        case 'owner':
+          return '/dashboard';
+        case 'accounting':
+          return '/dashboard';
+        case 'reception':
+          return '/reception-dashboard';
+        case 'technician':
+        case 'tech':
+          return '/tech-dashboard';
+        default:
+          return '/dashboard';
+      }
+    })();
+    
+    console.log('No referrer found, using default route:', defaultRoute, 'for user role:', user?.role);
+    return defaultRoute;
+  };
+  
   const [nextWorkOrderNo, setNextWorkOrderNo] = useState('');
   const [workOrderPhotos, setWorkOrderPhotos] = useState([]);
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
@@ -1212,7 +1253,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
 
   return (
     <form onSubmit={handleSubmit} style={{ padding: '8px', fontFamily: 'Arial' }}>
-      <NavigationButton onBack={() => navigate(-1)} />
+      <NavigationButton onBack={() => navigate(getBackRoute())} />
       
       <FormTable
         form={form}
