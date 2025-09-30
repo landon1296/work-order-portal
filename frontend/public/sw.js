@@ -1,6 +1,6 @@
 // Service Worker for GLLS Work Orders App
-const CACHE_NAME = 'glls-work-orders-v1.0.1';
-const API_CACHE_NAME = 'glls-api-cache-v1.0.1';
+const CACHE_NAME = 'glls-work-orders-v1.0.2';
+const API_CACHE_NAME = 'glls-api-cache-v1.0.2';
 
 // Files to cache immediately (app shell)
 const urlsToCache = [
@@ -61,6 +61,11 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Skip non-GET requests and external URLs
+  if (request.method !== 'GET' || !url.hostname.includes('localhost') && !url.hostname.includes('glls-work-order-portal.onrender.com')) {
+    return;
+  }
+
   // Handle API requests
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/workorders')) {
     event.respondWith(handleApiRequest(request));
@@ -78,42 +83,52 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// Handle API requests with intelligent caching
+// Handle API requests with cache-first strategy for better offline support
 async function handleApiRequest(request) {
   const url = new URL(request.url);
   // Remove timestamp parameter for consistent caching
   const cleanUrl = url.pathname + (url.search.replace(/[?&]_t=\d+/g, '') || '');
   const cacheKey = `${request.method}-${cleanUrl}`;
   
+  const cache = await caches.open(API_CACHE_NAME);
+  
+  // First, try to serve from cache
+  const cachedResponse = await cache.match(cacheKey);
+  
+  if (cachedResponse) {
+    console.log('Service Worker: Serving from cache:', cleanUrl);
+    
+    // If online, try to update cache in background
+    if (navigator.onLine) {
+      fetch(request)
+        .then(response => {
+          if (response.ok) {
+            cache.put(cacheKey, response.clone());
+            console.log('Service Worker: Updated cache in background:', cleanUrl);
+          }
+        })
+        .catch(() => {
+          // Network failed, but we already have cached data
+        });
+    }
+    
+    return cachedResponse.clone();
+  }
+  
+  // No cache available, try network
   try {
-    // Try network first for API requests
     const networkResponse = await fetch(request);
     
     // Cache successful responses
     if (networkResponse.ok) {
       const responseClone = networkResponse.clone();
-      const cache = await caches.open(API_CACHE_NAME);
-      
-      // Cache GET requests
-      if (request.method === 'GET') {
-        await cache.put(cacheKey, responseClone);
-        console.log('Service Worker: Cached API response:', cleanUrl);
-      }
+      await cache.put(cacheKey, responseClone);
+      console.log('Service Worker: Cached API response:', cleanUrl);
     }
     
     return networkResponse;
   } catch (error) {
-    console.log('Service Worker: Network failed, trying cache for:', cleanUrl);
-    
-    // Network failed, try cache
-    const cache = await caches.open(API_CACHE_NAME);
-    const cachedResponse = await cache.match(cacheKey);
-    
-    if (cachedResponse) {
-      console.log('Service Worker: Serving from cache:', cleanUrl);
-      // Clone the response to avoid consuming the body
-      return cachedResponse.clone();
-    }
+    console.log('Service Worker: Network failed, no cache available for:', cleanUrl);
     
     // Try to find any cached response for this endpoint (without query params)
     const basePath = url.pathname;
@@ -158,6 +173,7 @@ async function handleApiRequest(request) {
         emptyData = [];
       }
       
+      console.log('Service Worker: Returning offline data for:', cleanUrl);
       return new Response(
         JSON.stringify(emptyData),
         { 

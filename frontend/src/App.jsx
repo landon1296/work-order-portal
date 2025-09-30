@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import LoadingSpinner from './components/LoadingSpinner';
 import OfflineStatus from './components/OfflineStatus';
 import { register } from './utils/serviceWorker';
+import './utils/debugCache'; // Load debug utilities
 
 // Lazy load all components for code splitting
 const LoginForm = lazy(() => import('./components/LoginForm'));
