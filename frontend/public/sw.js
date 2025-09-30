@@ -1,6 +1,6 @@
 // Service Worker for GLLS Work Orders App
-const CACHE_NAME = 'glls-work-orders-v1.0.3';
-const API_CACHE_NAME = 'glls-api-cache-v1.0.3';
+const CACHE_NAME = 'glls-work-orders-v1.0.4';
+const API_CACHE_NAME = 'glls-api-cache-v1.0.4';
 
 // Files to cache immediately (app shell)
 const urlsToCache = [
@@ -68,13 +68,16 @@ self.addEventListener('fetch', (event) => {
 
   // Only handle our app's URLs
   const isAppUrl = url.hostname.includes('localhost') || 
-                   url.hostname.includes('glls-work-order-portal.onrender.com') ||
+                   url.hostname.includes('gllsworkorder.onrender.com') ||
                    url.pathname.startsWith('/api/') ||
                    url.pathname.startsWith('/workorders');
   
   if (!isAppUrl) {
     return;
   }
+
+  // Debug logging
+  console.log('Service Worker: Intercepting request:', url.href);
 
   // Handle API requests
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/workorders')) {
