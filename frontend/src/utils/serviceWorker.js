@@ -139,8 +139,23 @@ export function register() {
 }
 
 function registerValidSW(swUrl) {
-  navigator.serviceWorker
-    .register(swUrl)
+  console.log('Service Worker: Starting registration process...');
+  
+  // First, check if the service worker file is accessible
+  fetch(swUrl)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Service Worker file not accessible: ${response.status} ${response.statusText}`);
+      }
+      console.log('Service Worker: File is accessible');
+      return response.text();
+    })
+    .then(swContent => {
+      console.log('Service Worker: File loaded successfully, length:', swContent.length);
+      
+      // Now try to register
+      return navigator.serviceWorker.register(swUrl);
+    })
     .then((registration) => {
       console.log('Service Worker: Registered successfully');
       
@@ -165,6 +180,7 @@ function registerValidSW(swUrl) {
         }
         
         installingWorker.onstatechange = () => {
+          console.log('Service Worker: State changed to:', installingWorker.state);
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
               console.log('Service Worker: New content available');
@@ -179,6 +195,11 @@ function registerValidSW(swUrl) {
     })
     .catch((error) => {
       console.error('Service Worker: Registration failed', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
     });
 }
 
