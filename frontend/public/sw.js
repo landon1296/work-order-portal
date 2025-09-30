@@ -1,6 +1,6 @@
 // Service Worker for GLLS Work Orders App
-const CACHE_NAME = 'glls-work-orders-v1.0.2';
-const API_CACHE_NAME = 'glls-api-cache-v1.0.2';
+const CACHE_NAME = 'glls-work-orders-v1.0.3';
+const API_CACHE_NAME = 'glls-api-cache-v1.0.3';
 
 // Files to cache immediately (app shell)
 const urlsToCache = [
@@ -61,8 +61,18 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and external URLs
-  if (request.method !== 'GET' || !url.hostname.includes('localhost') && !url.hostname.includes('glls-work-order-portal.onrender.com')) {
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Only handle our app's URLs
+  const isAppUrl = url.hostname.includes('localhost') || 
+                   url.hostname.includes('glls-work-order-portal.onrender.com') ||
+                   url.pathname.startsWith('/api/') ||
+                   url.pathname.startsWith('/workorders');
+  
+  if (!isAppUrl) {
     return;
   }
 
@@ -115,6 +125,22 @@ async function handleApiRequest(request) {
     return cachedResponse.clone();
   }
   
+  // No exact cache match, try to find similar cached response
+  const basePath = url.pathname;
+  const allCacheKeys = await cache.keys();
+  const matchingCache = allCacheKeys.find(cacheRequest => {
+    const cacheUrl = new URL(cacheRequest.url);
+    return cacheUrl.pathname === basePath && cacheRequest.method === 'GET';
+  });
+  
+  if (matchingCache) {
+    const fallbackResponse = await cache.match(matchingCache);
+    if (fallbackResponse) {
+      console.log('Service Worker: Serving fallback cache for:', basePath);
+      return fallbackResponse.clone();
+    }
+  }
+  
   // No cache available, try network
   try {
     const networkResponse = await fetch(request);
@@ -128,23 +154,7 @@ async function handleApiRequest(request) {
     
     return networkResponse;
   } catch (error) {
-    console.log('Service Worker: Network failed, no cache available for:', cleanUrl);
-    
-    // Try to find any cached response for this endpoint (without query params)
-    const basePath = url.pathname;
-    const allCacheKeys = await cache.keys();
-    const matchingCache = allCacheKeys.find(cacheRequest => {
-      const cacheUrl = new URL(cacheRequest.url);
-      return cacheUrl.pathname === basePath && cacheRequest.method === 'GET';
-    });
-    
-    if (matchingCache) {
-      const fallbackResponse = await cache.match(matchingCache);
-      if (fallbackResponse) {
-        console.log('Service Worker: Serving fallback cache for:', basePath);
-        return fallbackResponse.clone();
-      }
-    }
+    console.log('Service Worker: Network failed for:', cleanUrl, error.message);
     
     // No cache available, return appropriate offline response
     if (request.method === 'GET') {
