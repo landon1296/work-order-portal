@@ -4,6 +4,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import OfflineStatus from './components/OfflineStatus';
 import { register } from './utils/serviceWorker';
 import './utils/debugCache'; // Load debug utilities
+import './utils/swDiagnostics'; // Load service worker diagnostics
 
 // Lazy load all components for code splitting
 const LoginForm = lazy(() => import('./components/LoginForm'));

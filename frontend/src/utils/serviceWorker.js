@@ -115,6 +115,19 @@ export function register() {
         checkValidServiceWorker(swUrl);
         navigator.serviceWorker.ready.then(() => {
           console.log('Service Worker: Ready in development mode');
+          // Add diagnostic logging
+          setTimeout(() => {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              console.log('Service Worker: Active registrations:', regs.length);
+              regs.forEach((reg, i) => {
+                console.log(`Service Worker ${i + 1}:`, {
+                  scope: reg.scope,
+                  state: reg.active ? reg.active.state : 'no active worker',
+                  scriptURL: reg.active ? reg.active.scriptURL : 'no active worker'
+                });
+              });
+            });
+          }, 2000);
         });
       } else {
         registerValidSW(swUrl);
@@ -130,6 +143,20 @@ function registerValidSW(swUrl) {
     .register(swUrl)
     .then((registration) => {
       console.log('Service Worker: Registered successfully');
+      
+      // Add diagnostic logging for production
+      setTimeout(() => {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          console.log('Service Worker: Active registrations:', regs.length);
+          regs.forEach((reg, i) => {
+            console.log(`Service Worker ${i + 1}:`, {
+              scope: reg.scope,
+              state: reg.active ? reg.active.state : 'no active worker',
+              scriptURL: reg.active ? reg.active.scriptURL : 'no active worker'
+            });
+          });
+        });
+      }, 2000);
       
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
