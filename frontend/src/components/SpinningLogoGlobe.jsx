@@ -143,9 +143,6 @@ scene.add(dotGroup);
           transparent: true,
           side: THREE.DoubleSide,
           color: new THREE.Color(0xff0000), // red tint
-          metalness: 1,
-        
-          
         });
 
         

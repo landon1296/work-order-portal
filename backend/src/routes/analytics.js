@@ -3,34 +3,71 @@ const router = express.Router();
 const pool = require('../../db');
 const { requireAnalyticsRole } = require('../middleware/auth');
 
-// GET /api/analytics/summary
+// GET /api/analytics/summary - OPTIMIZED VERSION
 router.get('/summary', requireAnalyticsRole, async (req, res) => {
   try {
-    // 1. Fetch ALL work orders from the database
-    const ordersResult = await pool.query('SELECT * FROM workorders');
-    let woRows = ordersResult.rows;
+    // 🚀 OPTIMIZATION: Use JOIN queries instead of N+1 queries
+    const query = `
+      SELECT 
+        w.*,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', li.id,
+              'part_number', li.part_number,
+              'description', li.description,
+              'quantity', li.quantity,
+              'waiting', li.waiting,
+              'waiting_from', li.waiting_from,
+              'waiting_to', li.waiting_to,
+              'waiting_days', li.waiting_days,
+              'ordered_date', li.ordered_date,
+              'estimated_delivery_date', li.estimated_delivery_date
+            )
+          ) FILTER (WHERE li.id IS NOT NULL), 
+          '[]'::json
+        ) as parts,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', te.id,
+              'technician_assigned', te.technician_assigned,
+              'assign_date', te.assign_date,
+              'start_time', te.start_time,
+              'finish_time', te.finish_time,
+              'travel_time', te.travel_time
+            )
+          ) FILTER (WHERE te.id IS NOT NULL), 
+          '[]'::json
+        ) as time_logs
+      FROM workorders w
+      LEFT JOIN line_items li ON w.work_order_no = li.work_order_no
+      LEFT JOIN time_entries te ON w.work_order_no = te.work_order_no
+      GROUP BY w.id, w.work_order_no, w.date, w.company_name, w.company_street, w.company_city, w.company_state, w.company_zip, w.field_contact_name, w.field_contact_number, w.field_street, w.field_city, w.field_state, w.field_zipcode, w.make, w.model, w.other_desc, w.serial_number, w.contact_name, w.contact_phone, w.contact_email, w.vendor_warranty, w.billable, w.maintenance, w.non_billable_repair, w.shop, w.repair_type, w.sales_name, w.shipping_cost, w.work_description, w.notes, w.status, w.created_at, w.status_history, w.assigned_days, w.in_progress_days, w.in_progress_pending_parts_days, w.completed_pending_approval_days, w.submitted_for_billing_days, w.closed_days, w.po_number, w.customer_signature, w.customer_signature_printed, w.shipping_comments
+      ORDER BY w.id DESC
+    `;
 
-    // 2. Attach line_items and time_entries to each work order
-    for (const wo of woRows) {
-      // Fetch line_items
-      const partsResult = await pool.query(
-        'SELECT * FROM line_items WHERE work_order_no = $1',
-        [wo.work_order_no]
-      );
-      wo.parts = partsResult.rows;
+    const result = await pool.query(query);
+    let woRows = result.rows;
 
-      // Fetch time_entries
-      const timeLogsResult = await pool.query(
-        'SELECT * FROM time_entries WHERE work_order_no = $1',
-        [wo.work_order_no]
-      );
-      wo.timeLogs = timeLogsResult.rows;
-    }
-// Ensure every work order has parts and timeLogs as arrays (even if empty)
-woRows.forEach(wo => {
-  if (!Array.isArray(wo.parts)) wo.parts = [];
-  if (!Array.isArray(wo.timeLogs)) wo.timeLogs = [];
-});
+    // Convert JSON strings to arrays if needed
+    woRows.forEach(wo => {
+      if (typeof wo.parts === 'string') {
+        try { wo.parts = JSON.parse(wo.parts); } catch { wo.parts = []; }
+      }
+      if (typeof wo.time_logs === 'string') {
+        try { wo.time_logs = JSON.parse(wo.time_logs); } catch { wo.time_logs = []; }
+      }
+      // Rename for consistency
+      wo.timeLogs = wo.time_logs;
+      delete wo.time_logs;
+    });
+
+    // Ensure every work order has parts and timeLogs as arrays (even if empty)
+    woRows.forEach(wo => {
+      if (!Array.isArray(wo.parts)) wo.parts = [];
+      if (!Array.isArray(wo.timeLogs)) wo.timeLogs = [];
+    });
 
     // === Prepare Analytics ===
     const now = new Date();
