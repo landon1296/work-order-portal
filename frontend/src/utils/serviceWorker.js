@@ -9,13 +9,17 @@ const isLocalhost = Boolean(
 
 export function register() {
   if ('serviceWorker' in navigator) {
+    console.log('Service Worker: Browser supports service workers');
+    
     const publicUrl = new URL(process.env.PUBLIC_URL, window.location.href);
     if (publicUrl.origin !== window.location.origin) {
+      console.log('Service Worker: Skipping registration - different origin');
       return;
     }
 
     window.addEventListener('load', () => {
       const swUrl = `${process.env.PUBLIC_URL}/sw.js`;
+      console.log('Service Worker: Attempting to register at:', swUrl);
 
       if (isLocalhost) {
         checkValidServiceWorker(swUrl);
@@ -25,6 +29,13 @@ export function register() {
       } else {
         registerValidSW(swUrl);
       }
+    });
+  } else {
+    console.warn('Service Worker: Browser does not support service workers');
+    console.log('Browser info:', {
+      userAgent: navigator.userAgent,
+      isSecure: window.location.protocol === 'https:',
+      isLocalhost: isLocalhost
     });
   }
 }
