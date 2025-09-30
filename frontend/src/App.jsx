@@ -1,7 +1,8 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
+import OfflineStatus from './components/OfflineStatus';
+import { register } from './utils/serviceWorker';
 
 // Lazy load all components for code splitting
 const LoginForm = lazy(() => import('./components/LoginForm'));
@@ -15,6 +16,7 @@ const TroubleshootForm = lazy(() => import('./components/TroubleshootForm'));
 const DashboardSwitcher = lazy(() => import('./components/DashboardSwitcher'));
 const RoleSwitcher = lazy(() => import('./components/RoleSwitcher'));
 const CallLogDashboard = lazy(() => import('./components/CallLogDashboard'));
+const OfflineTest = lazy(() => import('./components/OfflineTest'));
 
 // Utility function to check if user has specific role(s)
 const hasRole = (user, roleOrRoles) => {
@@ -58,9 +60,14 @@ function LoginBackgroundWatcher() {
 function App() {
   const [user, setUser] = useState(null);
 
+  // Register service worker on app load
+  useEffect(() => {
+    register();
+  }, []);
+
   return (
     <div className="App">
-      {/* <OfflineStatus /> */}
+      <OfflineStatus />
       <Router>
         <LoginBackgroundWatcher />
         <Suspense fallback={<LoadingSpinner message="Loading dashboard..." />}>
@@ -195,17 +202,26 @@ function App() {
             </RequireAuth>
           } />
 
-          {/* Call Log Dashboard */}
-          <Route path="/call-log-dashboard" element={
-            <RequireAuth user={user}>
-              {hasRole(user, ['manager', 'accounting', 'analytics', 'owner', 'reception'])
-                ? <Suspense fallback={<LoadingSpinner message="Loading call log dashboard..." />}>
-                    <CallLogDashboard user={user} />
-                  </Suspense>
-                : <Navigate to="/" />
-              }
-            </RequireAuth>
-          } />
+                   {/* Call Log Dashboard */}
+                   <Route path="/call-log-dashboard" element={
+                     <RequireAuth user={user}>
+                       {hasRole(user, ['manager', 'accounting', 'analytics', 'owner', 'reception'])
+                         ? <Suspense fallback={<LoadingSpinner message="Loading call log dashboard..." />}>
+                             <CallLogDashboard user={user} />
+                           </Suspense>
+                         : <Navigate to="/" />
+                       }
+                     </RequireAuth>
+                   } />
+
+                   {/* Offline Test Page */}
+                   <Route path="/offline-test" element={
+                     <RequireAuth user={user}>
+                       <Suspense fallback={<LoadingSpinner message="Loading offline test..." />}>
+                         <OfflineTest />
+                       </Suspense>
+                     </RequireAuth>
+                   } />
 
           {/* Fallback Route */}
           <Route path="*" element={
