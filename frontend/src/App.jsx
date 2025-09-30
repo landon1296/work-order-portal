@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import LoginForm from './components/LoginForm';
-import ManagerDashboard from './components/ManagerDashboard';
-import AssignWorkOrderForm from './components/AssignWorkOrderForm';
-import TechDashboard from './components/TechDashboard';
-import TechWorkOrderForm from './components/TechWorkOrderForm';
-import AccountingDashboard from './components/AccountingDashboard';
-import ReceptionDashboard from './components/ReceptionDashboard';
-import TroubleshootForm from './components/TroubleshootForm';
-import DashboardSwitcher from "./components/DashboardSwitcher";
-import RoleSwitcher from "./components/RoleSwitcher";
-import CallLogDashboard from './components/CallLogDashboard';
 import { useEffect } from 'react';
+import LoadingSpinner from './components/LoadingSpinner';
+
+// Lazy load all components for code splitting
+const LoginForm = lazy(() => import('./components/LoginForm'));
+const ManagerDashboard = lazy(() => import('./components/ManagerDashboard'));
+const AssignWorkOrderForm = lazy(() => import('./components/AssignWorkOrderForm'));
+const TechDashboard = lazy(() => import('./components/TechDashboard'));
+const TechWorkOrderForm = lazy(() => import('./components/TechWorkOrderForm'));
+const AccountingDashboard = lazy(() => import('./components/AccountingDashboard'));
+const ReceptionDashboard = lazy(() => import('./components/ReceptionDashboard'));
+const TroubleshootForm = lazy(() => import('./components/TroubleshootForm'));
+const DashboardSwitcher = lazy(() => import('./components/DashboardSwitcher'));
+const RoleSwitcher = lazy(() => import('./components/RoleSwitcher'));
+const CallLogDashboard = lazy(() => import('./components/CallLogDashboard'));
 
 // Utility function to check if user has specific role(s)
 const hasRole = (user, roleOrRoles) => {
@@ -60,144 +63,166 @@ function App() {
       {/* <OfflineStatus /> */}
       <Router>
         <LoginBackgroundWatcher />
-        <Routes>
-        {/* Login Route */}
-        <Route path="/login" element={<LoginForm onLogin={setUser} />} />
+        <Suspense fallback={<LoadingSpinner message="Loading dashboard..." />}>
+          <Routes>
+          {/* Login Route */}
+          <Route path="/login" element={
+            <Suspense fallback={<LoadingSpinner message="Loading login..." />}>
+              <LoginForm onLogin={setUser} />
+            </Suspense>
+          } />
 
-        {/* Default Route */}
-        <Route path="/" element={
-          user
-            ? (
-              hasRole(user, ['manager', 'accounting', 'analytics', 'owner'])
-                ? <Navigate to="/dashboard" replace />
-                : hasRole(user, 'reception')
-                ? <Navigate to="/reception-dashboard" replace />
-                : <Navigate to="/tech-dashboard" replace />
-              )
-            : <Navigate to="/login" replace />
-        } />
-
-        {/* Main Dashboard Route */}
-        <Route path="/dashboard" element={
-          <RequireAuth user={user}>
-            {hasRole(user, ['manager', 'accounting', 'analytics', 'owner'])
-              ? (user?.roles && user.roles.length > 1 
-                  ? <RoleSwitcher user={user} />
-                  : user?.role === 'manager'
-                  ? <ManagerDashboard user={user} />
-                  : user?.role === 'accounting'
-                  ? <AccountingDashboard user={user} />
-                  : (user?.role === 'analytics' || user?.role === 'owner')
-                  ? <DashboardSwitcher user={user} />
-                  : <Navigate to="/" />
+          {/* Default Route */}
+          <Route path="/" element={
+            user
+              ? (
+                hasRole(user, ['manager', 'accounting', 'analytics', 'owner'])
+                  ? <Navigate to="/dashboard" replace />
+                  : hasRole(user, 'reception')
+                  ? <Navigate to="/reception-dashboard" replace />
+                  : <Navigate to="/tech-dashboard" replace />
                 )
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
+              : <Navigate to="/login" replace />
+          } />
 
-        {/* Assign/Edit Work Order (Managers, Accounting, Analytics, Owner, Reception) */}
-        <Route path="/dashboard/workorder/:id" element={
-          <RequireAuth user={user}>
-            {(user?.role === 'manager' ||
-              user?.role === 'analytics' ||
-              user?.role === 'owner' ||
-              user?.role === 'accounting' ||
-              user?.role === 'reception')
-              ? <AssignWorkOrderForm token={user.token} user={user} editMode={true} />
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
+          {/* Main Dashboard Route */}
+          <Route path="/dashboard" element={
+            <RequireAuth user={user}>
+              {hasRole(user, ['manager', 'accounting', 'analytics', 'owner'])
+                ? (user?.roles && user.roles.length > 1 
+                    ? <RoleSwitcher user={user} />
+                    : user?.role === 'manager'
+                    ? <ManagerDashboard user={user} />
+                    : user?.role === 'accounting'
+                    ? <AccountingDashboard user={user} />
+                    : (user?.role === 'analytics' || user?.role === 'owner')
+                    ? <DashboardSwitcher user={user} />
+                    : <Navigate to="/" />
+                  )
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
 
-        {/* Assign New Work Order (Managers, Analytics, Owner) */}
-        <Route path="/assign" element={
-          <RequireAuth user={user}>
-            {user?.role === 'manager' ||
-             user?.role === 'analytics' ||
-             user?.role === 'owner'
-              ? <AssignWorkOrderForm token={user.token} user={user} />
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
+          {/* Assign/Edit Work Order (Managers, Accounting, Analytics, Owner, Reception) */}
+          <Route path="/dashboard/workorder/:id" element={
+            <RequireAuth user={user}>
+              {(user?.role === 'manager' ||
+                user?.role === 'analytics' ||
+                user?.role === 'owner' ||
+                user?.role === 'accounting' ||
+                user?.role === 'reception')
+                ? <Suspense fallback={<LoadingSpinner message="Loading work order form..." />}>
+                    <AssignWorkOrderForm token={user.token} user={user} editMode={true} />
+                  </Suspense>
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
 
-        {/* Troubleshoot Form (Reception, Analytics, Owner) */}
-        <Route path="/troubleshoot" element={
-          <RequireAuth user={user}>
-            {(user?.role === 'reception' || user?.role === 'analytics' || user?.role === 'owner')
-              ? <TroubleshootForm token={user.token} user={user} />
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
+          {/* Assign New Work Order (Managers, Analytics, Owner) */}
+          <Route path="/assign" element={
+            <RequireAuth user={user}>
+              {user?.role === 'manager' ||
+               user?.role === 'analytics' ||
+               user?.role === 'owner'
+                ? <Suspense fallback={<LoadingSpinner message="Loading work order form..." />}>
+                    <AssignWorkOrderForm token={user.token} user={user} />
+                  </Suspense>
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
 
-        {/* Edit Troubleshoot Form (Reception, Technicians, Analytics, Owner) */}
-        <Route path="/troubleshoot/:id" element={
-          <RequireAuth user={user}>
-            {(user?.role === 'reception' || user?.role === 'technician' || user?.role === 'analytics' || user?.role === 'owner')
-              ? <TroubleshootForm token={user.token} user={user} editMode={true} />
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
+          {/* Troubleshoot Form (Reception, Analytics, Owner) */}
+          <Route path="/troubleshoot" element={
+            <RequireAuth user={user}>
+              {(user?.role === 'reception' || user?.role === 'analytics' || user?.role === 'owner')
+                ? <Suspense fallback={<LoadingSpinner message="Loading troubleshoot form..." />}>
+                    <TroubleshootForm token={user.token} user={user} />
+                  </Suspense>
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
 
-        {/* Technician Dashboard */}
-        <Route path="/tech-dashboard" element={
-          <RequireAuth user={user}>
-            {hasRole(user, ['technician', 'tech'])
-              ? (user?.roles && user.roles.length > 1
-                  ? <RoleSwitcher user={user} />
-                  : <TechDashboard username={user.username} />
+          {/* Edit Troubleshoot Form (Reception, Technicians, Analytics, Owner) */}
+          <Route path="/troubleshoot/:id" element={
+            <RequireAuth user={user}>
+              {(user?.role === 'reception' || user?.role === 'technician' || user?.role === 'analytics' || user?.role === 'owner')
+                ? <Suspense fallback={<LoadingSpinner message="Loading troubleshoot form..." />}>
+                    <TroubleshootForm token={user.token} user={user} editMode={true} />
+                  </Suspense>
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
+
+          {/* Technician Dashboard */}
+          <Route path="/tech-dashboard" element={
+            <RequireAuth user={user}>
+              {hasRole(user, ['technician', 'tech'])
+                ? (user?.roles && user.roles.length > 1
+                    ? <RoleSwitcher user={user} />
+                    : <Suspense fallback={<LoadingSpinner message="Loading technician dashboard..." />}>
+                        <TechDashboard username={user.username} />
+                      </Suspense>
+                  )
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
+          <Route path="/tech-dashboard/workorder/:id" element={
+            <RequireAuth user={user}>
+              {hasRole(user, ['technician', 'tech'])
+                ? <Suspense fallback={<LoadingSpinner message="Loading work order form..." />}>
+                    <TechWorkOrderForm token={user.token} user={user} />
+                  </Suspense>
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
+
+          {/* Reception Dashboard */}
+          <Route path="/reception-dashboard" element={
+            <RequireAuth user={user}>
+              {user?.role === 'reception'
+                ? <Suspense fallback={<LoadingSpinner message="Loading reception dashboard..." />}>
+                    <ReceptionDashboard user={user} />
+                  </Suspense>
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
+
+          {/* Call Log Dashboard */}
+          <Route path="/call-log-dashboard" element={
+            <RequireAuth user={user}>
+              {hasRole(user, ['manager', 'accounting', 'analytics', 'owner', 'reception'])
+                ? <Suspense fallback={<LoadingSpinner message="Loading call log dashboard..." />}>
+                    <CallLogDashboard user={user} />
+                  </Suspense>
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
+
+          {/* Fallback Route */}
+          <Route path="*" element={
+            user
+              ? (
+                ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
+                  ? <Navigate to="/dashboard" replace />
+                  : user.role === 'reception'
+                  ? <Navigate to="/reception-dashboard" replace />
+                  : <Navigate to="/tech-dashboard" replace />
                 )
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
-        <Route path="/tech-dashboard/workorder/:id" element={
-          <RequireAuth user={user}>
-            {hasRole(user, ['technician', 'tech'])
-              ? <TechWorkOrderForm token={user.token} user= {user} />
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
-
-        {/* Reception Dashboard */}
-        <Route path="/reception-dashboard" element={
-          <RequireAuth user={user}>
-            {user?.role === 'reception'
-              ? <ReceptionDashboard user={user} />
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
-
-        {/* Call Log Dashboard */}
-        <Route path="/call-log-dashboard" element={
-          <RequireAuth user={user}>
-            {hasRole(user, ['manager', 'accounting', 'analytics', 'owner', 'reception'])
-              ? <CallLogDashboard user={user} />
-              : <Navigate to="/" />
-            }
-          </RequireAuth>
-        } />
-
-                 {/* Fallback Route */}
-         <Route path="*" element={
-           user
-             ? (
-               ['manager', 'accounting', 'analytics', 'owner'].includes(user.role)
-                 ? <Navigate to="/dashboard" replace />
-                 : user.role === 'reception'
-                 ? <Navigate to="/reception-dashboard" replace />
-                 : <Navigate to="/tech-dashboard" replace />
-               )
-             : <Navigate to="/login" replace />
-         } />
-       </Routes>
-     </Router>
-   </div>
+              : <Navigate to="/login" replace />
+          } />
+        </Routes>
+        </Suspense>
+      </Router>
+    </div>
   );
 }
 

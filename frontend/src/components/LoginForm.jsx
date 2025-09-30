@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import API from '../api';
 import { jwtDecode} from 'jwt-decode'; // <-- 1. import
 import logo from '../assets/GLLSLogo.png'; // <-- 2. import your logo!
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import * as THREE from 'three';
-//import GLOBE from 'vanta/dist/vanta.globe.min';
-import { useRef } from 'react';
-import SpinningLogoGlobe from './SpinningLogoGlobe';
+import LoadingSpinner from './LoadingSpinner';
+
+// Lazy load the heavy 3D animation component
+const SpinningLogoGlobe = lazy(() => import('./SpinningLogoGlobe'));
 
 
 
@@ -117,7 +117,9 @@ export default function LoginForm({ onLogin }) {
   
 return (
   <>
-  <SpinningLogoGlobe />
+  <Suspense fallback={<div className="min-h-screen bg-black" />}>
+    <SpinningLogoGlobe />
+  </Suspense>
  
 
 
