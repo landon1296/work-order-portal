@@ -1,0 +1,2 @@
+"use strict";(self.webpackChunkglls_frontend=self.webpackChunkglls_frontend||[]).push([[398],{3398:(e,n,s)=>{function c(e){if(!e||"string"!==typeof e)return"#94a3b8";const n=e.toLowerCase();return n.includes("pending parts")?"#dc2626":n.includes("submitted for billing")?"#facc15":n.includes("customer invoiced")?"#059669":n.includes("in progress")?"#10b981":n.includes("assigned")?"#2563eb":n.includes("completed")?"#8b5cf6":"#94a3b8"}s.d(n,{q:()=>c})}}]);
+//# sourceMappingURL=398.2196190c.chunk.js.map
