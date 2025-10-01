@@ -324,15 +324,38 @@ if (Array.isArray(updates.statusHistory)) {
 const updated = await updateWorkOrderByNo(workOrderNo, updates);
 
 if (updates.parts && Array.isArray(updates.parts)) {
-  // 1. Delete existing line_items for this workOrderNo
+  // 1. Get existing line_items to preserve waiting_from dates
+  const existingParts = await pool.query(
+    'SELECT id, part_number, description, quantity, waiting, waiting_from, ordered_date, estimated_delivery_date FROM line_items WHERE work_order_no = $1',
+    [workOrderNo]
+  );
+  
+  // Create a map of existing parts by their key fields for quick lookup
+  const existingPartsMap = new Map();
+  existingParts.rows.forEach(part => {
+    const key = `${part.part_number || ''}_${part.description || ''}_${part.quantity}`;
+    existingPartsMap.set(key, part);
+  });
+
+  // 2. Delete existing line_items for this workOrderNo
   await pool.query('DELETE FROM line_items WHERE work_order_no = $1', [workOrderNo]);
 
-  // 2. Insert valid parts
+  // 3. Insert valid parts, preserving original waiting_from dates
   for (const part of updates.parts) {
     const partNumber = (part.partNumber || '').trim();
     const description = (part.description || '').trim();
     const quantity = Number(part.quantity || 0);
     if (!partNumber && !description && quantity === 0) continue;
+
+    // Look up existing part to preserve waiting_from date
+    const key = `${partNumber}_${description}_${quantity}`;
+    const existingPart = existingPartsMap.get(key);
+    
+    let waitingFrom = null;
+    if (part.waiting) {
+      // If part is waiting, preserve existing waiting_from date or set new one
+      waitingFrom = existingPart?.waiting_from || new Date();
+    }
 
     await pool.query(
       `INSERT INTO line_items (work_order_no, part_number, description, quantity, waiting, waiting_from, ordered_date, estimated_delivery_date)
@@ -343,9 +366,9 @@ if (updates.parts && Array.isArray(updates.parts)) {
         description,
         quantity,
         part.waiting || false,
-        part.waiting ? new Date() : null,
-        null,
-        part.estimatedDeliveryDate || null
+        waitingFrom,
+        part.ordered_date || existingPart?.ordered_date || null,
+        part.estimatedDeliveryDate || existingPart?.estimated_delivery_date || null
       ]
     );
   }
