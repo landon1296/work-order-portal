@@ -1468,6 +1468,7 @@ export default function AccountingDashboard({ user }) {
         o.status.toLowerCase() !== 'pending review' &&
         o.status.toLowerCase() !== 'pending approval' &&
         o.status.toLowerCase() !== 'submitted for billing' &&
+        o.status.toLowerCase() !== 'customer invoiced' &&
         o.status.toLowerCase() !== 'closed'
       )
     );

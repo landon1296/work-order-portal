@@ -1401,12 +1401,13 @@ export default function ManagerDashboard({ user }) {
         !o.status.toLowerCase().includes('pending review') &&
         !o.status.toLowerCase().includes('pending approval') &&
         o.status.toLowerCase() !== 'submitted for billing' &&
+        o.status.toLowerCase() !== 'customer invoiced' &&
         o.status.toLowerCase() !== 'closed'
       )
     );
 
     const submittedForBilling = filteredOrders.filter(o => 
-      o.status && o.status.toLowerCase() === 'submitted for billing'
+      o.status && (o.status.toLowerCase() === 'submitted for billing' || o.status.toLowerCase() === 'customer invoiced')
     );
 
     const closed = filteredOrders.filter(o => 
@@ -1720,7 +1721,7 @@ export default function ManagerDashboard({ user }) {
       />
 
       {/* Submitted for Billing Archive */}
-      <SectionHeader title="Submitted for Billing Archive" />
+      <SectionHeader title="Submitted for Billing / Customer Invoiced" />
       <SearchInput
         value={search}
         onChange={handleSearchChange}
