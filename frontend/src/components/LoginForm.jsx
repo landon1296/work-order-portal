@@ -1,13 +1,13 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState } from 'react';
 import API from '../api';
 import { jwtDecode} from 'jwt-decode'; // <-- 1. import
 import logo from '../assets/GLLSLogo.png'; // <-- 2. import your logo!
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import LoadingSpinner from './LoadingSpinner';
+// import LoadingSpinner from './LoadingSpinner'; // No longer needed
 
-// Lazy load the heavy 3D animation component
-const SpinningLogoGlobe = lazy(() => import('./SpinningLogoGlobe'));
+// DISABLED: 3D animation causing screen flickering issues
+// const SpinningLogoGlobe = lazy(() => import('./SpinningLogoGlobe'));
 
 
 
@@ -117,9 +117,30 @@ export default function LoginForm({ onLogin }) {
   
 return (
   <>
-  <Suspense fallback={<div className="min-h-screen bg-black" />}>
-    <SpinningLogoGlobe />
-  </Suspense>
+  {/* Simple static background instead of 3D animation */}
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
+    background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%)',
+    zIndex: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }}>
+    <img
+      src="/logo192.png"
+      alt="GLLS Logo"
+      style={{
+        width: '200px',
+        height: '200px',
+        opacity: 0.2,
+        filter: 'blur(1px)'
+      }}
+    />
+  </div>
  
 
 

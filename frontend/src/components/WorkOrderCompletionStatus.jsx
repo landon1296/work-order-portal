@@ -1,20 +1,7 @@
 import React from 'react';
 
 const WorkOrderCompletionStatus = ({ workOrder }) => {
-  // Debug logging to see what data we're getting
-  console.log('WorkOrderCompletionStatus - Work Order Data:', workOrder);
-  console.log('PO Number (snake_case):', workOrder?.po_number);
-  console.log('PO Number (camelCase):', workOrder?.poNumber);
-  console.log('Contact Name (snake_case):', workOrder?.contact_name);
-  console.log('Contact Name (camelCase):', workOrder?.contactName);
-  console.log('Contact Phone (snake_case):', workOrder?.contact_phone);
-  console.log('Contact Phone (camelCase):', workOrder?.contactPhone);
-  console.log('Shipping Cost (snake_case):', workOrder?.shipping_cost);
-  console.log('Shipping Cost (camelCase):', workOrder?.shippingCost);
-  console.log('Shipping Comments (snake_case):', workOrder?.shipping_comments);
-  console.log('Shipping Comments (camelCase):', workOrder?.shippingComments);
-  console.log('Serial Number (snake_case):', workOrder?.serial_number);
-  console.log('Serial Number (camelCase):', workOrder?.serialNumber);
+  // Debug logging removed - component working correctly
   
   // Check completion status for each field (support both snake_case and camelCase)
   const hasPoNumber = (workOrder?.po_number && workOrder.po_number.trim() !== '') || 
@@ -32,13 +19,7 @@ const WorkOrderCompletionStatus = ({ workOrder }) => {
   const hasShippingComments = (workOrder?.shipping_comments && workOrder.shipping_comments.trim() !== '') ||
                              (workOrder?.shippingComments && workOrder.shippingComments.trim() !== '');
   
-  console.log('Completion Status:', {
-    hasPoNumber,
-    hasContactInfo,
-    hasSerialNumber,
-    hasShippingCost,
-    hasShippingComments
-  });
+  // Completion status calculated successfully
 
   const completionItems = [
     { completed: hasPoNumber, label: 'PO Number', field: 'po_number' },
