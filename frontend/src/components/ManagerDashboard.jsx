@@ -9,6 +9,7 @@ import logoBase64 from '../assets/logoBase64';
 import { getStatusColor } from '../utils/statusColors';
 import NotificationBell from './NotificationBell';
 import DeleteWorkOrderModal from './DeleteWorkOrderModal';
+import { workOrderWS, useWebSocket, persistentWSManager } from '../utils/websocket';
 
 // Add responsive styles for mobile
 const mobileStyles = `
@@ -198,17 +199,22 @@ const useWorkOrders = (user) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeUsers, setActiveUsers] = useState({}); // Track users actively working on work orders
 
   const fetchOrders = useCallback(async () => {
     if (!user?.token) return;
     
+    console.log('ManagerDashboard: fetchOrders called - fetching fresh work orders data');
     setLoading(true);
     setError(null);
     
     try {
-      const res = await API.get('/workorders', { 
+      // Add cache-busting parameter to ensure fresh data
+      const timestamp = Date.now();
+      const res = await API.get(`/workorders?_t=${timestamp}`, { 
         headers: { Authorization: `Bearer ${user.token}` } 
       });
+      console.log('ManagerDashboard: Received work orders data:', res.data.length, 'orders');
       setOrders(res.data);
       // Store all orders globally for search functionality
       window.allWorkOrders = res.data;
@@ -225,7 +231,7 @@ const useWorkOrders = (user) => {
     fetchOrders();
   }, [fetchOrders]);
 
-  return { orders, loading, error, refetch: fetchOrders };
+  return { orders, loading, error, refetch: fetchOrders, activeUsers, setActiveUsers };
 };
 
 const useShopFilter = () => {
@@ -351,30 +357,54 @@ const generatePDF = (order) => {
 
     // Parts Table
     if (order.parts && order.parts.length > 0) {
-      doc.setFont("helvetica", "bold");
-      const partsStartY = y;
-      doc.text("Parts Used", leftMargin, partsStartY);
-      y += 6;
-
-      doc.autoTable({
-        startY: y,
-        head: [["Part #", "Description", "Qty"]],
-        body: order.parts.map(p => [p.partNumber || "", p.description || "", p.quantity || ""]),
-        margin: { top: 20, bottom: 20, left: leftMargin, right: rightMargin },
-        styles: {
-          fontSize: 10,
-          overflow: 'linebreak',
-          cellPadding: 3,
-          lineWidth: 0
-        },
-        alternateRowStyles: {
-          fillColor: [230, 230, 230]
-        },
-        tableWidth: doc.internal.pageSize.getWidth() - leftMargin - rightMargin,
-        pageBreak: 'auto',
-        headStyles: { fillColor: [0, 102, 204], textColor: 255 }
+      // Filter out empty parts and ensure unique entries
+      const validParts = order.parts.filter(p => {
+        const partNumber = (p.partNumber || p.part_number || '').trim();
+        const description = (p.description || '').trim();
+        const quantity = Number(p.quantity || 0);
+        return partNumber || description || quantity !== 0;
       });
-      y = doc.lastAutoTable.finalY + 14;
+
+      // Remove duplicates based on part number and description
+      const uniqueParts = validParts.filter((part, index, self) => {
+        const partKey = `${(part.partNumber || part.part_number || '').trim()}-${(part.description || '').trim()}`;
+        return index === self.findIndex(p => 
+          `${(p.partNumber || p.part_number || '').trim()}-${(p.description || '').trim()}` === partKey
+        );
+      });
+
+      console.log(`PDF Generation: Original parts count: ${order.parts.length}, Valid parts: ${validParts.length}, Unique parts: ${uniqueParts.length}`);
+
+      if (uniqueParts.length > 0) {
+        doc.setFont("helvetica", "bold");
+        const partsStartY = y;
+        doc.text("Parts Used", leftMargin, partsStartY);
+        y += 6;
+
+        doc.autoTable({
+          startY: y,
+          head: [["Part #", "Description", "Qty"]],
+          body: uniqueParts.map(p => [
+            p.partNumber || p.part_number || "", 
+            p.description || "", 
+            p.quantity || ""
+          ]),
+          margin: { top: 20, bottom: 20, left: leftMargin, right: rightMargin },
+          styles: {
+            fontSize: 10,
+            overflow: 'linebreak',
+            cellPadding: 3,
+            lineWidth: 0
+          },
+          alternateRowStyles: {
+            fillColor: [230, 230, 230]
+          },
+          tableWidth: doc.internal.pageSize.getWidth() - leftMargin - rightMargin,
+          pageBreak: 'auto',
+          headStyles: { fillColor: [0, 102, 204], textColor: 255 }
+        });
+        y = doc.lastAutoTable.finalY + 14;
+      }
     }
 
     // Time Logs Table
@@ -472,7 +502,7 @@ const generatePDF = (order) => {
 };
 
 // Sub-components
-const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh, user }) => (
+const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh, user, wsConnected }) => (
   <div className="header-container" style={{
     display: 'flex',
     alignItems: 'flex-start',
@@ -549,6 +579,28 @@ const Header = ({ onAssignNewWorkOrder, onLogout, onRefresh, user }) => (
            }}>
              Manager Dashboard
            </h1>
+           {/* WebSocket connection status */}
+           <div style={{ 
+             display: 'flex', 
+             alignItems: 'center', 
+             marginTop: '10px',
+             gap: '8px'
+           }}>
+             <div style={{
+               width: '8px',
+               height: '8px',
+               borderRadius: '50%',
+               backgroundColor: wsConnected ? '#10B981' : '#EF4444',
+               animation: wsConnected ? 'pulse 2s infinite' : 'none'
+             }}></div>
+             <span style={{ 
+               color: 'white', 
+               fontSize: '14px',
+               fontWeight: '500'
+             }}>
+               {wsConnected ? 'Live Updates' : 'Offline'}
+             </span>
+           </div>
                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px', marginTop: '25px', justifyContent: 'center', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
              <span style={{ fontSize: '20px', fontWeight: 'bold' }}>Notifications</span>
              <NotificationBell user={user}/>
@@ -779,9 +831,13 @@ const WorkOrderTable = ({
   onDuplicate,
   showStatus = true,
   showActions = true,
-  emptyMessage = "No work orders found."
+  emptyMessage = "No work orders found.",
+  activeUsers = {}
 }) => {
   const [hoveredOrderId, setHoveredOrderId] = useState(null);
+  
+  // Debug log to ensure activeUsers is available
+  console.log('WorkOrderTable: activeUsers prop:', activeUsers);
 
   return (
   <div className="manager-table-wrapper" style={{ 
@@ -850,6 +906,30 @@ const WorkOrderTable = ({
                 </span>
               )}
               <WorkOrderCompletionStatus workOrder={order} />
+              {/* Real-time user activity indicator */}
+              {activeUsers && activeUsers[order.workOrderNo] && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  marginLeft: '8px',
+                  padding: '2px 6px',
+                  background: '#10b981',
+                  color: 'white',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: '500'
+                }}>
+                  <div style={{
+                    width: '6px',
+                    height: '6px',
+                    background: '#fff',
+                    borderRadius: '50%',
+                    marginRight: '4px',
+                    animation: 'pulse 2s infinite'
+                  }} />
+                  {activeUsers[order.workOrderNo].userName} ({activeUsers[order.workOrderNo].userRole})
+                </div>
+              )}
             </td>
             <td>
               {order.date
@@ -1363,17 +1443,81 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onDupli
 export default function ManagerDashboard({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Add CSS animation for pulse effect
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
   
   // Defensive: handle loading state to prevent crash
   if (!user || !user.token) {
     return <div>Loading dashboard...</div>;
   }
 
+  // WebSocket hooks
+  const { connectionStatus } = useWebSocket(user.token);
+  const [wsConnected, setWsConnected] = useState(false);
+
+  // Update WebSocket connection status
+  useEffect(() => {
+    setWsConnected(connectionStatus.connected);
+  }, [connectionStatus.connected]);
+
   // Custom hooks
-  const { orders, loading, error, refetch } = useWorkOrders(user);
+  const { orders, loading, error, refetch, activeUsers, setActiveUsers } = useWorkOrders(user);
   const { shopFilter, updateShopFilter, setDefaultShop } = useShopFilter();
   const { search, setSearch, closedSearch, setClosedSearch, closedPage, setClosedPage, resetClosedPage } = useSearchFilters();
   const { globalSearchTerm, showSearchResults, searchResults, searchLoading, setSearchLoading, handleGlobalSearch, clearGlobalSearch, performGlobalSearch } = useGlobalSearch();
+
+  // WebSocket event listeners
+  useEffect(() => {
+    console.log('ManagerDashboard: Setting up WebSocket listeners, user:', !!user?.token, 'refetch:', !!refetch);
+    if (user?.token && refetch) {
+      // Register the refetch function with the persistent manager
+      persistentWSManager.registerManagerDashboard(refetch);
+
+      // Subscribe to user activity updates using persistent manager
+      const unsubscribeUserActivity = persistentWSManager.subscribe('user-activity', (data) => {
+        console.log('User activity update:', data);
+        setActiveUsers(prev => ({
+          ...prev,
+          [data.workOrderNo]: {
+            userId: data.userId,
+            userName: data.userName,
+            userRole: data.userRole,
+            activity: data.activity,
+            timestamp: data.timestamp
+          }
+        }));
+      });
+
+      // Subscribe to user leaving work order using persistent manager
+      const unsubscribeUserLeft = persistentWSManager.subscribe('user-left', (data) => {
+        console.log('User left work order:', data);
+        setActiveUsers(prev => {
+          const updated = { ...prev };
+          if (updated[data.workOrderNo] && updated[data.workOrderNo].userId === data.userId) {
+            delete updated[data.workOrderNo];
+          }
+          return updated;
+        });
+      });
+
+      return () => {
+        // Don't unregister the refetch function - keep it alive for real-time updates
+        // The refetch function will be replaced when the component mounts again
+        console.log('ManagerDashboard: Keeping refetch function registered for real-time updates');
+      };
+    }
+  }, [user?.token, refetch]);
 
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -1667,6 +1811,7 @@ export default function ManagerDashboard({ user }) {
         onLogout={handleLogout}
         onRefresh={handleRefresh}
         user={user}
+        wsConnected={wsConnected}
       />
       
       <LocationFilter 
@@ -1699,6 +1844,7 @@ export default function ManagerDashboard({ user }) {
         onDelete={handleDeleteClick}
         onDuplicate={handleDuplicateWorkOrder}
         emptyMessage="No active work orders."
+        activeUsers={activeUsers}
       />
 
       {/* Pending Review Work Orders */}
@@ -1718,6 +1864,7 @@ export default function ManagerDashboard({ user }) {
         onDuplicate={handleDuplicateWorkOrder}
         showStatus={false}
         emptyMessage="No work orders pending review."
+        activeUsers={activeUsers}
       />
 
       {/* Submitted for Billing Archive */}
@@ -1734,6 +1881,7 @@ export default function ManagerDashboard({ user }) {
         onViewPDF={handleViewPDF}
         onDuplicate={handleDuplicateWorkOrder}
         emptyMessage="No submitted for billing work orders found."
+        activeUsers={activeUsers}
       />
 
       {/* Closed Work Orders Archive */}
@@ -1750,6 +1898,7 @@ export default function ManagerDashboard({ user }) {
         onViewPDF={handleViewPDF}
         onDuplicate={handleDuplicateWorkOrder}
         emptyMessage="No closed work orders found."
+        activeUsers={activeUsers}
       />
       
       {filteredClosedOrders.length > CLOSED_PAGE_SIZE && (

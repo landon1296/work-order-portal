@@ -5,6 +5,7 @@ import API from '../api';
 import '../index.css';
 import axios from 'axios';
 import { default as SignaturePad } from 'react-signature-canvas';
+import { workOrderWS, useWebSocket, persistentWSManager } from '../utils/websocket';
 
 
 function toCamelCaseDeep(obj) {
@@ -28,6 +29,16 @@ export default function TechWorkOrderForm({ token, user }) {
   const location = useLocation();
   const isPreview = new URLSearchParams(location.search).get('preview') === 'true';
   const navigate = useNavigate();
+  
+  // WebSocket hooks
+  const { connectionStatus } = useWebSocket(token);
+  const [wsConnected, setWsConnected] = useState(false);
+  
+  // Active users in this work order
+  const [activeUsers, setActiveUsers] = useState({});
+  
+  // Highlighted fields for real-time updates
+  const [highlightedFields, setHighlightedFields] = useState(new Set());
   
   // Smart back navigation based on user role and referrer
   const getBackRoute = () => {
@@ -169,11 +180,20 @@ const handleDeletePhoto = async (photoId) => {
   // Track when form was last modified to prevent refresh during editing
   const [lastModified, setLastModified] = useState(null);
 
-  // Fetch work order data
+  // Update WebSocket connection status
+  useEffect(() => {
+    setWsConnected(connectionStatus.connected);
+  }, [connectionStatus.connected]);
+
+  // Fetch work order data (fixed initialization order)
   const fetchWorkOrderData = useCallback(() => {
     if (!id) return;
-    API.get(`/workorders/${id}`)
+    console.log('TechWorkOrderForm: Fetching work order data for ID:', id);
+    // Add cache-busting parameter to ensure fresh data
+    const timestamp = Date.now();
+    API.get(`/workorders/${id}?_t=${timestamp}`)
       .then(res => {
+        console.log('TechWorkOrderForm: Received work order data:', res.data);
         if (res.data) {
           let formObj = toCamelCaseDeep(res.data);
 
@@ -238,10 +258,236 @@ if (!formObj.status) formObj.status = "Assigned";
     .catch(() => { setLoaded(true); });
   }, [id]);
 
+  // Function to highlight changed fields
+  const highlightChangedFields = (oldForm, newForm) => {
+    console.log('TechWorkOrderForm: highlightChangedFields: Comparing forms...');
+    
+    const changedFields = new Set();
+    
+    // Compare fields that can be changed and highlighted
+    const fieldsToCheck = [
+      'notes', 'companyName', 'companyStreet', 'companyCity', 'companyState', 'companyZip',
+      'make', 'model', 'serialNumber', 'repairType', 'assignedTech', 'shop', 'salesName',
+      'workDescription', 'poNumber', 'timeLogs', 'status',
+      'contactName', 'contactPhone', 'contactEmail', 'fieldContact', 'fieldContactNumber'
+    ];
+    
+    // Check parts separately with more intelligent comparison
+    const partsChanged = JSON.stringify(oldForm.parts || []) !== JSON.stringify(newForm.parts || []);
+    
+    fieldsToCheck.forEach(key => {
+      if (oldForm[key] !== newForm[key]) {
+        console.log(`TechWorkOrderForm: Field changed: ${key} - Old: "${oldForm[key]}" New: "${newForm[key]}"`);
+        changedFields.add(key);
+      }
+    });
+    
+    // Add parts to changed fields if parts actually changed
+    if (partsChanged) {
+      console.log('TechWorkOrderForm: Parts changed - adding to highlighted fields');
+      changedFields.add('parts');
+    }
+    
+    console.log('TechWorkOrderForm: Changed fields:', Array.from(changedFields));
+    
+    // Only highlight if there are actual meaningful changes
+    if (changedFields.size > 0) {
+      console.log('TechWorkOrderForm: Setting highlights for fields:', Array.from(changedFields));
+      setHighlightedFields(changedFields);
+      
+      // Clear any existing timeout to prevent conflicts
+      if (window.highlightTimeout) {
+        clearTimeout(window.highlightTimeout);
+      }
+      
+      // Remove highlight after 3 seconds
+      window.highlightTimeout = setTimeout(() => {
+        console.log('TechWorkOrderForm: Removing highlights after 3 seconds');
+        setHighlightedFields(new Set());
+        window.highlightTimeout = null;
+      }, 3000);
+    } else {
+      console.log('TechWorkOrderForm: No meaningful changes detected, skipping highlight');
+    }
+  };
+
+  // Helper function to get field styling with highlighting
+  const getFieldStyle = (fieldName) => {
+    const baseStyle = {
+      transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
+    };
+    
+    if (highlightedFields.has(fieldName)) {
+      console.log(`🎯 TechWorkOrderForm: HIGHLIGHTING FIELD ${fieldName.toUpperCase()} - Current highlighted fields:`, Array.from(highlightedFields));
+      return {
+        ...baseStyle,
+        backgroundColor: '#fff8e1', // Soft yellow background
+        borderColor: '#ffb74d', // Soft orange border
+        borderWidth: '2px',
+        borderStyle: 'solid',
+        boxShadow: '0 0 8px rgba(255, 183, 77, 0.4)',
+        outline: 'none',
+        transform: 'scale(1.01)' // Very slight scale for subtle effect
+      };
+    }
+    
+    return baseStyle;
+  };
+
+  // WebSocket event listeners for this specific work order
+  useEffect(() => {
+    if (id && token) {
+      // Join the specific work order room
+      workOrderWS.joinWorkOrder(id);
+      
+      // Broadcast that this user is actively working on this work order
+      const broadcastUserActivity = () => {
+        if (workOrderWS.socket && workOrderWS.connected) {
+          workOrderWS.socket.emit('user-activity', {
+            workOrderNo: id,
+            userId: user?.id || user?.username,
+            userName: user?.username,
+            userRole: user?.role,
+            activity: 'editing',
+            timestamp: new Date().toISOString()
+          });
+        }
+      };
+      
+      // Broadcast immediately and then every 30 seconds
+      broadcastUserActivity();
+      const activityInterval = setInterval(broadcastUserActivity, 30000);
+
+      // Subscribe to updates for this specific work order
+      const unsubscribeWorkOrderUpdate = workOrderWS.subscribe('workorder-update', (data) => {
+        if (data.workOrderNo === id) {
+          console.log('Work order updated via WebSocket:', data);
+          
+          // Clear service worker cache to ensure fresh data
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            console.log('TechWorkOrderForm: Sending CLEAR_API_CACHE message to service worker');
+            navigator.serviceWorker.controller.postMessage({
+              type: 'CLEAR_API_CACHE'
+            });
+          } else {
+            console.log('TechWorkOrderForm: Service worker not available for cache clearing');
+          }
+          
+          // Update local form state if it's a parts update
+          if (data.updateType === 'parts-updated' && data.data.parts) {
+            setForm(prev => ({
+              ...prev,
+              parts: data.data.parts
+            }));
+          } else if (data.updateType === 'updated') {
+            // Refresh the entire form if work order was updated
+            // Add a small delay to ensure cache is cleared
+            setTimeout(() => {
+              console.log('TechWorkOrderForm: Refreshing form data after WebSocket update');
+              fetchWorkOrderData();
+            }, 500);
+          }
+        }
+      });
+
+      // Subscribe to user activity updates
+      const unsubscribeUserActivity = workOrderWS.subscribe('user-activity', (data) => {
+        console.log('TechWorkOrderForm: User activity update:', data);
+        if (data.workOrderNo === id) {
+          setActiveUsers(prev => ({
+            ...prev,
+            [data.userId]: {
+              userId: data.userId,
+              userName: data.userName,
+              userRole: data.userRole,
+              activity: data.activity,
+              timestamp: data.timestamp
+            }
+          }));
+        }
+      });
+
+      // Subscribe to user leaving work order
+      const unsubscribeUserLeft = workOrderWS.subscribe('user-left', (data) => {
+        console.log('TechWorkOrderForm: User left work order:', data);
+        if (data.workOrderNo === id) {
+          setActiveUsers(prev => {
+            const updated = { ...prev };
+            if (updated[data.userId]) {
+              delete updated[data.userId];
+            }
+            return updated;
+          });
+        }
+      });
+
+      return () => {
+        // Clear the activity interval
+        clearInterval(activityInterval);
+        
+        // Broadcast that this user is leaving the work order
+        if (workOrderWS.socket && workOrderWS.connected) {
+          workOrderWS.socket.emit('user-left', {
+            workOrderNo: id,
+            userId: user?.id || user?.username
+          });
+        }
+        
+        workOrderWS.leaveWorkOrder(id);
+        unsubscribeWorkOrderUpdate();
+        unsubscribeUserActivity();
+        unsubscribeUserLeft();
+      };
+    }
+  }, [id, token, fetchWorkOrderData, user?.id, user?.username, user?.role]);
+
   // Initial fetch
   useEffect(() => {
     fetchWorkOrderData();
-  }, [fetchWorkOrderData]);
+
+    // Register this form's smart update handler with the persistent WebSocket manager
+    if (id) {
+      const updateHandler = {
+        updateWithData: (newData) => {
+          console.log('TechWorkOrderForm: Received real-time update data:', newData);
+          
+          // Data is now already in camelCase from backend, just handle date format
+          const mappedData = { ...newData };
+          if (mappedData.date && typeof mappedData.date === 'string' && mappedData.date.includes('T')) {
+            // Convert ISO date to YYYY-MM-DD format for form input
+            const dateValue = new Date(mappedData.date);
+            mappedData.date = dateValue.toISOString().split('T')[0];
+          }
+          
+          console.log('TechWorkOrderForm: Processed data:', mappedData);
+          
+          // Update form with new data and add visual feedback
+          setForm(prevForm => {
+            const updatedForm = { ...prevForm, ...mappedData };
+            
+            // Add temporary highlight to changed fields
+            highlightChangedFields(prevForm, updatedForm);
+            
+            return updatedForm;
+          });
+        }
+      };
+      
+      persistentWSManager.registerWorkOrderForm(id, updateHandler);
+    }
+
+    return () => {
+      // Unregister when component unmounts
+      if (id) {
+        persistentWSManager.unregisterWorkOrderForm(id);
+      }
+      // Clear any pending highlight timeout
+      if (window.highlightTimeout) {
+        clearTimeout(window.highlightTimeout);
+        window.highlightTimeout = null;
+      }
+    };
+  }, [fetchWorkOrderData, id]);
 
   // Periodic refresh disabled - was causing form content to be deleted
   // useEffect(() => {
@@ -702,6 +948,55 @@ console.log("form", form);
 
   return (
     <form onSubmit={handleSubmit} style={{ padding: '8px', fontFamily: 'Arial' }}>
+      {/* WebSocket status indicator */}
+      {wsConnected && (
+        <div style={{
+          backgroundColor: '#d1fae5',
+          border: '1px solid #10b981',
+          borderRadius: '8px',
+          padding: '12px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#10b981',
+            animation: 'pulse 2s infinite'
+          }}></div>
+          <span style={{ color: '#065f46', fontSize: '14px', fontWeight: '500' }}>
+            Live updates enabled - Changes will sync in real-time
+          </span>
+        </div>
+      )}
+      
+      {/* Active Users Indicator */}
+      {Object.keys(activeUsers).length > 0 && (
+        <div style={{
+          backgroundColor: '#dbeafe',
+          border: '1px solid #3b82f6',
+          borderRadius: '8px',
+          padding: '12px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#3b82f6',
+            animation: 'pulse 2s infinite'
+          }}></div>
+          <span style={{ color: '#1e40af', fontSize: '14px', fontWeight: '500' }}>
+            {Object.keys(activeUsers).length} user{Object.keys(activeUsers).length > 1 ? 's' : ''} currently viewing this work order
+          </span>
+        </div>
+      )}
       <button
   type="button"
   onClick={() => {
@@ -747,6 +1042,7 @@ console.log("form", form);
                 value={form.companyName || ""}                
                 onChange={handleChange}
                 placeholder="Company Name"
+                style={getFieldStyle('companyName')}
               />
 
             </td>
@@ -756,7 +1052,7 @@ console.log("form", form);
                 value={form.make || ""}                
                 onChange={handleChange}
                 required
-                style={{ width: '100%' }}
+                style={{...getFieldStyle('make'), width: '100%'}}
             >
                 <option value="">-- Select Make --</option>
                 {makes.map(make => (
@@ -771,7 +1067,7 @@ console.log("form", form);
                 onChange={handleChange}
                 required
                 disabled={!form.make}
-                style={{ width: '100%' }}
+                style={{...getFieldStyle('model'), width: '100%'}}
             >
                 <option value="">-- Select Model --</option>
                 {models.map(model => (
@@ -780,7 +1076,12 @@ console.log("form", form);
             </select>
             </td>
             <td>
-              <input name="serialNumber" value={form.serialNumber} onChange={handleChange} />
+              <input 
+                name="serialNumber" 
+                value={form.serialNumber} 
+                onChange={handleChange}
+                style={getFieldStyle('serialNumber')}
+              />
             </td>
             <td>
               <input type="date" name="date" value={form.date} onChange={handleChange} />
@@ -1283,19 +1584,19 @@ console.log("form", form);
 
             </tr>
             <tr>
-                <th className="assign-table-header" colSpan={1}>
+                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
                   Part Number
                 </th>
-                <th className="assign-table-header" colSpan={1}>
+                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
                   Part Name/ Description
                 </th>
-                <th className="assign-table-header" colSpan={1}>
+                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
                   Quantity
                 </th>
-                <th className="assign-table-header" colSpan={1}>
+                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
                   Pending Parts?
                 </th>
-                <th className="assign-table-header" colSpan={1}>
+                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
                   Est. Delivery Date
                 </th>
             </tr>
@@ -1427,7 +1728,7 @@ console.log("form", form);
                 value={form.workDescription || ""}                
                 onChange={handleChange}
                 rows={3}
-                style={{ width: '100%' }}
+                style={{...getFieldStyle('workDescription'), width: '100%'}}
                 placeholder="Brief Description of Work To Be Completed"
               />
             </td>
@@ -1444,7 +1745,7 @@ console.log("form", form);
                     value={form.notes || ""}                    
                     onChange={handleChange}
                     rows={3}
-                    style={{ width: '100%' }}
+                    style={{...getFieldStyle('notes'), width: '100%'}}
                     placeholder="Summary of Work Completed"
                     required
                 />

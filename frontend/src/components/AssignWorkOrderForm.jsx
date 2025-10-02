@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import GLLSLogo from '../assets/GLLSLogo.png';
 import logoBase64 from '../assets/logoBase64';
+import { workOrderWS, useWebSocket, persistentWSManager } from '../utils/websocket';
 
 
 // Constants
@@ -93,6 +94,11 @@ const drawRoundedRect = (doc, x, y, width, height, radius = 3) => {
 const generatePDF = (order) => {
   try {
     console.log("Generating PDF for work order", order.workOrderNo);
+    
+    // Add timeout to prevent hanging
+    const timeoutId = setTimeout(() => {
+      console.warn("PDF generation taking longer than expected...");
+    }, 5000);
 
     const doc = new jsPDF({ margin: 20 });
     const leftMargin = 20;
@@ -185,15 +191,53 @@ const generatePDF = (order) => {
 
     // Parts Table
     if (order.parts && order.parts.length > 0) {
+      console.log(`Processing ${order.parts.length} parts for PDF generation...`);
+      
       doc.setFont("helvetica", "bold");
       const partsStartY = y;
       doc.text("Parts Used", leftMargin, partsStartY);
       y += 6;
 
+      // Filter out empty parts and ensure unique entries
+      const validParts = order.parts.filter(p => {
+        const partNumber = (p.partNumber || p.part_number || '').trim();
+        const description = (p.description || '').trim();
+        const quantity = Number(p.quantity || 0);
+        return partNumber || description || quantity !== 0;
+      });
+
+      console.log(`Filtered to ${validParts.length} valid parts`);
+
+      // Remove duplicates based on part number and description (optimized O(n) approach)
+      const seenParts = new Set();
+      const uniqueParts = validParts.filter(part => {
+        const partNumber = (part.partNumber || part.part_number || '').trim();
+        const description = (part.description || '').trim();
+        const partKey = `${partNumber}-${description}`;
+        
+        if (seenParts.has(partKey)) {
+          return false;
+        }
+        seenParts.add(partKey);
+        return true;
+      });
+
+      console.log(`AssignWorkOrderForm PDF: Original parts count: ${order.parts.length}, Valid parts: ${validParts.length}, Unique parts: ${uniqueParts.length}`);
+      
+      // Limit parts to prevent memory issues (safety limit of 1000 parts)
+      const partsToProcess = uniqueParts.slice(0, 1000);
+      if (uniqueParts.length > 1000) {
+        console.warn(`Warning: Truncating parts list from ${uniqueParts.length} to 1000 parts for PDF generation`);
+      }
+
       doc.autoTable({
         startY: y,
         head: [["Part #", "Description", "Qty"]],
-        body: order.parts.map(p => [p.partNumber || "", p.description || "", p.quantity || ""]),
+        body: partsToProcess.map(p => [
+          p.partNumber || p.part_number || "", 
+          p.description || "", 
+          p.quantity || ""
+        ]),
         margin: { top: 20, bottom: 20, left: leftMargin, right: rightMargin },
         styles: {
           fontSize: 10,
@@ -298,8 +342,13 @@ const generatePDF = (order) => {
 
     const pdfUrl = doc.output('bloburl');
     window.open(pdfUrl, '_blank');
+    
+    // Clear timeout
+    clearTimeout(timeoutId);
+    console.log("PDF generation completed successfully");
 
   } catch (err) {
+    clearTimeout(timeoutId);
     console.error("PDF generation failed:", err);
     alert('Failed to generate PDF. Please try again.');
   }
@@ -428,6 +477,68 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // WebSocket connection status
+  const connectionStatus = useWebSocket(user?.token);
+  const [wsConnected, setWsConnected] = useState(false);
+  
+  // Active users in this work order
+  const [activeUsers, setActiveUsers] = useState({});
+
+  // Update WebSocket connection status
+  useEffect(() => {
+    console.log('AssignWorkOrderForm: WebSocket connection status changed:', connectionStatus.connected);
+    // Fix: Handle undefined connection status
+    setWsConnected(connectionStatus.connected === true);
+    
+    // Additional check: Direct WebSocket connection status
+    if (workOrderWS && workOrderWS.socket) {
+      const isConnected = workOrderWS.connected;
+      console.log('AssignWorkOrderForm: Direct WebSocket connection status:', isConnected);
+      setWsConnected(isConnected);
+    }
+  }, [connectionStatus.connected, workOrderWS]);
+
+  // WebSocket event listeners for user activity tracking
+  useEffect(() => {
+    if (id && token && user) {
+      // Join the specific work order room
+      workOrderWS.joinWorkOrder(id);
+      
+      // Broadcast that this user is actively working on this work order
+      const broadcastUserActivity = () => {
+        if (workOrderWS.socket && workOrderWS.connected) {
+          workOrderWS.socket.emit('user-activity', {
+            workOrderNo: id,
+            userId: user?.id || user?.username,
+            userName: user?.username,
+            userRole: user?.role,
+            activity: editMode ? 'editing' : 'viewing',
+            timestamp: new Date().toISOString()
+          });
+        }
+      };
+      
+      // Broadcast immediately and then every 30 seconds
+      broadcastUserActivity();
+      const activityInterval = setInterval(broadcastUserActivity, 30000);
+
+      return () => {
+        // Clear the activity interval
+        clearInterval(activityInterval);
+        
+        // Broadcast that this user is leaving the work order
+        if (workOrderWS.socket && workOrderWS.connected) {
+          workOrderWS.socket.emit('user-left', {
+            workOrderNo: id,
+            userId: user?.id || user?.username
+          });
+        }
+        
+        workOrderWS.leaveWorkOrder(id);
+      };
+    }
+  }, [id, token, user?.id, user?.username, user?.role, editMode]);
   
   // Smart back navigation based on user role and referrer
   const getBackRoute = () => {
@@ -620,10 +731,214 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
     };
 
     fetchWorkOrder();
-  }, [id, setForm, setFormLoading]);
+
+    // Register this form's update handler with the persistent WebSocket manager
+    if (id) {
+      const updateHandler = {
+        updateWithData: (newData) => {
+          console.log('AssignWorkOrderForm: Received real-time update data:', newData);
+          
+          // Data is now already in camelCase from backend, just handle date format
+          const mappedData = { ...newData };
+          if (mappedData.date && typeof mappedData.date === 'string' && mappedData.date.includes('T')) {
+            // Convert ISO date to YYYY-MM-DD format for form input
+            const dateValue = new Date(mappedData.date);
+            mappedData.date = dateValue.toISOString().split('T')[0];
+          }
+          
+          console.log('AssignWorkOrderForm: Processed data:', mappedData);
+          
+          // Update form with new data and add visual feedback
+          setForm(prevForm => {
+            const updatedForm = { ...prevForm, ...mappedData };
+            
+            // Add temporary highlight to changed fields
+            highlightChangedFields(prevForm, updatedForm);
+            
+            return updatedForm;
+          });
+        }
+      };
+      
+      persistentWSManager.registerWorkOrderForm(id, updateHandler);
+      
+      // Subscribe to user activity updates
+      const unsubscribeUserActivity = persistentWSManager.subscribe('user-activity', (data) => {
+        console.log('AssignWorkOrderForm: User activity update:', data);
+        if (data.workOrderNo === id) {
+          setActiveUsers(prev => ({
+            ...prev,
+            [data.userId]: {
+              userId: data.userId,
+              userName: data.userName,
+              userRole: data.userRole,
+              activity: data.activity,
+              timestamp: data.timestamp
+            }
+          }));
+        }
+      });
+
+      // Subscribe to user leaving work order
+      const unsubscribeUserLeft = persistentWSManager.subscribe('user-left', (data) => {
+        console.log('AssignWorkOrderForm: User left work order:', data);
+        if (data.workOrderNo === id) {
+          setActiveUsers(prev => {
+            const updated = { ...prev };
+            if (updated[data.userId]) {
+              delete updated[data.userId];
+            }
+            return updated;
+          });
+        }
+      });
+
+      // Store unsubscribe functions for cleanup
+      window.assignWorkOrderUnsubscribers = [
+        unsubscribeUserActivity,
+        unsubscribeUserLeft
+      ];
+
+      // Broadcast that this user is viewing the work order (with a small delay to ensure listeners are set up)
+      if (wsConnected && user) {
+        const broadcastUserActivity = () => {
+          const userActivityData = {
+            workOrderNo: id,
+            userId: user.id || user.username,
+            userName: user.name || user.username,
+            userRole: user.role,
+            activity: 'viewing'
+          };
+          
+          console.log('AssignWorkOrderForm: Broadcasting user activity:', userActivityData);
+          workOrderWS?.socket?.emit('user-activity', userActivityData);
+        };
+        
+        // Broadcast immediately with a delay, then every 30 seconds
+        setTimeout(broadcastUserActivity, 500);
+        const activityInterval = setInterval(broadcastUserActivity, 30000);
+        
+        // Store the interval for cleanup
+        window.assignWorkOrderActivityInterval = activityInterval;
+      }
+    }
+
+    return () => {
+      // Unregister when component unmounts
+      if (id) {
+        persistentWSManager.unregisterWorkOrderForm(id);
+        
+        // Unsubscribe from user activity events
+        if (window.assignWorkOrderUnsubscribers) {
+          window.assignWorkOrderUnsubscribers.forEach(unsub => unsub());
+          delete window.assignWorkOrderUnsubscribers;
+        }
+        
+        // Clear the activity interval
+        if (window.assignWorkOrderActivityInterval) {
+          clearInterval(window.assignWorkOrderActivityInterval);
+          delete window.assignWorkOrderActivityInterval;
+        }
+        
+        // Broadcast that user left the work order
+        if (wsConnected && user) {
+          const userLeftData = {
+            workOrderNo: id,
+            userId: user.id || user.username
+          };
+          workOrderWS?.socket?.emit('user-left', userLeftData);
+        }
+      }
+      // Clear any pending highlight timeout
+      if (window.highlightTimeout) {
+        clearTimeout(window.highlightTimeout);
+        window.highlightTimeout = null;
+      }
+    };
+  }, [id, setForm, setFormLoading, wsConnected, user]);
 
   // Track when form was last modified to prevent refresh during editing
   const [lastModified, setLastModified] = useState(null);
+
+  // Track highlighted fields for real-time updates
+  const [highlightedFields, setHighlightedFields] = useState(new Set());
+
+  // Function to highlight changed fields
+  const highlightChangedFields = (oldForm, newForm) => {
+    console.log('highlightChangedFields: Comparing forms...');
+    
+    const changedFields = new Set();
+    
+    // Compare fields that can be changed and highlighted
+    // Note: We'll check parts separately to avoid interference
+    const fieldsToCheck = [
+      'notes', 'companyName', 'companyStreet', 'companyCity', 'companyState', 'companyZip',
+      'make', 'model', 'serialNumber', 'repairType', 'assignedTech', 'shop', 'salesName',
+      'workDescription', 'poNumber', 'timeLogs', 'status',
+      'contactName', 'contactPhone', 'contactEmail', 'fieldContact', 'fieldContactNumber'
+    ];
+    
+    // Check parts separately with more intelligent comparison
+    const partsChanged = JSON.stringify(oldForm.parts || []) !== JSON.stringify(newForm.parts || []);
+    
+    fieldsToCheck.forEach(key => {
+      if (oldForm[key] !== newForm[key]) {
+        console.log(`Field changed: ${key} - Old: "${oldForm[key]}" New: "${newForm[key]}"`);
+        changedFields.add(key);
+      }
+    });
+    
+    // Add parts to changed fields if parts actually changed
+    if (partsChanged) {
+      console.log('Parts changed - adding to highlighted fields');
+      changedFields.add('parts');
+    }
+    
+    console.log('Changed fields:', Array.from(changedFields));
+    
+    // Only highlight if there are actual meaningful changes
+    if (changedFields.size > 0) {
+      console.log('Setting highlights for fields:', Array.from(changedFields));
+      setHighlightedFields(changedFields);
+      
+      // Clear any existing timeout to prevent conflicts
+      if (window.highlightTimeout) {
+        clearTimeout(window.highlightTimeout);
+      }
+      
+      // Remove highlight after 3 seconds
+      window.highlightTimeout = setTimeout(() => {
+        console.log('Removing highlights after 3 seconds');
+        setHighlightedFields(new Set());
+        window.highlightTimeout = null;
+      }, 3000);
+    } else {
+      console.log('No meaningful changes detected, skipping highlight');
+    }
+  };
+
+  // Helper function to get field styling with highlight
+  const getFieldStyle = (fieldName) => {
+    const baseStyle = {
+      transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
+    };
+    
+    if (highlightedFields.has(fieldName)) {
+      console.log(`🎯 getFieldStyle: HIGHLIGHTING FIELD ${fieldName.toUpperCase()} - Current highlighted fields:`, Array.from(highlightedFields));
+      return {
+        ...baseStyle,
+        backgroundColor: '#fff8e1', // Soft yellow background
+        borderColor: '#ffb74d', // Soft orange border
+        borderWidth: '2px',
+        borderStyle: 'solid',
+        boxShadow: '0 0 8px rgba(255, 183, 77, 0.4)',
+        outline: 'none',
+        transform: 'scale(1.01)' // Very slight scale for subtle effect
+      };
+    }
+    
+    return baseStyle;
+  };
 
   // Periodic refresh disabled - was causing form content to be deleted
   // useEffect(() => {
@@ -953,16 +1268,17 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   const handleAssignAndPrintPDF = useCallback(async (e) => {
     e.preventDefault();
     
-    // Validation
-    const errors = validateForm(form);
-    if (errors.length > 0) {
-      alert(errors.join('\n'));
-      return;
-    }
-
+    // Show loading state
     setFormLoading(true);
     
     try {
+      // Validation
+      const errors = validateForm(form);
+      if (errors.length > 0) {
+        alert(errors.join('\n'));
+        setFormLoading(false);
+        return;
+      }
       const cleanedParts = (form.parts || []).filter(part => {
         const partNumber = (part.partNumber || '').trim();
         const description = (part.description || '').trim();
@@ -989,7 +1305,9 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
       }
 
       // Generate PDF after successful assignment
+      console.log('Generating PDF for work order...');
       generatePDF(cleanedForm);
+      console.log('PDF generation completed');
 
       // Call onSuccess callback if provided (for scheduler integration)
       if (onSuccess) {
@@ -1255,6 +1573,59 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
     <form onSubmit={handleSubmit} style={{ padding: '8px', fontFamily: 'Arial' }}>
       <NavigationButton onBack={() => navigate(getBackRoute())} />
       
+      {/* WebSocket Connection Status */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        marginBottom: '16px' 
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          background: wsConnected ? '#10b981' : '#ef4444',
+          color: 'white',
+          fontSize: '14px',
+          fontWeight: '500'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: 'white',
+            marginRight: '8px',
+            animation: wsConnected ? 'pulse 2s infinite' : 'none'
+          }} />
+          {wsConnected ? 'Live Updates Connected' : 'Live Updates Disconnected'}
+        </div>
+        
+        {/* Active Users Indicator */}
+        {Object.keys(activeUsers).length > 0 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 12px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            fontWeight: '500',
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            marginLeft: '10px'
+          }}>
+            <div style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: 'white',
+              marginRight: '8px',
+              animation: 'pulse 2s infinite'
+            }} />
+            {Object.keys(activeUsers).length} user{Object.keys(activeUsers).length > 1 ? 's' : ''} active
+          </div>
+        )}
+      </div>
+      
       <FormTable
         form={form}
         makes={makes}
@@ -1275,6 +1646,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         onRemoveTimeLog={removeTimeLog}
         onTimeLogChange={handleTimeLogChange}
         onSubmit={handleSubmit}
+        getFieldStyle={getFieldStyle}
         onAssignAndPrintPDF={handleAssignAndPrintPDF}
         loading={formLoading}
         isEdit={!!id}
@@ -1422,6 +1794,7 @@ const FormTable = ({
   onRemoveTimeLog,
   onTimeLogChange,
   onSubmit,
+  getFieldStyle,
   onAssignAndPrintPDF,
   loading,
   isEdit
@@ -1437,7 +1810,7 @@ const FormTable = ({
       </tr>
     </thead>
     <tbody>
-      <CompanyInfoRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} makes={makes} models={models} />
+      <CompanyInfoRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} makes={makes} models={models} getFieldStyle={getFieldStyle} />
       <FieldContactRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
       <ContactInfoRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
       <FieldAddressRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
@@ -1445,9 +1818,9 @@ const FormTable = ({
       <WorkTypeRow form={form} onChange={onChange} handleRepairTypeChange={handleRepairTypeChange} shops={shops} repairTypes={repairTypes} />
       <TechnicianRow form={form} technicians={technicians} onAddTimeLog={onAddTimeLog} onRemoveTimeLog={onRemoveTimeLog} onTimeLogChange={onTimeLogChange} />
       <SalesRow form={form} onChange={onChange} salesNames={salesNames} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
-      <PartsRow form={form} onAddPart={onAddPart} onRemovePart={onRemovePart} onPartChange={onPartChange} onPartWaitingChange={onPartWaitingChange} />
+      <PartsRow form={form} onAddPart={onAddPart} onRemovePart={onRemovePart} onPartChange={onPartChange} onPartWaitingChange={onPartWaitingChange} getFieldStyle={getFieldStyle} />
       <WorkDescriptionRow form={form} onChange={onChange} />
-      <TechSummaryRow form={form} onChange={onChange} />
+      <TechSummaryRow form={form} onChange={onChange} getFieldStyle={getFieldStyle} />
       
       {/* Status History Section */}
       {Array.isArray(form.statusHistory) && form.statusHistory.length > 0 && (
@@ -1473,12 +1846,13 @@ const FormTable = ({
   </table>
 );
 
-const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, makes, models }) => (
+const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, makes, models, getFieldStyle }) => (
   <tr>
     <td>
       <input
         name="companyName"
         value={form.companyName ?? ""}
+        style={getFieldStyle('companyName')}
         onChange={onChange}
         placeholder="Company Name"
       />
@@ -1487,9 +1861,9 @@ const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, ma
       <select
         name="make"
         value={form.make ?? ""}
+        style={{...getFieldStyle('make'), width: '100%'}}
         onChange={onChange}
         required
-        style={{ width: '100%' }}
       >
         <option value="">-- Select Make --</option>
         {makes.map(make => (
@@ -2006,22 +2380,22 @@ const SalesRow = ({ form, onChange, salesNames, disabledIfInHouse, isInHouseRepa
   </>
 );
 
-const PartsRow = ({ form, onAddPart, onRemovePart, onPartChange, onPartWaitingChange }) => (
+const PartsRow = ({ form, onAddPart, onRemovePart, onPartChange, onPartWaitingChange, getFieldStyle }) => (
   <>
     <tr>
-      <th className="assign-table-header" colSpan={1}>
+      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
         Part Number
       </th>
-      <th className="assign-table-header" colSpan={1}>
+      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
         Part Name/ Description
       </th>
-      <th className="assign-table-header" colSpan={1}>
+      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
         Quantity
       </th>
-      <th className="assign-table-header" colSpan={1}>
+      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
         Pending Parts?
       </th>
-      <th className="assign-table-header" colSpan={1}>
+      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
         Est. Delivery Date
       </th>
     </tr>
@@ -2154,7 +2528,7 @@ const WorkDescriptionRow = ({ form, onChange }) => (
   </>
 );
 
-const TechSummaryRow = ({ form, onChange }) => (
+const TechSummaryRow = ({ form, onChange, getFieldStyle }) => (
   <>
     <tr>
       <th className="assign-table-header" colSpan={5} style={{textAlign:'center'}}>
@@ -2166,9 +2540,9 @@ const TechSummaryRow = ({ form, onChange }) => (
         <textarea
           name="notes"
           value={form.notes ?? ""}
+          style={{...getFieldStyle('notes'), width: '100%'}}
           onChange={onChange}
           rows={3}
-          style={{ width: '100%' }}
           placeholder="Notes"
         />
       </td>

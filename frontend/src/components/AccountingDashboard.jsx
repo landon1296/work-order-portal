@@ -292,10 +292,32 @@ const generatePDF = (order) => {
       doc.text("Parts Used", leftMargin, partsStartY);
       y += 6;
 
+      // Filter out empty parts and ensure unique entries
+      const validParts = order.parts.filter(p => {
+        const partNumber = (p.partNumber || p.part_number || '').trim();
+        const description = (p.description || '').trim();
+        const quantity = Number(p.quantity || 0);
+        return partNumber || description || quantity !== 0;
+      });
+
+      // Remove duplicates based on part number and description
+      const uniqueParts = validParts.filter((part, index, self) => {
+        const partKey = `${(part.partNumber || part.part_number || '').trim()}-${(part.description || '').trim()}`;
+        return index === self.findIndex(p => 
+          `${(p.partNumber || p.part_number || '').trim()}-${(p.description || '').trim()}` === partKey
+        );
+      });
+
+      console.log(`AccountingDashboard PDF: Original parts count: ${order.parts.length}, Valid parts: ${validParts.length}, Unique parts: ${uniqueParts.length}`);
+
       doc.autoTable({
         startY: y,
         head: [["Part #", "Description", "Qty"]],
-        body: order.parts.map(p => [p.partNumber || "", p.description || "", p.quantity || ""]),
+        body: uniqueParts.map(p => [
+          p.partNumber || p.part_number || "", 
+          p.description || "", 
+          p.quantity || ""
+        ]),
         margin: { top: 20, bottom: 20, left: leftMargin, right: rightMargin },
         styles: {
           fontSize: 10,

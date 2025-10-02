@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLLS WebSocket Debug Test</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .disconnected { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .connecting { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .message { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .test-button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .test-button:hover { background-color: #0056b3; }
+        .test-button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .log { background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; border-radius: 5px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+        .debug-info { background-color: #e2e3e5; border: 1px solid #d6d8db; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 GLLS WebSocket Debug Test</h1>
+        
+        <div id="connectionStatus" class="status connecting">
+            🔄 Attempting to connect to WebSocket server...
+        </div>
+
+        <div class="debug-info">
+            <h3>🔍 Debug Information:</h3>
+            <p><strong>Server URL:</strong> <span id="serverUrl">ws://localhost:4000</span></p>
+            <p><strong>Connection Method:</strong> <span id="connectionMethod">Socket.IO Client</span></p>
+            <p><strong>Browser:</strong> <span id="browserInfo"></span></p>
+            <p><strong>Current Time:</strong> <span id="currentTime"></span></p>
+        </div>
+
+        <div class="message">
+            <h3>🧪 Test Instructions:</h3>
+            <ol>
+                <li>Wait for the connection status to show "✅ Connected"</li>
+                <li>If connection fails, check the debug log below for error details</li>
+                <li>Click the "Test Work Order Update" button below</li>
+                <li>Watch for real-time updates in the log below</li>
+            </ol>
+        </div>
+
+        <div>
+            <button id="testButton" class="test-button" onclick="testWorkOrderUpdate()" disabled>
+                🧪 Test Work Order Update
+            </button>
+            <button class="test-button" onclick="clearLog()">
+                🗑️ Clear Log
+            </button>
+            <button class="test-button" onclick="reconnect()">
+                🔄 Reconnect
+            </button>
+        </div>
+
+        <h3>📋 Debug Log:</h3>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let socket = null;
+        const statusDiv = document.getElementById('connectionStatus');
+        const logDiv = document.getElementById('log');
+        const testButton = document.getElementById('testButton');
+        
+        // Update debug info
+        document.getElementById('browserInfo').textContent = navigator.userAgent;
+        document.getElementById('currentTime').textContent = new Date().toLocaleString();
+        
+        function logMessage(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logEntry.className = type;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            logDiv.innerHTML = '';
+        }
+        
+        function reconnect() {
+            logMessage('🔄 Attempting to reconnect...', 'info');
+            if (socket) {
+                socket.disconnect();
+            }
+            connect();
+        }
+        
+        function connect() {
+            logMessage('🔌 Initializing WebSocket connection...', 'info');
+            
+            // Try different connection URLs
+            const urls = [
+                'http://localhost:4000',
+                'ws://localhost:4000',
+                'ws://127.0.0.1:4000'
+            ];
+            
+            let urlIndex = 0;
+            
+            function tryConnect() {
+                if (urlIndex >= urls.length) {
+                    logMessage('❌ All connection attempts failed', 'error');
+                    statusDiv.className = 'status disconnected';
+                    statusDiv.innerHTML = '❌ Failed to connect to WebSocket server';
+                    return;
+                }
+                
+                const url = urls[urlIndex];
+                logMessage(`🌐 Trying to connect to: ${url}`, 'info');
+                document.getElementById('serverUrl').textContent = url;
+                
+                socket = io(url, {
+                    transports: ['websocket', 'polling'],
+                    upgrade: true,
+                    rememberUpgrade: true,
+                    timeout: 10000,
+                    forceNew: true,
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 5,
+                    maxReconnectionAttempts: 5
+                });
+                
+                // Connection events
+                socket.on('connect', () => {
+                    statusDiv.className = 'status connected';
+                    statusDiv.innerHTML = '✅ Connected to GLLS WebSocket server';
+                    testButton.disabled = false;
+                    logMessage(`✅ Connected successfully to ${url}`, 'success');
+                    logMessage(`🆔 Socket ID: ${socket.id}`, 'success');
+                    
+                    // Join general updates room
+                    socket.emit('join-updates');
+                    logMessage('📡 Joined general updates room', 'success');
+                });
+                
+                socket.on('disconnect', (reason) => {
+                    statusDiv.className = 'status disconnected';
+                    statusDiv.innerHTML = '❌ Disconnected from WebSocket server';
+                    testButton.disabled = true;
+                    logMessage(`❌ Disconnected: ${reason}`, 'error');
+                });
+                
+                socket.on('connect_error', (error) => {
+                    logMessage(`❌ Connection error with ${url}: ${error.message}`, 'error');
+                    logMessage(`🔍 Error details: ${JSON.stringify(error)}`, 'error');
+                    
+                    // Try next URL
+                    urlIndex++;
+                    setTimeout(tryConnect, 2000);
+                });
+                
+                // Work order update events
+                socket.on('workorder-update', (data) => {
+                    logMessage(`🔔 Work Order Update Received:`, 'success');
+                    logMessage(`   Work Order: ${data.workOrderNo}`, 'info');
+                    logMessage(`   Update Type: ${data.updateType}`, 'info');
+                    logMessage(`   Timestamp: ${new Date(data.timestamp).toLocaleString()}`, 'info');
+                });
+                
+                socket.on('data-refresh', (data) => {
+                    logMessage(`🔄 Data Refresh: ${data.dataType}`, 'success');
+                    logMessage(`   Timestamp: ${new Date(data.timestamp).toLocaleString()}`, 'info');
+                });
+            }
+            
+            tryConnect();
+        }
+        
+        // Test function
+        async function testWorkOrderUpdate() {
+            testButton.disabled = true;
+            logMessage('🧪 Testing work order update...', 'info');
+            
+            try {
+                // Test HTTP connection first
+                logMessage('🌐 Testing HTTP connection...', 'info');
+                const response = await fetch('http://localhost:4000/workorders');
+                const workOrders = await response.json();
+                
+                logMessage(`✅ HTTP connection successful. Found ${workOrders.length} work orders`, 'success');
+                
+                if (workOrders.length === 0) {
+                    logMessage('❌ No work orders found to test with', 'error');
+                    testButton.disabled = false;
+                    return;
+                }
+                
+                // Update the first work order
+                const firstWorkOrder = workOrders[0];
+                logMessage(`📝 Updating work order: ${firstWorkOrder.workOrderNo}`, 'info');
+                
+                const updatedWorkOrder = {
+                    ...firstWorkOrder,
+                    status: firstWorkOrder.status === 'In Progress' ? 'Assigned' : 'In Progress',
+                    statusHistory: [
+                        ...(firstWorkOrder.statusHistory || []),
+                        {
+                            status: firstWorkOrder.status === 'In Progress' ? 'Assigned' : 'In Progress',
+                            date: new Date().toISOString(),
+                            updatedBy: 'WebSocket Test'
+                        }
+                    ]
+                };
+                
+                const updateResponse = await fetch(`http://localhost:4000/workorders/${firstWorkOrder.workOrderNo}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedWorkOrder)
+                });
+                
+                if (updateResponse.ok) {
+                    const result = await updateResponse.json();
+                    logMessage(`✅ Work order updated successfully!`, 'success');
+                    logMessage(`🔄 New status: ${result.workOrder.status}`, 'success');
+                    logMessage(`🔔 WebSocket broadcast should be triggered...`, 'info');
+                } else {
+                    const errorText = await updateResponse.text();
+                    logMessage(`❌ Update failed: ${updateResponse.status} - ${errorText}`, 'error');
+                }
+                
+            } catch (error) {
+                logMessage(`❌ Test failed: ${error.message}`, 'error');
+            }
+            
+            testButton.disabled = false;
+        }
+        
+        // Start connection
+        connect();
+    </script>
+</body>
+</html>

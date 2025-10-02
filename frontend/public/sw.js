@@ -1,6 +1,6 @@
 // Service Worker for GLLS Work Orders App
-const CACHE_NAME = 'glls-work-orders-v1.0.5';
-const API_CACHE_NAME = 'glls-api-cache-v1.0.5';
+const CACHE_NAME = 'glls-work-orders-v1.0.8';
+const API_CACHE_NAME = 'glls-api-cache-v1.0.8';
 
 // Files to cache immediately (app shell)
 const urlsToCache = [
@@ -96,7 +96,24 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// Handle API requests with cache-first strategy for better offline support
+// Listen for messages from the main thread to clear cache on WebSocket updates
+self.addEventListener('message', (event) => {
+  console.log('Service Worker: Received message:', event.data);
+  if (event.data && event.data.type === 'CLEAR_API_CACHE') {
+    console.log('Service Worker: Clearing API cache due to WebSocket update');
+    // Clear both API cache and main cache
+    Promise.all([
+      caches.delete(API_CACHE_NAME),
+      caches.delete(CACHE_NAME)
+    ]).then(() => {
+      console.log('Service Worker: All caches cleared successfully');
+    }).catch(error => {
+      console.error('Service Worker: Error clearing caches:', error);
+    });
+  }
+});
+
+// Handle API requests with network-first strategy for real-time updates
 async function handleApiRequest(request) {
   const url = new URL(request.url);
   // Remove timestamp parameter for consistent caching
@@ -105,27 +122,35 @@ async function handleApiRequest(request) {
   
   const cache = await caches.open(API_CACHE_NAME);
   
-  // First, try to serve from cache
-  const cachedResponse = await cache.match(cacheKey);
-  
-  if (cachedResponse) {
-    console.log('Service Worker: Serving from cache:', cleanUrl);
+  try {
+    // Try network first for real-time updates
+    console.log('Service Worker: Fetching from network:', cleanUrl);
+    const networkResponse = await fetch(request);
     
-    // If online, try to update cache in background
-    if (navigator.onLine) {
-      fetch(request)
-        .then(response => {
-          if (response.ok) {
-            cache.put(cacheKey, response.clone());
-            console.log('Service Worker: Updated cache in background:', cleanUrl);
-          }
-        })
-        .catch(() => {
-          // Network failed, but we already have cached data
-        });
+    if (networkResponse.ok) {
+      // Cache the fresh response
+      await cache.put(cacheKey, networkResponse.clone());
+      console.log('Service Worker: Cached fresh response:', cleanUrl);
+      return networkResponse;
+    } else {
+      throw new Error(`Network response not ok: ${networkResponse.status}`);
+    }
+  } catch (error) {
+    console.log('Service Worker: Network failed, trying cache:', cleanUrl, error.message);
+    
+    // If network fails, try cache as fallback
+    const cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) {
+      console.log('Service Worker: Serving from cache (offline):', cleanUrl);
+      return cachedResponse.clone();
     }
     
-    return cachedResponse.clone();
+    // If no cache available, return a generic error response
+    return new Response(JSON.stringify({ error: 'Network unavailable and no cached data' }), {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
   
   // No exact cache match, try to find similar cached response

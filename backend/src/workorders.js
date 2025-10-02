@@ -2,6 +2,7 @@ const pool = require('../db');
 const { google } = require('googleapis');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
+const WebSocketBroadcaster = require('./utils/websocket');
 const {
   add,
   addLineItem,
@@ -232,6 +233,14 @@ for (const part of order.parts) {
         }
       }
 
+      // Broadcast the new work order via WebSocket (with error handling)
+      try {
+        WebSocketBroadcaster.broadcastWorkOrderCreated(savedOrder);
+      } catch (wsError) {
+        console.error('WebSocket broadcasting error:', wsError);
+        // Don't fail the API call if WebSocket broadcasting fails
+      }
+
       res.status(201).json(savedOrder);
     } catch (err) {
       console.error('Failed to create work order:', err);
@@ -396,6 +405,28 @@ if (updates.timeLogs && Array.isArray(updates.timeLogs)) {
 
 
 if (!updated) return res.status(404).json({ error: 'Work order not found' });
+
+// Broadcast the work order update via WebSocket (with error handling)
+try {
+  console.log('Broadcasting work order update for:', workOrderNo, 'with data:', Object.keys(updated || {}));
+  // Convert snake_case to camelCase for frontend compatibility
+  const camelCaseUpdated = toCamel(updated);
+  console.log('Converted to camelCase:', Object.keys(camelCaseUpdated || {}));
+  if (camelCaseUpdated && camelCaseUpdated.notes) {
+    console.log('Notes field in camelCase:', camelCaseUpdated.notes);
+  }
+  WebSocketBroadcaster.broadcastWorkOrderUpdated(workOrderNo, camelCaseUpdated);
+  
+  // Only broadcast parts update if parts were specifically modified (not just any update)
+  if (updates.hasOwnProperty('parts') && Array.isArray(updates.parts)) {
+    console.log('Broadcasting parts update for work order:', workOrderNo);
+    WebSocketBroadcaster.broadcastPartsUpdated(workOrderNo, updates.parts);
+  }
+} catch (wsError) {
+  console.error('WebSocket broadcasting error:', wsError);
+  // Don't fail the API call if WebSocket broadcasting fails
+}
+
 res.json({ message: 'Work order updated', workOrder: updated });
 
   } catch (err) {
@@ -753,6 +784,14 @@ const updateResult = await pool.query(
           ['In Progress, Pending Parts (Ordered)', JSON.stringify(statusHistory), workOrderNo]
         );
         
+        // Broadcast the part status update via WebSocket (with error handling)
+        try {
+          WebSocketBroadcaster.broadcastPartStatusUpdated(workOrderNo, partId, action, estimatedDeliveryDate);
+        } catch (wsError) {
+          console.error('WebSocket broadcasting error:', wsError);
+          // Don't fail the API call if WebSocket broadcasting fails
+        }
+
         res.json({ 
           message: 'Part marked as ordered and work order status updated.',
           newStatus: 'In Progress, Pending Parts (Ordered)'
@@ -788,6 +827,14 @@ const updateResult = await pool.query(
           ['In Progress', JSON.stringify(statusHistory), workOrderNo]
         );
         
+        // Broadcast the part status update via WebSocket (with error handling)
+        try {
+          WebSocketBroadcaster.broadcastPartStatusUpdated(workOrderNo, partId, action, null);
+        } catch (wsError) {
+          console.error('WebSocket broadcasting error:', wsError);
+          // Don't fail the API call if WebSocket broadcasting fails
+        }
+
         res.json({ 
           message: 'Part marked as arrived and work order status updated.',
           newStatus: 'In Progress'

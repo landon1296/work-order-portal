@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>WebSocket Test for GLLS Work Orders</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    
+    <script>
+        const socket = io('ws://localhost:4000');
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        socket.on('connect', () => {
+            statusDiv.innerHTML = '✅ Connected to WebSocket server';
+            statusDiv.style.color = 'green';
+            
+            // Join general updates room
+            socket.emit('join-updates');
+            
+            // Join a test work order room
+            socket.emit('join-workorder', 'TEST-123');
+        });
+        
+        socket.on('disconnect', () => {
+            statusDiv.innerHTML = '❌ Disconnected from WebSocket server';
+            statusDiv.style.color = 'red';
+        });
+        
+        socket.on('workorder-update', (data) => {
+            const message = document.createElement('div');
+            message.innerHTML = `
+                <strong>Work Order Update:</strong><br>
+                Work Order: ${data.workOrderNo}<br>
+                Update Type: ${data.updateType}<br>
+                Timestamp: ${new Date(data.timestamp).toLocaleString()}<br>
+                <hr>
+            `;
+            message.style.marginBottom = '10px';
+            message.style.padding = '10px';
+            message.style.border = '1px solid #ccc';
+            message.style.borderRadius = '5px';
+            messagesDiv.appendChild(message);
+        });
+        
+        socket.on('data-refresh', (data) => {
+            const message = document.createElement('div');
+            message.innerHTML = `
+                <strong>Data Refresh:</strong><br>
+                Data Type: ${data.dataType}<br>
+                Timestamp: ${new Date(data.timestamp).toLocaleString()}<br>
+                <hr>
+            `;
+            message.style.marginBottom = '10px';
+            message.style.padding = '10px';
+            message.style.border = '1px solid #blue';
+            message.style.borderRadius = '5px';
+            message.style.backgroundColor = '#f0f8ff';
+            messagesDiv.appendChild(message);
+        });
+        
+        socket.on('connect_error', (error) => {
+            statusDiv.innerHTML = `❌ Connection Error: ${error.message}`;
+            statusDiv.style.color = 'red';
+        });
+        
+        // Test function to simulate a work order update
+        function testWorkOrderUpdate() {
+            fetch('http://localhost:4000/workorders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    workOrderNo: 'TEST-123',
+                    companyName: 'Test Company',
+                    make: 'Test Make',
+                    model: 'Test Model',
+                    status: 'Assigned'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Test work order created:', data);
+            })
+            .catch(error => {
+                console.error('Error creating test work order:', error);
+            });
+        }
+        
+        // Add test button after connection is established
+        socket.on('connect', () => {
+            const testButton = document.createElement('button');
+            testButton.textContent = 'Test Work Order Update';
+            testButton.onclick = testWorkOrderUpdate;
+            testButton.style.margin = '10px';
+            testButton.style.padding = '10px 20px';
+            testButton.style.fontSize = '16px';
+            document.body.appendChild(testButton);
+        });
+    </script>
+</body>
+</html>
