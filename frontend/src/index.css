@@ -43,6 +43,43 @@ body.login-page {
   padding: 2px;
   font-size: 12px;
   font-family: inherit;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+/* Real-time highlighting styles */
+.field-highlighted {
+  background-color: #fff8e1 !important; /* Soft yellow background */
+  border-color: #ffb74d !important; /* Soft orange border */
+  border-width: 2px !important;
+  border-style: solid !important;
+  box-shadow: 0 0 8px rgba(255, 183, 77, 0.4) !important;
+  outline: none !important;
+  transform: scale(1.01) !important; /* Very slight scale for subtle effect */
+}
+
+/* Enhanced focus styles for better keyboard navigation */
+button:focus, input[type="checkbox"]:focus {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Show a subtle hint for Shift+Space */
+button:focus::after, input[type="checkbox"]:focus::after {
+  content: " (Shift+Space to click)";
+  font-size: 10px;
+  color: #6b7280;
+  font-style: italic;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  padding: 2px 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  z-index: 1000;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .assign-table-header {

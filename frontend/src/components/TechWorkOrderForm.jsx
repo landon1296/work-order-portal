@@ -555,25 +555,14 @@ if (!formObj.status) formObj.status = "Assigned";
 
   // Helper function to get field styling with highlighting
   const getFieldStyle = (fieldName) => {
-    const baseStyle = {
-      transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
-    };
-    
     if (highlightedFields.has(fieldName)) {
       console.log(`🎯 TechWorkOrderForm: HIGHLIGHTING FIELD ${fieldName.toUpperCase()} - Current highlighted fields:`, Array.from(highlightedFields));
       return {
-        ...baseStyle,
-        backgroundColor: '#fff8e1', // Soft yellow background
-        borderColor: '#ffb74d', // Soft orange border
-        borderWidth: '2px',
-        borderStyle: 'solid',
-        boxShadow: '0 0 8px rgba(255, 183, 77, 0.4)',
-        outline: 'none',
-        transform: 'scale(1.01)' // Very slight scale for subtle effect
+        className: 'field-highlighted'
       };
     }
     
-    return baseStyle;
+    return {};
   };
 
   // WebSocket event listeners for this specific work order
@@ -1190,32 +1179,6 @@ console.log("form", form);
 
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} style={{ padding: '8px', fontFamily: 'Arial' }}>
-      <style>{`
-        /* Enhanced focus styles for better keyboard navigation */
-        button:focus, input[type="checkbox"]:focus {
-          outline: 3px solid #3b82f6 !important;
-          outline-offset: 2px !important;
-          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
-        }
-        
-        /* Show a subtle hint for Shift+Space */
-        button:focus::after, input[type="checkbox"]:focus::after {
-          content: " (Shift+Space to click)";
-          font-size: 10px;
-          color: #6b7280;
-          font-style: italic;
-          position: absolute;
-          top: 100%;
-          left: 0;
-          background: white;
-          padding: 2px 4px;
-          border: 1px solid #d1d5db;
-          border-radius: 3px;
-          z-index: 1000;
-          pointer-events: none;
-          white-space: nowrap;
-        }
-      `}</style>
       {/* WebSocket status indicator */}
       {wsConnected && (
         <div style={{
@@ -1310,7 +1273,7 @@ console.log("form", form);
                 value={form.companyName || ""}                
                 onChange={handleChange}
                 placeholder="Company Name"
-                style={getFieldStyle('companyName')}
+                {...getFieldStyle('companyName')}
               />
 
             </td>
@@ -1320,7 +1283,8 @@ console.log("form", form);
                 value={form.make || ""}                
                 onChange={handleChange}
                 required
-                style={{...getFieldStyle('make'), width: '100%'}}
+                style={{width: '100%'}}
+                {...getFieldStyle('make')}
             >
                 <option value="">-- Select Make --</option>
                 {makes.map(make => (
@@ -1335,7 +1299,8 @@ console.log("form", form);
                 onChange={handleChange}
                 required
                 disabled={!form.make}
-                style={{...getFieldStyle('model'), width: '100%'}}
+                style={{width: '100%'}}
+                {...getFieldStyle('model')}
             >
                 <option value="">-- Select Model --</option>
                 {models.map(model => (
@@ -1348,7 +1313,7 @@ console.log("form", form);
                 name="serialNumber" 
                 value={form.serialNumber} 
                 onChange={handleChange}
-                style={getFieldStyle('serialNumber')}
+                {...getFieldStyle('serialNumber')}
               />
             </td>
             <td>
@@ -1852,19 +1817,19 @@ console.log("form", form);
 
             </tr>
             <tr>
-                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
+                <th className={`assign-table-header ${getFieldStyle('parts').className || ''}`} colSpan={1}>
                   Part Number
                 </th>
-                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
+                <th className={`assign-table-header ${getFieldStyle('parts').className || ''}`} colSpan={1}>
                   Part Name/ Description
                 </th>
-                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
+                <th className={`assign-table-header ${getFieldStyle('parts').className || ''}`} colSpan={1}>
                   Quantity
                 </th>
-                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
+                <th className={`assign-table-header ${getFieldStyle('parts').className || ''}`} colSpan={1}>
                   Pending Parts?
                 </th>
-                <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
+                <th className={`assign-table-header ${getFieldStyle('parts').className || ''}`} colSpan={1}>
                   Est. Delivery Date
                 </th>
             </tr>
@@ -1996,7 +1961,8 @@ console.log("form", form);
                 value={form.workDescription || ""}                
                 onChange={handleChange}
                 rows={3}
-                style={{...getFieldStyle('workDescription'), width: '100%'}}
+                style={{width: '100%'}}
+                {...getFieldStyle('workDescription')}
                 placeholder="Brief Description of Work To Be Completed"
               />
             </td>
@@ -2013,7 +1979,8 @@ console.log("form", form);
                     value={form.notes || ""}                    
                     onChange={handleChange}
                     rows={3}
-                    style={{...getFieldStyle('notes'), width: '100%'}}
+                    style={{width: '100%'}}
+                    {...getFieldStyle('notes')}
                     placeholder="Summary of Work Completed"
                     required
                 />

@@ -1178,25 +1178,14 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
 
   // Helper function to get field styling with highlight
   const getFieldStyle = (fieldName) => {
-    const baseStyle = {
-      transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
-    };
-    
     if (highlightedFields.has(fieldName)) {
       console.log(`🎯 getFieldStyle: HIGHLIGHTING FIELD ${fieldName.toUpperCase()} - Current highlighted fields:`, Array.from(highlightedFields));
       return {
-        ...baseStyle,
-        backgroundColor: '#fff8e1', // Soft yellow background
-        borderColor: '#ffb74d', // Soft orange border
-        borderWidth: '2px',
-        borderStyle: 'solid',
-        boxShadow: '0 0 8px rgba(255, 183, 77, 0.4)',
-        outline: 'none',
-        transform: 'scale(1.01)' // Very slight scale for subtle effect
+        className: 'field-highlighted'
       };
     }
     
-    return baseStyle;
+    return {};
   };
 
   // Periodic refresh disabled - was causing form content to be deleted
@@ -1830,32 +1819,6 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
 
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} style={{ padding: '8px', fontFamily: 'Arial' }}>
-      <style>{`
-        /* Enhanced focus styles for better keyboard navigation */
-        button:focus, input[type="checkbox"]:focus {
-          outline: 3px solid #3b82f6 !important;
-          outline-offset: 2px !important;
-          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
-        }
-        
-        /* Show a subtle hint for Shift+Space */
-        button:focus::after, input[type="checkbox"]:focus::after {
-          content: " (Shift+Space to click)";
-          font-size: 10px;
-          color: #6b7280;
-          font-style: italic;
-          position: absolute;
-          top: 100%;
-          left: 0;
-          background: white;
-          padding: 2px 4px;
-          border: 1px solid #d1d5db;
-          border-radius: 3px;
-          z-index: 1000;
-          pointer-events: none;
-          white-space: nowrap;
-        }
-      `}</style>
       <NavigationButton onBack={() => navigate(getBackRoute())} />
       
       {/* WebSocket Connection Status */}
@@ -2138,7 +2101,7 @@ const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, ma
         name="companyName"
         data-field="companyName"
         value={form.companyName ?? ""}
-        style={getFieldStyle('companyName')}
+        {...getFieldStyle('companyName')}
         onChange={onChange}
         placeholder="Company Name"
       />
@@ -2148,7 +2111,8 @@ const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, ma
         name="make"
         data-field="make"
         value={form.make ?? ""}
-        style={{...getFieldStyle('make'), width: '100%'}}
+        style={{width: '100%'}}
+        {...getFieldStyle('make')}
         onChange={onChange}
         required
       >
@@ -2843,7 +2807,8 @@ const TechSummaryRow = ({ form, onChange, getFieldStyle }) => (
         <textarea
           name="notes"
           value={form.notes ?? ""}
-          style={{...getFieldStyle('notes'), width: '100%'}}
+          style={{width: '100%'}}
+          {...getFieldStyle('notes')}
           onChange={onChange}
           rows={3}
           placeholder="Notes"
