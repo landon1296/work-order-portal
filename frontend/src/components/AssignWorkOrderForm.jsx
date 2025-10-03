@@ -355,6 +355,262 @@ const generatePDF = (order) => {
 };
 
 // Custom hooks
+const useKeyboardNavigation = () => {
+  const handleKeyDown = useCallback((e) => {
+    // Handle Shift+Space to click focused buttons/checkboxes
+    if (e.key === ' ' && e.shiftKey) {
+      e.preventDefault();
+      if (e.target.type === 'button' || e.target.type === 'checkbox') {
+        e.target.click();
+        return;
+      }
+    }
+    
+    // Only handle Enter, Shift+Enter, Tab, and Shift+Tab
+    if (!['Enter', 'Tab'].includes(e.key)) return;
+    
+    // Skip if it's a textarea (allow normal behavior)
+    if (e.target.tagName === 'TEXTAREA') return;
+    
+    e.preventDefault();
+    
+    // Find all focusable elements in the form (excluding navigation buttons)
+    const focusableElements = Array.from(document.querySelectorAll(
+      'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
+    )).filter(el => {
+      // Exclude navigation buttons and other non-form elements
+      const isBackButton = el.textContent?.includes('Back') || el.textContent?.includes('←');
+      const isSubmitButton = el.type === 'submit' || el.textContent?.includes('Assign') || el.textContent?.includes('Save');
+      const isPhotoButton = el.textContent?.includes('Photo') || el.textContent?.includes('photo');
+      const isSignatureButton = el.textContent?.includes('Signature') || el.textContent?.includes('signature');
+      
+      return !isBackButton && !isSubmitButton && !isPhotoButton && !isSignatureButton;
+    });
+    
+    const currentIndex = focusableElements.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+    
+    // Define the grid layout based on the ACTUAL form structure
+    // Each row represents the actual table rows, columns represent fields within that row
+    const gridLayout = [
+      // Row 1: Company Info (5 columns)
+      ['companyName', 'make', 'model', 'serialNumber', 'date'],
+      // Row 2: Company Street (1 column, spans 2)
+      ['companyStreet'],
+      // Row 3: Company City | Field Contact Info (4 columns)
+      ['companyCity', 'fieldContact', 'fieldContactNumber', 'workOrderNo'],
+      // Row 4: Company State | Field Address | PO Number (4 columns)
+      ['companyState', 'fieldStreet', 'fieldCity', 'poNumber'],
+      // Row 5: Company Zip | Field State/Zip (3 columns)
+      ['companyZip', 'fieldState', 'fieldZipcode'],
+      // Row 6: Contact Info | Work Type | Shop | Repair Type (4 columns)
+      ['contactName', 'vendorWarranty', 'shop', 'repairType'],
+      // Row 7: Contact Phone | Billable checkbox (2 columns)
+      ['contactPhone', 'billable'],
+      // Row 8: Contact Email | Maintenance checkbox (2 columns)
+      ['contactEmail', 'maintenance'],
+      // Row 9: Non-billable repair checkbox (1 column)
+      ['nonBillableRepair'],
+      // Row 10: Technician Time Logs (5 columns)
+      ['technicianAssigned', 'assignDate', 'startTime', 'finishTime', 'travelTime'],
+      // Row 11: Add Time Log button (1 column)
+      ['addTimeLog'],
+      // Row 12: Sales & Shipping (3 columns)
+      ['salesName', 'shippingCost', 'shippingComments'],
+      // Row 13: Parts (5 columns)
+      ['partNumber', 'description', 'quantity', 'waiting', 'estimatedDeliveryDate'],
+      // Row 14: Add Part button (1 column)
+      ['addPart'],
+      // Row 15: Work Description (1 column)
+      ['workDescription'],
+      // Row 16: Notes (1 column)
+      ['notes']
+    ];
+    
+    // Find current field position in grid
+    let currentRow = -1;
+    let currentCol = -1;
+    let fieldName = '';
+    
+    // Get field name from the focused element
+    fieldName = e.target.name || '';
+    
+    // Find the field in the grid
+    for (let row = 0; row < gridLayout.length; row++) {
+      for (let col = 0; col < gridLayout[row].length; col++) {
+        if (gridLayout[row][col] === fieldName) {
+          currentRow = row;
+          currentCol = col;
+          break;
+        }
+      }
+      if (currentRow !== -1) break;
+    }
+    
+    // If we can't find the field in the grid, fall back to simple navigation
+    if (currentRow === -1) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // Move to next element
+        const nextIndex = currentIndex < focusableElements.length - 1 ? currentIndex + 1 : 0;
+        focusableElements[nextIndex].focus();
+      } else if (e.key === 'Enter' && e.shiftKey) {
+        // Move to previous element
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusableElements.length - 1;
+        focusableElements[prevIndex].focus();
+      }
+      return;
+    }
+    
+    let nextRow = currentRow;
+    let nextCol = currentCol;
+    
+    if (e.key === 'Tab') {
+      // Tab: Move right, Shift+Tab: Move left
+      if (e.shiftKey) {
+        // Move left
+        nextCol = currentCol - 1;
+        if (nextCol < 0) {
+          // Move to previous row, last column
+          nextRow = currentRow - 1;
+          if (nextRow < 0) {
+            nextRow = gridLayout.length - 1; // Wrap to last row
+          }
+          nextCol = gridLayout[nextRow].length - 1;
+        }
+      } else {
+        // Move right
+        nextCol = currentCol + 1;
+        if (nextCol >= gridLayout[currentRow].length) {
+          // Move to next row, first column
+          nextRow = currentRow + 1;
+          if (nextRow >= gridLayout.length) {
+            nextRow = 0; // Wrap to first row
+          }
+          nextCol = 0;
+        }
+      }
+    } else if (e.key === 'Enter') {
+      // Enter: Move down, Shift+Enter: Move up
+      if (e.shiftKey) {
+        // Move up
+        nextRow = currentRow - 1;
+        if (nextRow < 0) {
+          nextRow = gridLayout.length - 1; // Wrap to last row
+        }
+        // Stay in same column, but don't exceed the target row's column count
+        nextCol = Math.min(currentCol, gridLayout[nextRow].length - 1);
+      } else {
+        // Move down
+        nextRow = currentRow + 1;
+        if (nextRow >= gridLayout.length) {
+          nextRow = 0; // Wrap to first row
+        }
+        // Stay in same column, but don't exceed the target row's column count
+        nextCol = Math.min(currentCol, gridLayout[nextRow].length - 1);
+      }
+    }
+    
+    // Find the next field to focus
+    const nextFieldName = gridLayout[nextRow][nextCol];
+    console.log(`Navigating from ${fieldName} (row ${currentRow}, col ${currentCol}) to ${nextFieldName} (row ${nextRow}, col ${nextCol})`);
+    
+    let nextElement = focusableElements.find(el => 
+      el.name === nextFieldName
+    );
+    
+    console.log(`Found ${focusableElements.length} focusable elements. Looking for field: ${nextFieldName}`);
+    if (nextElement) {
+      console.log(`Found element by name:`, nextElement);
+    }
+    
+    // If exact match not found, try some common variations
+    if (!nextElement && nextFieldName) {
+      if (nextFieldName === 'vendorWarranty') {
+        nextElement = focusableElements.find(el => 
+          el.type === 'checkbox' && el.name === 'vendorWarranty'
+        );
+      } else if (nextFieldName === 'billable') {
+        nextElement = focusableElements.find(el => 
+          el.type === 'checkbox' && el.name === 'billable'
+        );
+      } else if (nextFieldName === 'maintenance') {
+        nextElement = focusableElements.find(el => 
+          el.type === 'checkbox' && el.name === 'maintenance'
+        );
+      } else if (nextFieldName === 'nonBillableRepair') {
+        nextElement = focusableElements.find(el => 
+          el.type === 'checkbox' && el.name === 'nonBillableRepair'
+        );
+      } else if (nextFieldName === 'waiting') {
+        // For parts waiting checkboxes, find the first one
+        nextElement = focusableElements.find(el => 
+          el.type === 'checkbox' && el.checked !== undefined
+        );
+      } else if (nextFieldName === 'addTimeLog') {
+        // Find the "Add Time Log" button specifically
+        nextElement = focusableElements.find(el => 
+          el.type === 'button' && el.textContent?.includes('Add Time Log')
+        );
+        console.log(`Looking for Add Time Log button. Found:`, nextElement);
+      } else if (nextFieldName === 'addPart') {
+        // Find the "Add Part" button specifically
+        nextElement = focusableElements.find(el => 
+          el.type === 'button' && el.textContent?.includes('Add Part')
+        );
+        console.log(`Looking for Add Part button. Found:`, nextElement);
+      } else if (nextFieldName === 'technicianAssigned') {
+        // Find technician dropdown (first one in time logs)
+        nextElement = focusableElements.find(el => 
+          el.tagName === 'SELECT' && el.name === 'technicianAssigned'
+        );
+      } else if (nextFieldName === 'assignDate') {
+        // Find assign date input (first one in time logs)
+        nextElement = focusableElements.find(el => 
+          el.type === 'date' && el.name === 'assignDate'
+        );
+      } else if (nextFieldName === 'startTime') {
+        // Find start time input (first one in time logs)
+        nextElement = focusableElements.find(el => 
+          el.type === 'time' && el.name === 'startTime'
+        );
+      } else if (nextFieldName === 'finishTime') {
+        // Find finish time input (first one in time logs)
+        nextElement = focusableElements.find(el => 
+          el.type === 'time' && el.name === 'finishTime'
+        );
+      } else if (nextFieldName === 'travelTime') {
+        // Find travel time input (first one in time logs)
+        nextElement = focusableElements.find(el => 
+          el.type === 'text' && el.name === 'travelTime'
+        );
+      }
+    }
+    
+    if (nextElement) {
+      console.log(`Successfully found element, focusing:`, nextElement);
+      nextElement.focus();
+    } else {
+      console.log(`No element found for ${nextFieldName}, using fallback navigation`);
+      // Fallback: move to next/previous element in DOM order
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const nextIndex = currentIndex < focusableElements.length - 1 ? currentIndex + 1 : 0;
+        focusableElements[nextIndex].focus();
+      } else if (e.key === 'Enter' && e.shiftKey) {
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusableElements.length - 1;
+        focusableElements[prevIndex].focus();
+      } else if (e.key === 'Tab' && !e.shiftKey) {
+        const nextIndex = currentIndex < focusableElements.length - 1 ? currentIndex + 1 : 0;
+        focusableElements[nextIndex].focus();
+      } else if (e.key === 'Tab' && e.shiftKey) {
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusableElements.length - 1;
+        focusableElements[prevIndex].focus();
+      }
+    }
+  }, []);
+
+  return { handleKeyDown };
+};
+
 const useFormData = (id) => {
   const [form, setForm] = useState({
     companyName: '',
@@ -477,6 +733,9 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
   
   // WebSocket connection status
   const connectionStatus = useWebSocket(user?.token);
@@ -1570,7 +1829,33 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ padding: '8px', fontFamily: 'Arial' }}>
+    <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} style={{ padding: '8px', fontFamily: 'Arial' }}>
+      <style>{`
+        /* Enhanced focus styles for better keyboard navigation */
+        button:focus, input[type="checkbox"]:focus {
+          outline: 3px solid #3b82f6 !important;
+          outline-offset: 2px !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+        }
+        
+        /* Show a subtle hint for Shift+Space */
+        button:focus::after, input[type="checkbox"]:focus::after {
+          content: " (Shift+Space to click)";
+          font-size: 10px;
+          color: #6b7280;
+          font-style: italic;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          background: white;
+          padding: 2px 4px;
+          border: 1px solid #d1d5db;
+          border-radius: 3px;
+          z-index: 1000;
+          pointer-events: none;
+          white-space: nowrap;
+        }
+      `}</style>
       <NavigationButton onBack={() => navigate(getBackRoute())} />
       
       {/* WebSocket Connection Status */}
@@ -1851,6 +2136,7 @@ const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, ma
     <td>
       <input
         name="companyName"
+        data-field="companyName"
         value={form.companyName ?? ""}
         style={getFieldStyle('companyName')}
         onChange={onChange}
@@ -1860,6 +2146,7 @@ const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, ma
     <td>
       <select
         name="make"
+        data-field="make"
         value={form.make ?? ""}
         style={{...getFieldStyle('make'), width: '100%'}}
         onChange={onChange}
@@ -1874,6 +2161,7 @@ const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, ma
     <td>
       <select
         name="model"
+        data-field="model"
         value={form.model ?? ""}
         onChange={onChange}
         required
@@ -1887,10 +2175,21 @@ const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, ma
       </select>
     </td>
     <td>
-      <input name="serialNumber" value={form.serialNumber ?? ""} onChange={onChange} />
+      <input 
+        name="serialNumber" 
+        data-field="serialNumber"
+        value={form.serialNumber ?? ""} 
+        onChange={onChange} 
+      />
     </td>
     <td>
-      <input type="date" name="date" value={form.date ?? ""} onChange={onChange} />
+      <input 
+        type="date" 
+        name="date" 
+        data-field="date"
+        value={form.date ?? ""} 
+        onChange={onChange} 
+      />
     </td>
   </tr>
 );
@@ -1900,6 +2199,7 @@ const FieldContactRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair })
     <td colSpan={2}>
       <input
         name="companyStreet"
+        data-field="companyStreet"
         value={form.companyStreet ?? ""}
         onChange={onChange}
         placeholder="Company Street"
@@ -1919,6 +2219,7 @@ const ContactInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair }) 
     <td colSpan={2}>
       <input
         name="companyCity"
+        data-field="companyCity"
         value={form.companyCity ?? ""}
         onChange={onChange}
         placeholder="Company City"
@@ -1927,6 +2228,7 @@ const ContactInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair }) 
     <td>
           <input
             name="fieldContact"
+            data-field="fieldContact"
             value={form.fieldContact ?? ""}
             onChange={onChange}
             placeholder="Field Contact Name"
@@ -1941,6 +2243,7 @@ const ContactInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair }) 
       <td>
         <input
         name="fieldContactNumber"
+        data-field="fieldContactNumber"
         value={form.fieldContactNumber ?? ""}
         onChange={onChange}
         placeholder="Field Contact Phone"
