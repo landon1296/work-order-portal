@@ -117,11 +117,7 @@ function App() {
           {/* Assign/Edit Work Order (Managers, Accounting, Analytics, Owner, Reception) */}
           <Route path="/dashboard/workorder/:id" element={
             <RequireAuth user={user}>
-              {(user?.role === 'manager' ||
-                user?.role === 'analytics' ||
-                user?.role === 'owner' ||
-                user?.role === 'accounting' ||
-                user?.role === 'reception')
+              {hasRole(user, ['manager', 'analytics', 'owner', 'accounting', 'reception'])
                 ? <Suspense fallback={<LoadingSpinner message="Loading work order form..." />}>
                     <AssignWorkOrderForm token={user.token} user={user} editMode={true} />
                   </Suspense>
@@ -133,9 +129,7 @@ function App() {
           {/* Assign New Work Order (Managers, Analytics, Owner) */}
           <Route path="/assign" element={
             <RequireAuth user={user}>
-              {user?.role === 'manager' ||
-               user?.role === 'analytics' ||
-               user?.role === 'owner'
+              {hasRole(user, ['manager', 'analytics', 'owner'])
                 ? <Suspense fallback={<LoadingSpinner message="Loading work order form..." />}>
                     <AssignWorkOrderForm token={user.token} user={user} />
                   </Suspense>
@@ -144,10 +138,10 @@ function App() {
             </RequireAuth>
           } />
 
-          {/* Troubleshoot Form (Reception, Analytics, Owner) */}
+          {/* Troubleshoot Form (Reception, Analytics, Owner, Manager) */}
           <Route path="/troubleshoot" element={
             <RequireAuth user={user}>
-              {(user?.role === 'reception' || user?.role === 'analytics' || user?.role === 'owner')
+              {hasRole(user, ['reception', 'analytics', 'owner', 'manager'])
                 ? <Suspense fallback={<LoadingSpinner message="Loading troubleshoot form..." />}>
                     <TroubleshootForm token={user.token} user={user} />
                   </Suspense>
@@ -156,10 +150,10 @@ function App() {
             </RequireAuth>
           } />
 
-          {/* Edit Troubleshoot Form (Reception, Technicians, Analytics, Owner) */}
+          {/* Edit Troubleshoot Form (Reception, Technicians, Analytics, Owner, Manager) */}
           <Route path="/troubleshoot/:id" element={
             <RequireAuth user={user}>
-              {(user?.role === 'reception' || user?.role === 'technician' || user?.role === 'analytics' || user?.role === 'owner')
+              {hasRole(user, ['reception', 'technician', 'analytics', 'owner', 'manager'])
                 ? <Suspense fallback={<LoadingSpinner message="Loading troubleshoot form..." />}>
                     <TroubleshootForm token={user.token} user={user} editMode={true} />
                   </Suspense>
@@ -196,7 +190,7 @@ function App() {
           {/* Reception Dashboard */}
           <Route path="/reception-dashboard" element={
             <RequireAuth user={user}>
-              {user?.role === 'reception'
+              {hasRole(user, ['reception', 'analytics', 'owner', 'manager'])
                 ? <Suspense fallback={<LoadingSpinner message="Loading reception dashboard..." />}>
                     <ReceptionDashboard user={user} />
                   </Suspense>
