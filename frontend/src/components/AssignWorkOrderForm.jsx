@@ -369,8 +369,8 @@ const useKeyboardNavigation = () => {
     // Only handle Enter, Shift+Enter, Tab, and Shift+Tab
     if (!['Enter', 'Tab'].includes(e.key)) return;
     
-    // Skip if it's a textarea (allow normal behavior)
-    if (e.target.tagName === 'TEXTAREA') return;
+    // Skip if it's a textarea or select (allow normal behavior)
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
     
     e.preventDefault();
     
