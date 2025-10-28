@@ -8,6 +8,8 @@ import GLLSLogo from '../assets/GLLSLogo.png';
 import logoBase64 from '../assets/logoBase64';
 import { getStatusColor } from '../utils/statusColors';
 import DeleteWorkOrderModal from './DeleteWorkOrderModal';
+import { usePaginatedWorkOrders } from '../hooks/usePaginatedWorkOrders';
+import { useServerSideSearch } from '../hooks/useServerSideSearch';
 
 // CSS animations
 const styles = `
@@ -38,97 +40,68 @@ const drawRoundedRect = (doc, x, y, width, height, radius = 3) => {
 };
 
 // Global search functionality
-const useGlobalSearch = () => {
+const useGlobalSearch = (user) => {
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-
-  const performGlobalSearch = useCallback((orders, searchTerm) => {
-    if (!searchTerm.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    const searchLower = searchTerm.toLowerCase();
-    const results = orders.filter(order => {
-      return (
-        (order.companyName && order.companyName.toLowerCase().includes(searchLower)) ||
-        (order.workOrderNo && order.workOrderNo.toString().includes(searchTerm)) ||
-        (order.date && order.date.includes(searchTerm)) ||
-        (order.serialNumber && order.serialNumber.toLowerCase().includes(searchLower)) ||
-        (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(searchLower)) ||
-        (order.workDescription && order.workDescription.toLowerCase().includes(searchLower)) ||
-        (order.notes && order.notes.toLowerCase().includes(searchLower)) ||
-        (order.make && order.make.toLowerCase().includes(searchLower)) ||
-        (order.model && order.model.toLowerCase().includes(searchLower)) ||
-        (order.repairType && order.repairType.toLowerCase().includes(searchLower)) ||
-        (order.shop && order.shop.toLowerCase().includes(searchLower)) ||
-        (order.status && order.status.toLowerCase().includes(searchLower))
-      );
-    });
-
-    setSearchResults(results);
-    setShowSearchResults(true);
-  }, []);
+  
+  const {
+    searchResults,
+    searchLoading,
+    searchError,
+    performSearch,
+    searchBySerialNumber,
+    clearSearch
+  } = useServerSideSearch(user);
 
   const handleGlobalSearch = useCallback((searchTerm) => {
     setGlobalSearchTerm(searchTerm);
-    // Don't perform search on every keystroke - only when explicitly triggered
   }, []);
+
+  const performGlobalSearch = useCallback(async (searchTerm) => {
+    if (!searchTerm.trim()) {
+      setShowSearchResults(false);
+      clearSearch();
+      return;
+    }
+    
+    await performSearch(searchTerm);
+    setShowSearchResults(true);
+  }, [performSearch, clearSearch]);
 
   const clearGlobalSearch = useCallback(() => {
     setGlobalSearchTerm('');
     setShowSearchResults(false);
-    setSearchResults([]);
-  }, []);
+    clearSearch();
+  }, [clearSearch]);
 
   return {
     globalSearchTerm,
     showSearchResults,
     searchResults,
     searchLoading,
-    setSearchLoading,
+    searchError,
     handleGlobalSearch,
     clearGlobalSearch,
-    performGlobalSearch
+    performGlobalSearch,
+    searchBySerialNumber,
+    setShowSearchResults,
+    setSearchResults: clearSearch // For compatibility
   };
 };
 
 // Custom hooks
 const useWorkOrders = (user) => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    orders,
+    loading,
+    error,
+    total,
+    hasMore,
+    loadMore,
+    refresh
+  } = usePaginatedWorkOrders(user, { pageSize: 50 });
 
-  const fetchOrders = useCallback(async () => {
-    if (!user?.token) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const res = await API.get('/workorders', { 
-        headers: { Authorization: `Bearer ${user.token}` } 
-      });
-      setOrders(res.data);
-      // Store all orders globally for search functionality
-      window.allWorkOrders = res.data;
-    } catch (err) {
-      console.error('Failed to fetch orders:', err);
-      setError('Failed to load work orders. Please refresh the page.');
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.token]);
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
-  return { orders, loading, error, refetch: fetchOrders };
+  return { orders, loading, error, refetch: refresh, total, hasMore, loadMore };
 };
 
 const useAlerts = () => {
@@ -1447,7 +1420,7 @@ export default function AccountingDashboard({ user }) {
   }
 
   // Custom hooks
-  const { orders, loading, error, refetch } = useWorkOrders(user);
+  const { orders, loading, error, refetch, total, hasMore, loadMore } = useWorkOrders(user);
   const { alerts, clearAlert } = useAlerts();
   const { shopFilter, updateShopFilter, setDefaultShop } = useShopFilter();
   const { 
@@ -1456,7 +1429,7 @@ export default function AccountingDashboard({ user }) {
     searchClosed, setSearchClosed, 
     closedPage, setClosedPage, resetClosedPage 
   } = useSearchFilters();
-  const { globalSearchTerm, showSearchResults, searchResults, searchLoading, setSearchLoading, handleGlobalSearch, clearGlobalSearch, performGlobalSearch } = useGlobalSearch();
+  const { globalSearchTerm, showSearchResults, searchResults, searchLoading, searchError, handleGlobalSearch, clearGlobalSearch, performGlobalSearch, searchBySerialNumber } = useGlobalSearch(user);
 
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -1667,16 +1640,13 @@ export default function AccountingDashboard({ user }) {
     handleGlobalSearch(e.target.value);
   }, [handleGlobalSearch]);
 
-  const handleGlobalSearchSubmit = useCallback(() => {
+  const handleGlobalSearchSubmit = useCallback(async () => {
     if (globalSearchTerm.trim()) {
-      setSearchLoading(true);
-      performGlobalSearch(window.allWorkOrders || [], globalSearchTerm);
-      setSearchLoading(false);
+      await performGlobalSearch(globalSearchTerm);
     } else {
-      setShowSearchResults(false);
-      setSearchResults([]);
+      clearGlobalSearch();
     }
-  }, [globalSearchTerm, performGlobalSearch, setSearchLoading]);
+  }, [globalSearchTerm, performGlobalSearch, clearGlobalSearch]);
 
   const handleBackToDashboard = useCallback(() => {
     clearGlobalSearch();
@@ -1807,6 +1777,28 @@ export default function AccountingDashboard({ user }) {
         onDelete={handleDeleteClick}
         emptyMessage="No active work orders."
       />
+      
+      {/* Pagination Controls for Active Work Orders */}
+      {hasMore && (
+        <div style={{ textAlign: 'center', margin: '20px 0' }}>
+          <button
+            onClick={loadMore}
+            disabled={loading}
+            style={{
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '6px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            {loading ? 'Loading...' : `Load More (${orders.length} of ${total})`}
+          </button>
+        </div>
+      )}
 
       {/* Closed Work Orders Archive */}
       <SectionHeader title="Closed Work Orders Archive" />

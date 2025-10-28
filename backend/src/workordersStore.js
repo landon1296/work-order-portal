@@ -58,6 +58,160 @@ async function getAll() {
   return workOrders;
 }
 
+// Get paginated work orders with lightweight fields and counts
+async function getPaginated({ limit = 50, offset = 0 }) {
+  const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+  const safeOffset = Math.max(0, Number(offset) || 0);
+
+  // Count total rows
+  const countResult = await pool.query('SELECT COUNT(*)::int AS count FROM workorders');
+  const total = countResult.rows[0]?.count || 0;
+
+  // Lightweight select to minimize transferred memory
+  const result = await pool.query(
+    `SELECT 
+       w.id,
+       w.work_order_no,
+       w.date,
+       w.company_name,
+       w.shop,
+       w.status,
+       w.created_at,
+       -- Summary fields needed by dashboards
+       w.make,
+       w.model,
+       w.serial_number,
+       w.po_number,
+       w.contact_name,
+       w.contact_phone,
+       w.contact_email,
+       w.shipping_cost,
+       w.shipping_comments,
+       -- Minimal latest time log (for technician username display)
+       COALESCE(
+         (
+           SELECT json_agg(
+             json_build_object(
+               'technician_assigned', te.technician_assigned,
+               'assign_date', te.assign_date
+             )
+           ) FROM (
+             SELECT te.technician_assigned, te.assign_date
+             FROM time_entries te 
+             WHERE te.work_order_no = w.work_order_no
+             ORDER BY te.assign_date DESC NULLS LAST, te.id DESC
+             LIMIT 1
+           ) te
+         ),
+         '[]'::json
+       ) AS time_logs
+     FROM workorders w
+     ORDER BY w.id DESC
+     LIMIT $1 OFFSET $2`,
+    [safeLimit, safeOffset]
+  );
+
+  return { rows: result.rows, total };
+}
+
+async function getMaxWorkOrderNo() {
+  const result = await pool.query('SELECT COALESCE(MAX(CAST(work_order_no AS INT)), 0) AS max_no FROM workorders');
+  return result.rows[0]?.max_no || 0;
+}
+
+async function getAssignedForTechnician(username) {
+  // Query only what we need and filter at DB layer
+  const result = await pool.query(
+    `SELECT w.*
+     FROM workorders w
+     WHERE w.status <> 'Closed'
+       AND EXISTS (
+         SELECT 1 FROM time_entries te
+         WHERE te.work_order_no = w.work_order_no
+           AND te.technician_assigned = $1
+       )
+     ORDER BY w.id DESC`,
+    [username]
+  );
+  return result.rows;
+}
+
+async function searchWorkOrders(searchTerm, { limit = 50, offset = 0 } = {}) {
+  const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+  const safeOffset = Math.max(0, Number(offset) || 0);
+  const searchPattern = `%${searchTerm.toLowerCase()}%`;
+
+  // Count total matches
+  const countResult = await pool.query(`
+    SELECT COUNT(*)::int AS count 
+    FROM workorders w
+    WHERE 
+      LOWER(w.company_name) LIKE $1 OR
+      w.work_order_no::text LIKE $2 OR
+      LOWER(w.serial_number) LIKE $1 OR
+      LOWER(w.make) LIKE $1 OR
+      LOWER(w.model) LIKE $1 OR
+      LOWER(w.work_description) LIKE $1 OR
+      LOWER(w.notes) LIKE $1 OR
+      LOWER(w.shop) LIKE $1 OR
+      LOWER(w.status) LIKE $1 OR
+      EXISTS (
+        SELECT 1 FROM time_entries te 
+        WHERE te.work_order_no = w.work_order_no 
+          AND LOWER(te.technician_assigned) LIKE $1
+      )
+  `, [searchPattern, `%${searchTerm}%`]);
+  
+  const total = countResult.rows[0]?.count || 0;
+
+  // Get matching work orders
+  const result = await pool.query(`
+    SELECT w.*
+    FROM workorders w
+    WHERE 
+      LOWER(w.company_name) LIKE $1 OR
+      w.work_order_no::text LIKE $2 OR
+      LOWER(w.serial_number) LIKE $1 OR
+      LOWER(w.make) LIKE $1 OR
+      LOWER(w.model) LIKE $1 OR
+      LOWER(w.work_description) LIKE $1 OR
+      LOWER(w.notes) LIKE $1 OR
+      LOWER(w.shop) LIKE $1 OR
+      LOWER(w.status) LIKE $1 OR
+      EXISTS (
+        SELECT 1 FROM time_entries te 
+        WHERE te.work_order_no = w.work_order_no 
+          AND LOWER(te.technician_assigned) LIKE $1
+      )
+    ORDER BY w.id DESC
+    LIMIT $3 OFFSET $4
+  `, [searchPattern, `%${searchTerm}%`, safeLimit, safeOffset]);
+
+  return { rows: result.rows, total };
+}
+
+async function getWorkOrdersBySerialNumber(serialNumber, { limit = 50, offset = 0 } = {}) {
+  const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+  const safeOffset = Math.max(0, Number(offset) || 0);
+
+  const countResult = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM workorders WHERE LOWER(serial_number) = LOWER($1)',
+    [serialNumber]
+  );
+  
+  const total = countResult.rows[0]?.count || 0;
+
+  const result = await pool.query(
+    `SELECT * FROM workorders 
+     WHERE LOWER(serial_number) = LOWER($1)
+     ORDER BY id DESC
+     LIMIT $2 OFFSET $3`,
+    [serialNumber, safeLimit, safeOffset]
+  );
+
+  return { rows: result.rows, total };
+}
+
 
 // Add a new work order
 async function add(order) {
@@ -295,6 +449,11 @@ async function getById(id) {
 
 module.exports = {
   getAll,
+  getPaginated,
+  getMaxWorkOrderNo,
+  getAssignedForTechnician,
+  searchWorkOrders,
+  getWorkOrdersBySerialNumber,
   add,
   addLineItem,
   addTimeEntry,

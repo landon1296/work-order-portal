@@ -8,6 +8,11 @@ const {
   addLineItem,
   addTimeEntry,
   getAll,
+  getPaginated,
+  getMaxWorkOrderNo,
+  getAssignedForTechnician,
+  searchWorkOrders,
+  getWorkOrdersBySerialNumber,
   getById,
   updateStatus,
   updateWorkOrderByNo
@@ -111,8 +116,21 @@ for (const key in daysByStatus) {
 function setupWorkOrderRoutes(app) {
   app.get('/workorders', async (req, res) => {
     try {
+      const { limit, offset } = req.query || {};
+      // If pagination params are provided, use lightweight list
+      if (limit !== undefined || offset !== undefined) {
+        const { rows, total } = await getPaginated({ limit, offset });
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('GET /workorders paginated: returned', rows.length, 'of', total);
+        }
+        return res.json({ rows: toCamel(rows), total });
+      }
+
+      // Fallback to full dataset (legacy)
       const workOrders = await getAll();
-      console.log('GET /workorders:', workOrders);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('GET /workorders: count', Array.isArray(workOrders) ? workOrders.length : 'n/a');
+      }
       function toCamel(obj) {
   if (Array.isArray(obj)) {
     return obj.map(v => toCamel(v));
@@ -136,22 +154,10 @@ res.json(toCamel(workOrders));
   });
 
   // GET /workorders/assigned/:username -> list work orders for a technician (basic version)
-app.get('/workorders/assigned/:username', async (req, res) => {
+  app.get('/workorders/assigned/:username', async (req, res) => {
   try {
     const { username } = req.params;
-    const workOrders = await getAll();
-
-    // DEBUG LOG
-    console.log('💬 Checking timeLogs for', username);
-    for (const wo of workOrders) {
-      console.log(`WO #${wo.work_order_no}:`, wo.timeLogs);
-    }
-
-    const techOrders = workOrders.filter(
-      wo => (wo.timeLogs || []).some(log => log.technician_assigned === username)
-        && wo.status !== 'Closed'
-    );
-
+    const techOrders = await getAssignedForTechnician(username);
     res.json(toCamel(techOrders));
   } catch (err) {
     console.error('❌ Failed to fetch technician work orders:', err);
@@ -166,18 +172,9 @@ app.get('/workorders/assigned/:username', async (req, res) => {
 
   // GET /workorders/next-number -> returns the next work order number
   app.get('/workorders/next-number', async (req, res) => {
-    // This can be as simple as: get max work_order_no from DB + 1
     try {
-      const workOrders = await getAll();
-      let nextNo = 1;
-      if (workOrders.length > 0) {
-        const maxNo = Math.max(
-          ...workOrders.map(wo => parseInt(wo.work_order_no || 0, 10)).filter(Boolean)
-        );
-        nextNo = maxNo + 1;
-      } else {
-        nextNo = await getStartingWorkOrderNo();
-      }
+      const maxNo = await getMaxWorkOrderNo();
+      const nextNo = maxNo > 0 ? maxNo + 1 : await getStartingWorkOrderNo();
       res.json({ nextWorkOrderNo: nextNo });
     } catch (err) {
       res.status(500).json({ error: 'Failed to fetch next work order number.' });
@@ -307,7 +304,9 @@ const toCamel = obj => {
 
     app.put('/workorders/:workOrderNo', async (req, res) => {
   try {
-    console.log('PUT /workorders/:workOrderNo', req.params.workOrderNo, req.body);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('PUT /workorders/:workOrderNo', req.params.workOrderNo, Object.keys(req.body || {}));
+    }
     const workOrderNo = req.params.workOrderNo;
     const updates = req.body; // All fields to update
     // Recalculate day counts if statusHistory is present
@@ -408,18 +407,17 @@ if (!updated) return res.status(404).json({ error: 'Work order not found' });
 
 // Broadcast the work order update via WebSocket (with error handling)
 try {
-  console.log('Broadcasting work order update for:', workOrderNo, 'with data:', Object.keys(updated || {}));
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Broadcasting work order update for:', workOrderNo);
+  }
   // Convert snake_case to camelCase for frontend compatibility
   const camelCaseUpdated = toCamel(updated);
-  console.log('Converted to camelCase:', Object.keys(camelCaseUpdated || {}));
-  if (camelCaseUpdated && camelCaseUpdated.notes) {
-    console.log('Notes field in camelCase:', camelCaseUpdated.notes);
-  }
   WebSocketBroadcaster.broadcastWorkOrderUpdated(workOrderNo, camelCaseUpdated);
-  
   // Only broadcast parts update if parts were specifically modified (not just any update)
   if (updates.hasOwnProperty('parts') && Array.isArray(updates.parts)) {
-    console.log('Broadcasting parts update for work order:', workOrderNo);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Broadcasting parts update for work order:', workOrderNo);
+    }
     WebSocketBroadcaster.broadcastPartsUpdated(workOrderNo, updates.parts);
   }
 } catch (wsError) {
@@ -844,6 +842,37 @@ const updateResult = await pool.query(
     } catch (err) {
       console.error('Failed to update part status:', err);
       res.status(500).json({ error: 'Failed to update part status.' });
+    }
+  });
+
+  // === ENDPOINT: Search Work Orders
+  app.get('/workorders/search', async (req, res) => {
+    try {
+      const { q: searchTerm, limit, offset } = req.query;
+      
+      if (!searchTerm || searchTerm.trim().length < 2) {
+        return res.status(400).json({ error: 'Search term must be at least 2 characters' });
+      }
+      
+      const { rows, total } = await searchWorkOrders(searchTerm.trim(), { limit, offset });
+      res.json({ rows: toCamel(rows), total });
+    } catch (err) {
+      console.error('Failed to search work orders:', err);
+      res.status(500).json({ error: 'Failed to search work orders.' });
+    }
+  });
+
+  // === ENDPOINT: Get Work Orders by Serial Number
+  app.get('/workorders/by-serial/:serialNumber', async (req, res) => {
+    try {
+      const { serialNumber } = req.params;
+      const { limit, offset } = req.query;
+      
+      const { rows, total } = await getWorkOrdersBySerialNumber(serialNumber, { limit, offset });
+      res.json({ rows: toCamel(rows), total });
+    } catch (err) {
+      console.error('Failed to fetch work orders by serial number:', err);
+      res.status(500).json({ error: 'Failed to fetch work orders by serial number.' });
     }
   });
 

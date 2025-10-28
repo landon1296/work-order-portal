@@ -6,6 +6,8 @@ import { getStatusColor } from '../utils/statusColors';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import logoBase64 from '../assets/logoBase64';
+import { usePaginatedWorkOrders } from '../hooks/usePaginatedWorkOrders';
+import { useServerSideSearch } from '../hooks/useServerSideSearch';
 
 // Utility functions
 const formatDate = (dateStr) => {
@@ -257,60 +259,52 @@ const generatePDF = (order) => {
 };
 
 // Global search functionality
-const useGlobalSearch = () => {
+const useGlobalSearch = (user) => {
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-
-  const performGlobalSearch = useCallback((orders, searchTerm) => {
-    if (!searchTerm.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    const searchLower = searchTerm.toLowerCase();
-    const results = orders.filter(order => {
-      return (
-        (order.companyName && order.companyName.toLowerCase().includes(searchLower)) ||
-        (order.workOrderNo && order.workOrderNo.toString().includes(searchTerm)) ||
-        (order.date && order.date.includes(searchTerm)) ||
-        (order.serialNumber && order.serialNumber.toLowerCase().includes(searchLower)) ||
-        (order.timeLogs?.[0]?.technicianAssigned && order.timeLogs[0].technicianAssigned.toLowerCase().includes(searchLower)) ||
-        (order.workDescription && order.workDescription.toLowerCase().includes(searchLower)) ||
-        (order.notes && order.notes.toLowerCase().includes(searchLower)) ||
-        (order.make && order.make.toLowerCase().includes(searchLower)) ||
-        (order.model && order.model.toLowerCase().includes(searchLower)) ||
-        (order.repairType && order.repairType.toLowerCase().includes(searchLower)) ||
-        (order.shop && order.shop.toLowerCase().includes(searchLower)) ||
-        (order.status && order.status.toLowerCase().includes(searchLower))
-      );
-    });
-
-    setSearchResults(results);
-    setShowSearchResults(true);
-  }, []);
+  
+  const {
+    searchResults,
+    searchLoading,
+    searchError,
+    performSearch,
+    searchBySerialNumber,
+    clearSearch
+  } = useServerSideSearch(user);
 
   const handleGlobalSearch = useCallback((searchTerm) => {
     setGlobalSearchTerm(searchTerm);
-    // Don't perform search on every keystroke - only when explicitly triggered
   }, []);
+
+  const performGlobalSearch = useCallback(async (searchTerm) => {
+    if (!searchTerm.trim()) {
+      setShowSearchResults(false);
+      clearSearch();
+      return;
+    }
+    
+    await performSearch(searchTerm);
+    setShowSearchResults(true);
+  }, [performSearch, clearSearch]);
 
   const clearGlobalSearch = useCallback(() => {
     setGlobalSearchTerm('');
     setShowSearchResults(false);
-    setSearchResults([]);
-  }, []);
+    clearSearch();
+  }, [clearSearch]);
 
   return {
     globalSearchTerm,
     showSearchResults,
     searchResults,
+    searchLoading,
+    searchError,
     handleGlobalSearch,
     clearGlobalSearch,
     performGlobalSearch,
+    searchBySerialNumber,
     setShowSearchResults,
-    setSearchResults
+    setSearchResults: clearSearch // For compatibility
   };
 };
 
@@ -729,17 +723,24 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackT
 };
 
 export default function AllTechDashboard({ user }) {
-  const [workOrders, setWorkOrders] = useState([]);
+  const navigate = useNavigate();
   const [troubleshootOrders, setTroubleshootOrders] = useState([]);
   const [closedTroubleshootOrders, setClosedTroubleshootOrders] = useState([]);
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [troubleshootLoading, setTroubleshootLoading] = useState(true);
   const [closedTroubleshootLoading, setClosedTroubleshootLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const { globalSearchTerm, showSearchResults, searchResults, handleGlobalSearch, clearGlobalSearch, performGlobalSearch, setShowSearchResults, setSearchResults } = useGlobalSearch();
+  
+  // Use paginated work orders hook
+  const {
+    orders: workOrders,
+    loading,
+    total,
+    hasMore,
+    loadMore,
+    refresh: refetchWorkOrders
+  } = usePaginatedWorkOrders(user, { pageSize: 50 });
+  const { globalSearchTerm, showSearchResults, searchResults, searchLoading, searchError, handleGlobalSearch, clearGlobalSearch, performGlobalSearch, searchBySerialNumber, setShowSearchResults, setSearchResults } = useGlobalSearch(user);
 
   // Show all work orders except closed ones and submitted for billing
   const visibleWorkOrders = workOrders.filter(
@@ -779,77 +780,27 @@ export default function AllTechDashboard({ user }) {
     handleGlobalSearch(e.target.value);
   }, [handleGlobalSearch]);
 
-  const handleGlobalSearchSubmit = useCallback(() => {
+  const handleGlobalSearchSubmit = useCallback(async () => {
     if (globalSearchTerm.trim()) {
-      setSearchLoading(true);
-      // Fetch all work orders for global search
-      API.get('/workorders')
-        .then(res => {
-          const allOrders = res.data.map(toCamelCaseDeep);
-          performGlobalSearch(allOrders, globalSearchTerm);
-          setSearchLoading(false);
-        })
-        .catch(err => {
-          console.error('Failed to fetch all work orders for search:', err);
-          // Fallback to searching current work orders
-          performGlobalSearch(workOrders, globalSearchTerm);
-          setSearchLoading(false);
-        });
+      await performGlobalSearch(globalSearchTerm);
     } else {
-      setShowSearchResults(false);
-      setSearchResults([]);
+      clearGlobalSearch();
     }
-  }, [globalSearchTerm, performGlobalSearch, workOrders]);
+  }, [globalSearchTerm, performGlobalSearch, clearGlobalSearch]);
 
   const handleBackToDashboard = useCallback(() => {
     clearGlobalSearch();
   }, [clearGlobalSearch]);
 
-  const handleShowHistory = useCallback((serialNumber) => {
+  const handleShowHistory = useCallback(async (serialNumber) => {
     console.log('Main handleShowHistory called with serial number:', serialNumber);
     // Set the search term to the serial number and perform search
     handleGlobalSearch(serialNumber);
-    setSearchLoading(true);
-    // Trigger the search immediately
-    API.get('/workorders')
-      .then(res => {
-        const allOrders = res.data.map(toCamelCaseDeep);
-        // Filter for orders with the same serial number but exclude the current one
-        const historyOrders = allOrders.filter(order => 
-          order.serialNumber && 
-          order.serialNumber.toLowerCase() === serialNumber.toLowerCase()
-        );
-        setSearchResults(historyOrders);
-        setShowSearchResults(true);
-        setSearchLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch all work orders for search:', err);
-        // Fallback to searching current work orders
-        const historyOrders = workOrders.filter(order => 
-          order.serialNumber && 
-          order.serialNumber.toLowerCase() === serialNumber.toLowerCase()
-        );
-        setSearchResults(historyOrders);
-        setShowSearchResults(true);
-        setSearchLoading(false);
-      });
-  }, [handleGlobalSearch, workOrders]);
+    await searchBySerialNumber(serialNumber);
+    setShowSearchResults(true);
+  }, [handleGlobalSearch, searchBySerialNumber, setShowSearchResults]);
 
   useEffect(() => {
-    setLoading(true);
-    // Fetch ALL work orders instead of just assigned ones
-    API.get('/workorders')
-      .then(res => {
-        const orders = res.data.map(toCamelCaseDeep);
-        setWorkOrders(orders);
-        setLoading(false);
-      })
-      .catch(() => {
-        setWorkOrders([]);
-        setLoading(false);
-      });
-
     // Fetch ALL troubleshooting orders instead of just assigned ones
     setTroubleshootLoading(true);
     API.get('/api/troubleshoot')
@@ -1018,16 +969,7 @@ export default function AllTechDashboard({ user }) {
         <div style={{ flex: 1 }}>
           <button
             onClick={() => {
-              setLoading(true);
-              API.get('/workorders')
-                .then(res => {
-                  setWorkOrders(res.data.map(toCamelCaseDeep));
-                  setLoading(false);
-                })
-                .catch(() => {
-                  setWorkOrders([]);
-                  setLoading(false);
-                });
+              refetchWorkOrders();
             }}
             style={{
               background: '#2563eb',
@@ -1192,6 +1134,28 @@ export default function AllTechDashboard({ user }) {
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination Controls for Active Work Orders */}
+      {hasMore && (
+        <div style={{ textAlign: 'center', margin: '20px 0' }}>
+          <button
+            onClick={loadMore}
+            disabled={loading}
+            style={{
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '6px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            {loading ? 'Loading...' : `Load More (${workOrders.length} of ${total})`}
+          </button>
+        </div>
+      )}
 
       {/* Troubleshooting Orders Section */}
       <div style={{ 
@@ -1329,16 +1293,7 @@ export default function AllTechDashboard({ user }) {
          <div style={{ flex: 1 }}>
            <button
              onClick={() => {
-               setLoading(true);
-               API.get('/workorders')
-                 .then(res => {
-                   setWorkOrders(res.data.map(toCamelCaseDeep));
-                   setLoading(false);
-                 })
-                 .catch(() => {
-                   setWorkOrders([]);
-                   setLoading(false);
-                 });
+               refetchWorkOrders();
              }}
              style={{
                background: '#2563eb',
