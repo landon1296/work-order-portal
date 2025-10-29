@@ -9,12 +9,22 @@ const API = axios.create({
 // Add request interceptor to handle offline scenarios
 API.interceptors.request.use(
   (config) => {
-    // Add timestamp to prevent cache issues
-    if (config.method === 'get') {
-      config.params = {
-        ...config.params,
-        _t: Date.now()
-      };
+    // Only add timestamp if explicitly requested (for cache-busting specific requests)
+    // This allows browser/CDN caching for most GET requests, improving performance
+    if (config.method === 'get' && config.cacheBust !== false && !config.params?._t) {
+      // Only add timestamp for requests that might be cached and need fresh data
+      // Skip for paginated/list endpoints where caching is beneficial
+      const shouldCacheBust = config.url?.includes('/workorders/') && 
+                              !config.url?.includes('limit=') && 
+                              !config.url?.includes('offset=') &&
+                              !config.url?.includes('search') &&
+                              !config.url?.includes('by-serial');
+      if (shouldCacheBust) {
+        config.params = {
+          ...config.params,
+          _t: Date.now()
+        };
+      }
     }
     return config;
   },

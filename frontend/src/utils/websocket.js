@@ -98,7 +98,8 @@ class WorkOrderWebSocket {
   attemptReconnect() {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+      // Exponential backoff: 1s, 2s, 4s, 8s, 16s (max 16 seconds)
+      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 16000);
       
       console.log(`Attempting to reconnect in ${delay}ms... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
       

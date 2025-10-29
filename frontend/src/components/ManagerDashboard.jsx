@@ -172,6 +172,19 @@ const useGlobalSearch = (user) => {
     clearSearch();
   }, [clearSearch]);
 
+  // Debounced search effect
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (globalSearchTerm.trim()) {
+        performGlobalSearch(globalSearchTerm);
+      } else {
+        clearGlobalSearch();
+      }
+    }, 300); // 300ms debounce delay
+
+    return () => clearTimeout(debounceTimer);
+  }, [globalSearchTerm, performGlobalSearch, clearGlobalSearch]);
+
   return {
     globalSearchTerm,
     showSearchResults,

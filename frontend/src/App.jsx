@@ -2,6 +2,7 @@ import React, { useState, Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
 import OfflineStatus from './components/OfflineStatus';
+import ErrorBoundary from './components/ErrorBoundary';
 import { register } from './utils/serviceWorker';
 import './utils/debugCache'; // Load debug utilities
 import './utils/swDiagnostics'; // Load service worker diagnostics
@@ -69,12 +70,13 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
-      <OfflineStatus />
-      <Router>
-        <LoginBackgroundWatcher />
-        <Suspense fallback={<LoadingSpinner message="Loading dashboard..." />}>
-          <Routes>
+    <ErrorBoundary>
+      <div className="App">
+        <OfflineStatus />
+        <Router>
+          <LoginBackgroundWatcher />
+          <Suspense fallback={<LoadingSpinner message="Loading dashboard..." />}>
+            <Routes>
           {/* Login Route */}
           <Route path="/login" element={
             <Suspense fallback={<LoadingSpinner message="Loading login..." />}>
@@ -232,10 +234,11 @@ function App() {
                 )
               : <Navigate to="/login" replace />
           } />
-        </Routes>
-        </Suspense>
-      </Router>
-    </div>
+            </Routes>
+          </Suspense>
+        </Router>
+      </div>
+    </ErrorBoundary>
   );
 }
 

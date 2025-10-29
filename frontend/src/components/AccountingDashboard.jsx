@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
 import WorkOrderCompletionStatus from './WorkOrderCompletionStatus';
@@ -73,6 +73,19 @@ const useGlobalSearch = (user) => {
     setShowSearchResults(false);
     clearSearch();
   }, [clearSearch]);
+
+  // Debounced search effect
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (globalSearchTerm.trim()) {
+        performGlobalSearch(globalSearchTerm);
+      } else {
+        clearGlobalSearch();
+      }
+    }, 300); // 300ms debounce delay
+
+    return () => clearTimeout(debounceTimer);
+  }, [globalSearchTerm, performGlobalSearch, clearGlobalSearch]);
 
   return {
     globalSearchTerm,
