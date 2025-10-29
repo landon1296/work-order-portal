@@ -51,7 +51,8 @@ const normalizeStatus = (status) => {
   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
 };
 
-const calculateAvgDaysToClose = (closedOrders) => {
+const calculateAvgDaysToClose = (closedOrders, invoicedButNotClosedOrders = []) => {
+  // Process closed orders (traditional calculation)
   const closedDaysArray = closedOrders
     .map(wo => {
       if (!wo.created_at || !Array.isArray(wo.status_history)) return null;
@@ -75,10 +76,59 @@ const calculateAvgDaysToClose = (closedOrders) => {
     })
     .filter(days => days !== null && !isNaN(days));
 
-  if (closedDaysArray.length === 0) return null;
+  // Process invoiced but not closed orders (live calculation)
+  const invoicedDaysArray = invoicedButNotClosedOrders
+    .map(wo => {
+      if (!wo.created_at || !Array.isArray(wo.status_history)) return null;
+      
+      const history = wo.status_history;
+      const createdAt = new Date(wo.created_at);
+      const today = new Date();
+      
+      // Use today's date since these work orders are still open
+      return Math.max(0, (today - createdAt) / (1000 * 60 * 60 * 24));
+    })
+    .filter(days => days !== null && !isNaN(days));
+
+  // Combine both arrays
+  const allDaysArray = [...closedDaysArray, ...invoicedDaysArray];
+
+  if (allDaysArray.length === 0) return null;
   
-  const totalClosedDays = closedDaysArray.reduce((sum, days) => sum + days, 0);
-  return (totalClosedDays / closedDaysArray.length).toFixed(1);
+  const totalDays = allDaysArray.reduce((sum, days) => sum + days, 0);
+  return (totalDays / allDaysArray.length).toFixed(1);
+};
+
+const calculateAvgDaysToCustomerInvoiced = (orders) => {
+  const invoicedDaysArray = orders
+    .map(wo => {
+      if (!wo.created_at || !Array.isArray(wo.status_history)) return null;
+      
+      const history = wo.status_history;
+      const createdAt = new Date(wo.created_at);
+      
+      // Find when the work order reached "customer invoiced" or "submitted for billing"
+      // These statuses indicate the work is actually finished
+      const invoicedEntry = [...history].reverse().find(
+        entry => {
+          const status = (entry.status || "").toLowerCase();
+          return status.includes("customer invoiced") || 
+                 status.includes("submitted for billing") ||
+                 status === "customer invoiced";
+        }
+      );
+
+      if (!invoicedEntry || !invoicedEntry.date) return null;
+      
+      const invoicedAt = new Date(invoicedEntry.date);
+      return Math.max(0, (invoicedAt - createdAt) / (1000 * 60 * 60 * 24));
+    })
+    .filter(days => days !== null && !isNaN(days));
+
+  if (invoicedDaysArray.length === 0) return null;
+  
+  const totalInvoicedDays = invoicedDaysArray.reduce((sum, days) => sum + days, 0);
+  return (totalInvoicedDays / invoicedDaysArray.length).toFixed(1);
 };
 
 // Custom hooks
@@ -197,7 +247,34 @@ export default function AnalyticsDashboard({ user }) {
       Array.isArray(wo.status_history) && wo.created_at
     );
 
-    const avgDaysToCloseFiltered = calculateAvgDaysToClose(closedFiltered);
+    // Find work orders that are at "customer invoiced" but not yet closed
+    const invoicedButNotClosedFiltered = filteredOrders.filter(wo =>
+      wo.status && 
+      !wo.status.toLowerCase().includes("closed") &&
+      Array.isArray(wo.status_history) && 
+      wo.created_at &&
+      wo.status_history.some(entry => {
+        const status = (entry.status || "").toLowerCase();
+        return status.includes("customer invoiced") || 
+               status.includes("submitted for billing") ||
+               status === "customer invoiced";
+      })
+    );
+
+    const avgDaysToCloseFiltered = calculateAvgDaysToClose(closedFiltered, invoicedButNotClosedFiltered);
+
+    // Calculate average days to customer invoiced (work actually finished)
+    const invoicedFiltered = filteredOrders.filter(wo =>
+      Array.isArray(wo.status_history) && wo.created_at &&
+      wo.status_history.some(entry => {
+        const status = (entry.status || "").toLowerCase();
+        return status.includes("customer invoiced") || 
+               status.includes("submitted for billing") ||
+               status === "customer invoiced";
+      })
+    );
+
+    const avgDaysToCustomerInvoiced = calculateAvgDaysToCustomerInvoiced(invoicedFiltered);
 
     // Chart data calculations
     const countByTechnician = (orders) => {
@@ -259,7 +336,8 @@ export default function AnalyticsDashboard({ user }) {
         slowMoversCount: slowMoversFiltered.length,
         ordersThisYearCount,
         ordersThisMonthCount,
-        avgDaysToCloseFiltered
+        avgDaysToCloseFiltered,
+        avgDaysToCustomerInvoiced
       },
       chartData: {
         techCountsFiltered: countByTechnician(filteredOrders),
@@ -480,6 +558,11 @@ const KPISection = ({ kpiData }) => (
     />
     <KPI label="Orders This Year" value={kpiData.ordersThisYearCount} />
     <KPI label="Orders This Month" value={kpiData.ordersThisMonthCount} />
+    <KPI 
+      label="Avg working days" 
+      value={kpiData.avgDaysToCustomerInvoiced || "N/A"} 
+      styleOverride={{ minWidth: 100 }}
+    />
     <KPI 
       label="Avg Days to Close" 
       value={kpiData.avgDaysToCloseFiltered || "N/A"} 
