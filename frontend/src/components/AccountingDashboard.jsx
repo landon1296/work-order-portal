@@ -217,10 +217,10 @@ const generatePDF = (order) => {
       ["PO Number", order.poNumber || ""],
       ["Make / Model / Serial", `${order.make} / ${order.model} / ${order.serialNumber}`],
       ["Work Type", [
-        order.vendorWarranty ? "Vendor Warranty" : "",
+        order.vendorWarranty || order.vendor_warranty ? "Vendor Warranty" : "",
         order.billable ? "Billable" : "",
         order.maintenance ? "Maintenance" : "",
-        order.nonBillableRepair ? "Non-billable Repair" : ""
+        order.nonBillableRepair || order.non_billable_repair ? "Non-billable Repair" : ""
       ].filter(Boolean).join(", ")],
       ["Shipping Cost", order.shippingCost || ""],
       ["Shipping Comments", order.shippingComments || ""]
@@ -240,7 +240,8 @@ const generatePDF = (order) => {
     y = currentInfoY + 4;
 
     // Work Description
-    const estimatedWorkDescHeight = doc.splitTextToSize(order.workDescription || "", 170).length * 6 + 16;
+    const workDescription = order.workDescription || order.work_description || "";
+    const estimatedWorkDescHeight = doc.splitTextToSize(workDescription, 170).length * 6 + 16;
     if (y + estimatedWorkDescHeight > pageHeight - bottomMargin) {
       doc.addPage();
       y = topMargin;
@@ -250,13 +251,14 @@ const generatePDF = (order) => {
     const workDescStartY = y + 10;
     doc.text("Work Description:", leftMargin, workDescStartY);
     doc.setFont("helvetica", "normal");
-    const workDescText = doc.splitTextToSize(order.workDescription || "", 170);
+    const workDescText = doc.splitTextToSize(workDescription, 170);
     doc.text(workDescText, leftMargin, workDescStartY + 6);
     drawRoundedRect(doc, leftMargin - 5, workDescStartY - 5, 180, workDescText.length * 6 + 16, 4);
     y = workDescStartY + workDescText.length * 6 + 20;
 
     // Tech Summary / Notes
-    const estimatedNotesHeight = doc.splitTextToSize(order.notes || "", 170).length * 6 + 16;
+    const notes = order.notes || "";
+    const estimatedNotesHeight = doc.splitTextToSize(notes, 170).length * 6 + 16;
     if (y + estimatedNotesHeight > pageHeight - bottomMargin) {
       doc.addPage();
       y = topMargin;
@@ -266,20 +268,21 @@ const generatePDF = (order) => {
     const notesStartY = y;
     doc.text("Tech Summary / Notes:", leftMargin, notesStartY);
     doc.setFont("helvetica", "normal");
-    const notesText = doc.splitTextToSize(order.notes || "", 170);
+    const notesText = doc.splitTextToSize(notes, 170);
     doc.text(notesText, leftMargin, notesStartY + 6);
     drawRoundedRect(doc, leftMargin - 5, notesStartY - 5, 180, notesText.length * 6 + 16, 4);
     y = notesStartY + notesText.length * 6 + 20;
 
     // Parts Table
-    if (order.parts && order.parts.length > 0) {
+    const parts = order.parts || [];
+    if (parts && parts.length > 0) {
       doc.setFont("helvetica", "bold");
       const partsStartY = y;
       doc.text("Parts Used", leftMargin, partsStartY);
       y += 6;
 
       // Filter out empty parts and ensure unique entries
-      const validParts = order.parts.filter(p => {
+      const validParts = parts.filter(p => {
         const partNumber = (p.partNumber || p.part_number || '').trim();
         const description = (p.description || '').trim();
         const quantity = Number(p.quantity || 0);
@@ -294,7 +297,7 @@ const generatePDF = (order) => {
         );
       });
 
-      console.log(`AccountingDashboard PDF: Original parts count: ${order.parts.length}, Valid parts: ${validParts.length}, Unique parts: ${uniqueParts.length}`);
+      console.log(`AccountingDashboard PDF: Original parts count: ${parts.length}, Valid parts: ${validParts.length}, Unique parts: ${uniqueParts.length}`);
 
       doc.autoTable({
         startY: y,
@@ -322,7 +325,8 @@ const generatePDF = (order) => {
     }
 
     // Time Logs Table
-    if (order.timeLogs && order.timeLogs.length > 0) {
+    const timeLogs = order.timeLogs || order.time_logs || [];
+    if (timeLogs && timeLogs.length > 0) {
       doc.setFont("helvetica", "bold");
       const timeLogsStartY = y;
       doc.text("Time Logs", leftMargin, timeLogsStartY);
@@ -331,12 +335,12 @@ const generatePDF = (order) => {
       doc.autoTable({
         startY: y,
         head: [["Tech", "Date", "Start", "Finish", "Travel"]],
-        body: order.timeLogs.map(log => [
-          log.technicianAssigned || "",
-          formatDate(log.assignDate),
-          log.startTime || "",
-          log.finishTime || "",
-          log.travelTime || ""
+        body: timeLogs.map(log => [
+          log.technicianAssigned || log.technician_assigned || "",
+          formatDate(log.assignDate || log.assign_date),
+          log.startTime || log.start_time || "",
+          log.finishTime || log.finish_time || "",
+          log.travelTime || log.travel_time || ""
         ]),
         margin: { top: 10, bottom: 30, left: leftMargin, right: rightMargin },
         styles: {
@@ -1592,9 +1596,21 @@ export default function AccountingDashboard({ user }) {
     }
   }, [refetch]);
 
-  const handleViewPDF = useCallback((order) => {
-    generatePDF(order);
-  }, []);
+  const handleViewPDF = useCallback(async (order) => {
+    try {
+      // Fetch the full work order data including parts, time logs, work description, and notes
+      const response = await API.get(`/workorders/${order.workOrderNo}`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      
+      // Convert to camelCase if needed
+      const fullOrder = response.data;
+      generatePDF(fullOrder);
+    } catch (error) {
+      console.error('Failed to fetch work order for PDF:', error);
+      alert('Failed to load work order data. Please try again.');
+    }
+  }, [user]);
 
   const handleUpdatePartStatus = useCallback(async (workOrderNo, partId, action, estimatedDeliveryDate = null) => {
     try {
