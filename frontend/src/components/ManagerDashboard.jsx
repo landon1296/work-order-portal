@@ -174,16 +174,11 @@ const useGlobalSearch = (user) => {
 
   // Debounced search effect
   useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      if (globalSearchTerm.trim()) {
-        performGlobalSearch(globalSearchTerm);
-      } else {
-        clearGlobalSearch();
-      }
-    }, 300); // 300ms debounce delay
-
-    return () => clearTimeout(debounceTimer);
-  }, [globalSearchTerm, performGlobalSearch, clearGlobalSearch]);
+    // Only clear when input is emptied; do not auto-search on typing
+    if (!globalSearchTerm.trim()) {
+      clearGlobalSearch();
+    }
+  }, [globalSearchTerm, clearGlobalSearch]);
 
   return {
     globalSearchTerm,
