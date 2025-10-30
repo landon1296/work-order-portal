@@ -166,7 +166,26 @@ async function searchWorkOrders(searchTerm, { limit = 50, offset = 0 } = {}) {
 
   // Get matching work orders
   const result = await pool.query(`
-    SELECT w.*
+    SELECT 
+      w.*,
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object(
+              'technician_assigned', te.technician_assigned,
+              'assign_date', te.assign_date
+            )
+          )
+          FROM (
+            SELECT te.technician_assigned, te.assign_date
+            FROM time_entries te
+            WHERE te.work_order_no = w.work_order_no
+            ORDER BY te.assign_date DESC NULLS LAST, te.id DESC
+            LIMIT 1
+          ) te
+        ),
+        '[]'::json
+      ) AS time_logs
     FROM workorders w
     WHERE 
       LOWER(w.company_name) LIKE $1 OR
