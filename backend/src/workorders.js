@@ -245,60 +245,7 @@ for (const part of order.parts) {
     }
   });
 
-  // GET /workorders/:id -> get a single work order by ID
-app.get('/workorders/:workOrderNo', async (req, res) => {
-  try {
-    const workOrderNo = req.params.workOrderNo;
-    // 1. Fetch main workorder
-    const result = await pool.query(
-      'SELECT * FROM workorders WHERE work_order_no = $1',
-      [workOrderNo]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Work order not found' });
-    let wo = result.rows[0];
-
-    // 2. Fetch parts (line_items)
-    const partsResult = await pool.query(
-      'SELECT * FROM line_items WHERE work_order_no = $1',
-      [workOrderNo]
-    );
-    wo.parts = partsResult.rows;
-
-    // 3. Fetch timeLogs (time_entries)
-    const timeLogsResult = await pool.query(
-      'SELECT * FROM time_entries WHERE work_order_no = $1',
-      [workOrderNo]
-    );
-    wo.timeLogs = timeLogsResult.rows;
-
-    // 4. Convert to camelCase for frontend
-const toCamel = obj => {
-  if (Array.isArray(obj)) {
-    return obj.map(toCamel);
-  } else if (obj && typeof obj === 'object') {
-    return Object.keys(obj).reduce((result, key) => {
-      const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
-      let val = obj[key];
-      if (val instanceof Date) {
-        val = val.toISOString().slice(0, 10);
-      }
-      result[camelKey] = toCamel(val);
-      return result;
-    }, {});
-  }
-  return obj;
-};
-
-    // Apply toCamel on arrays too:
-    wo = toCamel(wo);
-    wo.parts = wo.parts.map(toCamel);
-    wo.timeLogs = wo.timeLogs.map(toCamel);
-
-    res.json(wo);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch work order.' });
-  }
-});
+  // (moved below search routes to avoid route shadowing)
 
 
 
@@ -873,6 +820,61 @@ const updateResult = await pool.query(
     } catch (err) {
       console.error('Failed to fetch work orders by serial number:', err);
       res.status(500).json({ error: 'Failed to fetch work orders by serial number.' });
+    }
+  });
+
+  // GET /workorders/:workOrderNo -> get a single work order by work order number
+  app.get('/workorders/:workOrderNo', async (req, res) => {
+    try {
+      const workOrderNo = req.params.workOrderNo;
+      // 1. Fetch main workorder
+      const result = await pool.query(
+        'SELECT * FROM workorders WHERE work_order_no = $1',
+        [workOrderNo]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Work order not found' });
+      let wo = result.rows[0];
+
+      // 2. Fetch parts (line_items)
+      const partsResult = await pool.query(
+        'SELECT * FROM line_items WHERE work_order_no = $1',
+        [workOrderNo]
+      );
+      wo.parts = partsResult.rows;
+
+      // 3. Fetch timeLogs (time_entries)
+      const timeLogsResult = await pool.query(
+        'SELECT * FROM time_entries WHERE work_order_no = $1',
+        [workOrderNo]
+      );
+      wo.timeLogs = timeLogsResult.rows;
+
+      // 4. Convert to camelCase for frontend
+const toCamel = obj => {
+  if (Array.isArray(obj)) {
+    return obj.map(toCamel);
+  } else if (obj && typeof obj === 'object') {
+    return Object.keys(obj).reduce((result, key) => {
+      const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
+      let val = obj[key];
+      if (val instanceof Date) {
+        val = val.toISOString().slice(0, 10);
+      }
+      result[camelKey] = toCamel(val);
+      return result;
+    }, {});
+  }
+  return obj;
+};
+
+      // Apply toCamel on arrays too:
+      wo = toCamel(wo);
+      wo.parts = wo.parts.map(toCamel);
+      wo.timeLogs = wo.timeLogs.map(toCamel);
+
+      res.json(wo);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch work order.' });
     }
   });
 
