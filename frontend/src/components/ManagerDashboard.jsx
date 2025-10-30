@@ -735,7 +735,7 @@ const LocationFilter = ({ shopFilter, onShopFilterChange, onSetDefault, globalSe
         placeholder="Search all work orders..."
         value={globalSearchTerm}
         onChange={onGlobalSearchChange}
-        onKeyPress={(e) => {
+        onKeyDown={(e) => {
           if (e.key === 'Enter') {
             onGlobalSearchSubmit();
           }
