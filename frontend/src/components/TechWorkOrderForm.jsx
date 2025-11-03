@@ -905,7 +905,7 @@ const handleChange = e => {
   const addPart = () => {
     // Update last modified timestamp
     setLastModified(Date.now());
-    setForm(prev => ({ ...prev, parts: [...prev.parts, { description:'', partNumber:'', quantity:'', waiting: false, estimatedDeliveryDate: '' }] }));
+    setForm(prev => ({ ...prev, parts: [...prev.parts, { description:'', partNumber:'', quantity:'1', waiting: false, estimatedDeliveryDate: '' }] }));
   };
 
   // Helper: Notify Office via backend API
@@ -1868,7 +1868,7 @@ console.log("form", form);
                 <td>
                   <input
                     name="quantity"
-                    value={part.quantity || ""}                    
+                    value={part.quantity ?? ""}                    
                     onChange={e => handlePartChange(idx, 'quantity', e.target.value)}
                     placeholder="Quantity"
                     type="number"
