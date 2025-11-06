@@ -281,6 +281,15 @@ export default function TechWorkOrderForm({ token, user }) {
   
   // Highlighted fields for real-time updates
   const [highlightedFields, setHighlightedFields] = useState(new Set());
+
+  // Refs to track WebSocket resources for manual cleanup
+  const activityIntervalRef = useRef(null);
+  const unsubscribeRefs = useRef({
+    workOrderUpdate: null,
+    userActivity: null,
+    userLeft: null
+  });
+  const isCleaningUpRef = useRef(false);
   
   // Smart back navigation based on user role and referrer
   const getBackRoute = () => {
@@ -567,13 +576,16 @@ if (!formObj.status) formObj.status = "Assigned";
 
   // WebSocket event listeners for this specific work order
   useEffect(() => {
+    // Reset cleanup flag when effect runs (e.g., when id or token changes)
+    isCleaningUpRef.current = false;
+    
     if (id && token) {
       // Join the specific work order room
       workOrderWS.joinWorkOrder(id);
       
       // Broadcast that this user is actively working on this work order
       const broadcastUserActivity = () => {
-        if (workOrderWS.socket && workOrderWS.connected) {
+        if (workOrderWS.socket && workOrderWS.connected && !isCleaningUpRef.current) {
           workOrderWS.socket.emit('user-activity', {
             workOrderNo: id,
             userId: user?.id || user?.username,
@@ -587,10 +599,12 @@ if (!formObj.status) formObj.status = "Assigned";
       
       // Broadcast immediately and then every 30 seconds
       broadcastUserActivity();
-      const activityInterval = setInterval(broadcastUserActivity, 30000);
+      activityIntervalRef.current = setInterval(broadcastUserActivity, 30000);
 
       // Subscribe to updates for this specific work order
       const unsubscribeWorkOrderUpdate = workOrderWS.subscribe('workorder-update', (data) => {
+        if (isCleaningUpRef.current) return; // Don't process if cleaning up
+        
         if (data.workOrderNo === id) {
           console.log('Work order updated via WebSocket:', data);
           
@@ -614,15 +628,20 @@ if (!formObj.status) formObj.status = "Assigned";
             // Refresh the entire form if work order was updated
             // Add a small delay to ensure cache is cleared
             setTimeout(() => {
-              console.log('TechWorkOrderForm: Refreshing form data after WebSocket update');
-              fetchWorkOrderData();
+              if (!isCleaningUpRef.current) {
+                console.log('TechWorkOrderForm: Refreshing form data after WebSocket update');
+                fetchWorkOrderData();
+              }
             }, 500);
           }
         }
       });
+      unsubscribeRefs.current.workOrderUpdate = unsubscribeWorkOrderUpdate;
 
       // Subscribe to user activity updates
       const unsubscribeUserActivity = workOrderWS.subscribe('user-activity', (data) => {
+        if (isCleaningUpRef.current) return; // Don't process if cleaning up
+        
         console.log('TechWorkOrderForm: User activity update:', data);
         if (data.workOrderNo === id) {
           setActiveUsers(prev => ({
@@ -637,9 +656,12 @@ if (!formObj.status) formObj.status = "Assigned";
           }));
         }
       });
+      unsubscribeRefs.current.userActivity = unsubscribeUserActivity;
 
       // Subscribe to user leaving work order
       const unsubscribeUserLeft = workOrderWS.subscribe('user-left', (data) => {
+        if (isCleaningUpRef.current) return; // Don't process if cleaning up
+        
         console.log('TechWorkOrderForm: User left work order:', data);
         if (data.workOrderNo === id) {
           setActiveUsers(prev => {
@@ -651,10 +673,14 @@ if (!formObj.status) formObj.status = "Assigned";
           });
         }
       });
+      unsubscribeRefs.current.userLeft = unsubscribeUserLeft;
 
       return () => {
         // Clear the activity interval
-        clearInterval(activityInterval);
+        if (activityIntervalRef.current) {
+          clearInterval(activityIntervalRef.current);
+          activityIntervalRef.current = null;
+        }
         
         // Broadcast that this user is leaving the work order
         if (workOrderWS.socket && workOrderWS.connected) {
@@ -665,12 +691,80 @@ if (!formObj.status) formObj.status = "Assigned";
         }
         
         workOrderWS.leaveWorkOrder(id);
-        unsubscribeWorkOrderUpdate();
-        unsubscribeUserActivity();
-        unsubscribeUserLeft();
+        
+        // Unsubscribe from all events
+        if (unsubscribeRefs.current.workOrderUpdate) {
+          unsubscribeRefs.current.workOrderUpdate();
+          unsubscribeRefs.current.workOrderUpdate = null;
+        }
+        if (unsubscribeRefs.current.userActivity) {
+          unsubscribeRefs.current.userActivity();
+          unsubscribeRefs.current.userActivity = null;
+        }
+        if (unsubscribeRefs.current.userLeft) {
+          unsubscribeRefs.current.userLeft();
+          unsubscribeRefs.current.userLeft = null;
+        }
       };
     }
   }, [id, token, fetchWorkOrderData, user?.id, user?.username, user?.role]);
+
+  // Cleanup function to be called before navigation
+  const cleanupWebSocketResources = useCallback(() => {
+    if (isCleaningUpRef.current) return; // Already cleaning up
+    isCleaningUpRef.current = true;
+    
+    console.log('TechWorkOrderForm: Cleaning up WebSocket resources before navigation');
+    
+    // Clear the activity interval immediately
+    if (activityIntervalRef.current) {
+      clearInterval(activityIntervalRef.current);
+      activityIntervalRef.current = null;
+    }
+    
+    // Broadcast that user is leaving
+    if (workOrderWS.socket && workOrderWS.connected && id) {
+      try {
+        workOrderWS.socket.emit('user-left', {
+          workOrderNo: id,
+          userId: user?.id || user?.username
+        });
+      } catch (e) {
+        console.error('Error emitting user-left:', e);
+      }
+    }
+    
+    // Leave work order room
+    if (id) {
+      workOrderWS.leaveWorkOrder(id);
+    }
+    
+    // Unsubscribe from all events
+    if (unsubscribeRefs.current.workOrderUpdate) {
+      try {
+        unsubscribeRefs.current.workOrderUpdate();
+      } catch (e) {
+        console.error('Error unsubscribing workOrderUpdate:', e);
+      }
+      unsubscribeRefs.current.workOrderUpdate = null;
+    }
+    if (unsubscribeRefs.current.userActivity) {
+      try {
+        unsubscribeRefs.current.userActivity();
+      } catch (e) {
+        console.error('Error unsubscribing userActivity:', e);
+      }
+      unsubscribeRefs.current.userActivity = null;
+    }
+    if (unsubscribeRefs.current.userLeft) {
+      try {
+        unsubscribeRefs.current.userLeft();
+      } catch (e) {
+        console.error('Error unsubscribing userLeft:', e);
+      }
+      unsubscribeRefs.current.userLeft = null;
+    }
+  }, [id, user?.id, user?.username]);
 
   // Initial fetch
   useEffect(() => {
@@ -1229,15 +1323,20 @@ console.log("form", form);
         </div>
       )}
       <button
-  type="button"
-  onClick={() => {
-    if (isPreview) {
-      navigate('/dashboard');
-    } else {
-      navigate(getBackRoute());
-    }
-  }}
-
+        type="button"
+        onClick={() => {
+          // Clean up WebSocket resources BEFORE navigating
+          cleanupWebSocketResources();
+          
+          // Use requestAnimationFrame to ensure cleanup completes before navigation
+          requestAnimationFrame(() => {
+            if (isPreview) {
+              navigate('/dashboard');
+            } else {
+              navigate(getBackRoute());
+            }
+          });
+        }}
         style={{
           marginBottom: 18,
           padding: "8px 20px",
