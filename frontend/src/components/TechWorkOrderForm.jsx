@@ -999,7 +999,10 @@ const handleChange = e => {
   const addPart = () => {
     // Update last modified timestamp
     setLastModified(Date.now());
-    setForm(prev => ({ ...prev, parts: [...prev.parts, { description:'', partNumber:'', quantity:'1', waiting: false, estimatedDeliveryDate: '' }] }));
+    // Don't auto-populate quantity for Joe
+    const isJoe = user?.username?.toLowerCase() === 'joe' || user?.name?.toLowerCase() === 'joe';
+    const defaultQuantity = isJoe ? '' : '1';
+    setForm(prev => ({ ...prev, parts: [...prev.parts, { description:'', partNumber:'', quantity: defaultQuantity, waiting: false, estimatedDeliveryDate: '' }] }));
   };
 
   // Helper: Notify Office via backend API
