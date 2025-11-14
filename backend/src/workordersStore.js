@@ -423,13 +423,27 @@ const camelToSnake = {
 };
 
 const dbUpdates = {};
+// Numeric fields that should be NULL if empty string
+const numericFields = ['shipping_cost', 'ship_from_glls_cost'];
 for (const key in updates) {
   if (camelToSnake[key]) {
 // If updating status_history, always stringify it
 if (camelToSnake[key] === 'status_history') {
   dbUpdates['status_history'] = JSON.stringify(updates[key] || []);
 } else {
-  dbUpdates[camelToSnake[key]] = updates[key];
+  const dbField = camelToSnake[key];
+  let value = updates[key];
+  // Convert empty strings to NULL for numeric fields, and ensure numeric values are properly formatted
+  if (numericFields.includes(dbField)) {
+    if (value === '' || value === null || value === undefined) {
+      value = null;
+    } else if (typeof value === 'string' && value.trim() !== '') {
+      // Convert string numbers to actual numbers
+      const numValue = parseFloat(value);
+      value = isNaN(numValue) ? null : numValue;
+    }
+  }
+  dbUpdates[dbField] = value;
 }}}
 
 const setClauses = [];

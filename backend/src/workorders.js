@@ -376,6 +376,12 @@ res.json({ message: 'Work order updated', workOrder: updated });
 
   } catch (err) {
     console.error('Failed to update work order:', err);
+    console.error('Error details:', {
+      message: err.message,
+      stack: err.stack,
+      workOrderNo: req.params.workOrderNo,
+      updateKeys: Object.keys(req.body || {})
+    });
     res.status(500).json({ error: err.message || 'Failed to update work order.' });
   }
 
