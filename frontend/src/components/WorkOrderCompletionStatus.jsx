@@ -16,6 +16,10 @@ const WorkOrderCompletionStatus = ({ workOrder }) => {
                           workOrder?.shipping_cost !== '') ||
                          (workOrder?.shippingCost !== null && workOrder?.shippingCost !== undefined && 
                           workOrder?.shippingCost !== '');
+  const hasShipFromGllsCost = (workOrder?.ship_from_glls_cost !== null && workOrder?.ship_from_glls_cost !== undefined && 
+                               workOrder?.ship_from_glls_cost !== '') ||
+                              (workOrder?.shipFromGllsCost !== null && workOrder?.shipFromGllsCost !== undefined && 
+                               workOrder?.shipFromGllsCost !== '');
   const hasShippingComments = (workOrder?.shipping_comments && workOrder.shipping_comments.trim() !== '') ||
                              (workOrder?.shippingComments && workOrder.shippingComments.trim() !== '');
   
@@ -25,7 +29,8 @@ const WorkOrderCompletionStatus = ({ workOrder }) => {
     { completed: hasPoNumber, label: 'PO Number', field: 'po_number' },
     { completed: hasContactInfo, label: 'Contact Info', field: 'contact_info' },
     { completed: hasSerialNumber, label: 'Serial Number', field: 'serial_number' },
-    { completed: hasShippingCost, label: 'Shipping Cost', field: 'shipping_cost' },
+    { completed: hasShippingCost, label: 'Inbound Shipping', field: 'shipping_cost' },
+    { completed: hasShipFromGllsCost, label: 'Outbound Shipping', field: 'ship_from_glls_cost' },
     { completed: hasShippingComments, label: 'Shipping Comments', field: 'shipping_comments' }
   ];
 

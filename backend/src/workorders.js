@@ -414,6 +414,23 @@ res.json({ message: 'Work order updated', workOrder: updated });
         return res.status(400).json({ error: 'Work order is already submitted for billing' });
       }
       
+      // Validate that all shipping fields are filled out before submitting for billing
+      const shippingCost = currentWorkOrder.shipping_cost;
+      const shipFromGllsCost = currentWorkOrder.ship_from_glls_cost;
+      const shippingComments = currentWorkOrder.shipping_comments;
+      
+      if (!shippingCost || shippingCost === '' || shippingCost === null) {
+        return res.status(400).json({ error: 'Inbound Shipping is required to submit for billing.' });
+      }
+      
+      if (!shipFromGllsCost || shipFromGllsCost === '' || shipFromGllsCost === null) {
+        return res.status(400).json({ error: 'Outbound Shipping is required to submit for billing.' });
+      }
+      
+      if (!shippingComments || shippingComments.trim() === '') {
+        return res.status(400).json({ error: 'Shipping Comments are required to submit for billing.' });
+      }
+      
       // Update status to "Submitted for Billing"
       const now = new Date().toISOString();
       let statusHistory = currentWorkOrder.status_history;
@@ -548,6 +565,7 @@ This work order is now ready for billing processing.`;
       return res.status(404).json({ error: 'Work order not found' });
     }
     const workOrder = result.rows[0];
+    const previousStatus = workOrder.status;
     let statusHistory = workOrder.status_history;
 
     // Parse status_history (if needed)
@@ -596,7 +614,61 @@ const updateResult = await pool.query(
   ]
 );
 
-    res.json({ message: "Work order closed!", workOrder: updateResult.rows[0] });
+    const updatedWorkOrder = updateResult.rows[0];
+
+    // Send email notification if transitioning from "Customer Invoiced" to "Closed"
+    if (previousStatus && previousStatus.toLowerCase() === 'customer invoiced') {
+      try {
+        // Get notification emails from Google Sheets
+        const sheetsClient = new google.auth.GoogleAuth({
+          keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          scopes: ['https://www.googleapis.com/auth/spreadsheets']
+        });
+        const sheets = google.sheets({ version: 'v4', auth: sheetsClient });
+        
+        const emailResp = await sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'Config!D2:D', // D2 and down - notification emails
+        });
+        
+        const emailRows = emailResp.data.values || [];
+        const notificationEmails = emailRows.map(r => r[0]).filter(email => email && email.includes('@'));
+        
+        if (notificationEmails.length > 0) {
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.EMAIL_USER,
+              pass: process.env.EMAIL_PASS,
+            },
+          });
+
+          const subject = `Work Order ${workOrder.work_order_no}: Closed`;
+          const text = `Work Order #${workOrder.work_order_no} has been closed.
+
+Company: ${workOrder.company_name || 'N/A'}
+Date: ${workOrder.date || 'N/A'}
+Previous Status: Customer Invoiced
+Current Status: Closed
+
+This work order has been marked as paid and closed.`;
+
+          await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: notificationEmails.join(','),
+            subject,
+            text
+          });
+
+          console.log('Work order closed notification email sent');
+        }
+      } catch (emailError) {
+        console.error('Failed to send work order closed notification email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
+
+    res.json({ message: "Work order closed!", workOrder: updatedWorkOrder });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to close work order." });

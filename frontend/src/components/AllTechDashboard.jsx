@@ -78,8 +78,9 @@ const generatePDF = (order) => {
       ].filter(Boolean).join(", ")],
       ["Shop", order.shop],
       ["Status", order.status],
-      ["Shipping Cost", order.shippingCost],
-      ["Shipping Comments", order.shippingComments]
+      ["Inbound Shipping", order.shippingCost || ""],
+      ["Outbound Shipping", order.shipFromGllsCost || ""],
+      ["Shipping Comments", order.shippingComments || ""]
     ];
 
     const infoStartY = y + 5;

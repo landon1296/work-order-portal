@@ -86,6 +86,7 @@ async function getPaginated({ limit = 50, offset = 0 }) {
        w.contact_phone,
        w.contact_email,
        w.shipping_cost,
+       w.ship_from_glls_cost,
        w.shipping_comments,
        -- Minimal latest time log (for technician username display)
        COALESCE(
@@ -249,7 +250,7 @@ if (!order.assignedDays) order.assignedDays = 1;
         field_street, field_city, field_state, field_zipcode,
         make, model, other_desc, serial_number, contact_name, contact_phone,
         contact_email, vendor_warranty, billable, maintenance, non_billable_repair, shop, repair_type,
-        sales_name, shipping_cost, shipping_comments, work_description, po_number, notes, status,
+        sales_name, shipping_cost, ship_from_glls_cost, shipping_comments, work_description, po_number, notes, status,
         status_history, assigned_days, in_progress_days,
         in_progress_pending_parts_days, completed_pending_approval_days,
         submitted_for_billing_days, closed_days, customer_signature, customer_signature_printed
@@ -257,8 +258,8 @@ if (!order.assignedDays) order.assignedDays = 1;
      VALUES
       (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
-        $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
+        $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
       )
      RETURNING *`,
     [
@@ -290,6 +291,7 @@ if (!order.assignedDays) order.assignedDays = 1;
       order.repairType,
       order.salesName,
       order.shippingCost,
+      order.shipFromGllsCost,
       order.shippingComments,
       order.workDescription,
       order.poNumber,
@@ -400,6 +402,7 @@ const camelToSnake = {
   repairType: 'repair_type',
   salesName: 'sales_name',
   shippingCost: 'shipping_cost',
+  shipFromGllsCost: 'ship_from_glls_cost',
   shippingComments: 'shipping_comments',
   workDescription: 'work_description',
   poNumber: 'po_number',

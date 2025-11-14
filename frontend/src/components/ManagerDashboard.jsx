@@ -284,7 +284,8 @@ const generatePDF = (order) => {
         order.maintenance ? "Maintenance" : "",
         order.nonBillableRepair || order.non_billable_repair ? "Non-billable Repair" : ""
       ].filter(Boolean).join(", ")],
-      ["Shipping Cost", order.shippingCost || ""],
+      ["Inbound Shipping", order.shippingCost || ""],
+      ["Outbound Shipping", order.shipFromGllsCost || ""],
       ["Shipping Comments", order.shippingComments || ""]
     ];
 

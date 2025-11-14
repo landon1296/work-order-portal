@@ -67,8 +67,8 @@ const useKeyboardNavigation = () => {
       ['technicianAssigned', 'assignDate', 'startTime', 'finishTime', 'travelTime'],
       // Row 11: Add Time Log button (1 column)
       ['addTimeLog'],
-      // Row 12: Sales & Shipping (3 columns)
-      ['salesName', 'shippingCost', 'shippingComments'],
+      // Row 12: Sales & Shipping (4 columns)
+      ['salesName', 'shippingCost', 'shipFromGllsCost', 'shippingComments'],
       // Row 13: Parts (3 columns)
       ['partNumber', 'description', 'quantity'],
       // Row 14: Add Part button (1 column)
@@ -353,6 +353,7 @@ export default function TechWorkOrderForm({ token, user }) {
     repairType: '',
     salesName: '',
     shippingCost: '',
+    shipFromGllsCost: '',
     shippingComments: '',
     notes: '',
     parts: [{ description:'', partNumber:'', quantity:'', waiting: false, estimatedDeliveryDate: '' }],
@@ -483,7 +484,7 @@ const handleDeletePhoto = async (photoId) => {
           "companyName", "companyStreet", "companyCity", "companyState", "companyZip",
           "fieldContact", "fieldContactNumber", "fieldStreet", "fieldCity", "fieldState", "fieldZipcode",
           "poNumber", "make", "model", "serialNumber", "date",
-          "contactName", "contactPhone", "contactEmail", "salesName", "shippingCost", "shippingComments", "notes", "otherDesc", "workDescription"
+          "contactName", "contactPhone", "contactEmail", "salesName", "shippingCost", "shipFromGllsCost", "shippingComments", "notes", "otherDesc", "workDescription"
         ].forEach(field => {
           if (formObj[field] === undefined || formObj[field] === null) formObj[field] = "";
         });
@@ -1868,9 +1869,12 @@ console.log("form", form);
                     Salesman
                 </th>
                 <th className="assign-table-header" colSpan={1}>
-                  Shipping Cost
+                  Inbound Shipping
                 </th>
-            <th className="assign-table-header" colSpan={3} style={{textAlign:'left'}}>
+                <th className="assign-table-header" colSpan={1}>
+                  Outbound Shipping
+                </th>
+            <th className="assign-table-header" colSpan={2} style={{textAlign:'left'}}>
               Shipping Comments
             </th>
             </tr>
@@ -1907,7 +1911,25 @@ console.log("form", form);
                   }
               />
             </td>
-            <td colSpan={3} style={{textAlign:'left'}}>
+            <td>
+              <input
+                name="shipFromGllsCost"
+                value={form.shipFromGllsCost ?? ""}                
+                onChange={handleChange}
+                placeholder="Ex. 1234.00"
+              
+                type="number"
+                min="0"
+                step="0.01"
+                {...disabledIfInHouse}
+                  style={
+                    isInHouseRepair
+                      ? { backgroundColor: "#808080", color: "#808080" }
+                      : {}
+                  }
+              />
+            </td>
+            <td colSpan={2} style={{textAlign:'left'}}>
               <input
                 name="shippingComments"
                 value={form.shippingComments ?? ""}
