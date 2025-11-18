@@ -59,12 +59,18 @@ async function getAll() {
 }
 
 // Get paginated work orders with lightweight fields and counts
-async function getPaginated({ limit = 50, offset = 0 }) {
+async function getPaginated({ limit = 50, offset = 0, includeClosed = false }) {
   const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
   const safeOffset = Math.max(0, Number(offset) || 0);
 
-  // Count total rows
-  const countResult = await pool.query('SELECT COUNT(*)::int AS count FROM workorders');
+  // Build WHERE clause - exclude closed orders by default
+  const whereClause = includeClosed ? '' : "WHERE w.status != 'Closed'";
+  
+  // Count total rows (respecting closed filter)
+  const countQuery = includeClosed 
+    ? 'SELECT COUNT(*)::int AS count FROM workorders'
+    : "SELECT COUNT(*)::int AS count FROM workorders WHERE status != 'Closed'";
+  const countResult = await pool.query(countQuery);
   const total = countResult.rows[0]?.count || 0;
 
   // Lightweight select to minimize transferred memory
@@ -107,6 +113,7 @@ async function getPaginated({ limit = 50, offset = 0 }) {
          '[]'::json
        ) AS time_logs
      FROM workorders w
+     ${whereClause}
      ORDER BY w.id DESC
      LIMIT $1 OFFSET $2`,
     [safeLimit, safeOffset]
@@ -235,6 +242,8 @@ async function getWorkOrdersBySerialNumber(serialNumber, { limit = 50, offset = 
 
 // Add a new work order
 async function add(order) {
+  console.log('📝 add() function called with order:', JSON.stringify(order, null, 2));
+  
   if (!order.status) order.status = "Assigned";
 if (!order.statusHistory || !Array.isArray(order.statusHistory)) {
   const now = new Date().toISOString();
@@ -242,73 +251,103 @@ if (!order.statusHistory || !Array.isArray(order.statusHistory)) {
 }
 if (!order.assignedDays) order.assignedDays = 1;
 
-  const result = await pool.query(
-    `INSERT INTO workorders
-      (
-        work_order_no, date, company_name, company_street, company_city,
-        company_state, company_zip, field_contact_name, field_contact_number,
-        field_street, field_city, field_state, field_zipcode,
-        make, model, other_desc, serial_number, contact_name, contact_phone,
-        contact_email, vendor_warranty, billable, maintenance, non_billable_repair, shop, repair_type,
-        sales_name, shipping_cost, ship_from_glls_cost, shipping_comments, work_description, po_number, notes, status,
-        status_history, assigned_days, in_progress_days,
-        in_progress_pending_parts_days, completed_pending_approval_days,
-        submitted_for_billing_days, closed_days, customer_signature, customer_signature_printed
-      )
-     VALUES
-      (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-        $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
-      )
-     RETURNING *`,
-    [
-      order.workOrderNo,
-      order.date,
-      order.companyName,
-      order.companyStreet,
-      order.companyCity,
-      order.companyState,
-      order.companyZip,
-      order.fieldContact,
-      order.fieldContactNumber,
-      order.fieldStreet,
-      order.fieldCity,
-      order.fieldState,
-      order.fieldZipcode,
-      order.make,
-      order.model,
-      order.otherDesc,
-      order.serialNumber,
-      order.contactName,
-      order.contactPhone,
-      order.contactEmail,
-      order.vendorWarranty,
-      order.billable,
-      order.maintenance,
-      order.nonBillableRepair,
-      order.shop,
-      order.repairType,
-      order.salesName,
-      order.shippingCost,
-      order.shipFromGllsCost,
-      order.shippingComments,
-      order.workDescription,
-      order.poNumber,
-      order.notes, // or order.notes, if that's what you use
-      order.status,
-      JSON.stringify(order.statusHistory || []), // this can be an array or JSON
-      order.assignedDays,
-      order.inProgressDays,
-      order.inProgressPendingPartsDays,
-      order.completedPendingApprovalDays,
-      order.submittedForBillingDays,
-      order.closedDays,
-      order.customerSignature,
-      order.customerSignaturePrinted
-    ]
-  );
-  return result.rows[0];
+  // Validate required fields
+  if (!order.workOrderNo) {
+    throw new Error('workOrderNo is required');
+  }
+  if (!order.date) {
+    throw new Error('date is required');
+  }
+
+  // Convert empty strings to null for numeric fields
+  const shippingCost = order.shippingCost === '' || order.shippingCost === null || order.shippingCost === undefined 
+    ? null 
+    : (typeof order.shippingCost === 'string' ? parseFloat(order.shippingCost) || null : order.shippingCost);
+  
+  const shipFromGllsCost = order.shipFromGllsCost === '' || order.shipFromGllsCost === null || order.shipFromGllsCost === undefined 
+    ? null 
+    : (typeof order.shipFromGllsCost === 'string' ? parseFloat(order.shipFromGllsCost) || null : order.shipFromGllsCost);
+
+  console.log('📝 Inserting work order with workOrderNo:', order.workOrderNo);
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO workorders
+        (
+          work_order_no, date, company_name, company_street, company_city,
+          company_state, company_zip, field_contact_name, field_contact_number,
+          field_street, field_city, field_state, field_zipcode,
+          make, model, other_desc, serial_number, contact_name, contact_phone,
+          contact_email, vendor_warranty, billable, maintenance, non_billable_repair, shop, repair_type,
+          sales_name, shipping_cost, ship_from_glls_cost, shipping_comments, work_description, po_number, notes, status,
+          status_history, assigned_days, in_progress_days,
+          in_progress_pending_parts_days, completed_pending_approval_days,
+          submitted_for_billing_days, closed_days, customer_signature, customer_signature_printed
+        )
+       VALUES
+        (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+          $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
+          $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
+        )
+       RETURNING *`,
+      [
+        order.workOrderNo,
+        order.date,
+        order.companyName,
+        order.companyStreet,
+        order.companyCity,
+        order.companyState,
+        order.companyZip,
+        order.fieldContact,
+        order.fieldContactNumber,
+        order.fieldStreet,
+        order.fieldCity,
+        order.fieldState,
+        order.fieldZipcode,
+        order.make,
+        order.model,
+        order.otherDesc,
+        order.serialNumber,
+        order.contactName,
+        order.contactPhone,
+        order.contactEmail,
+        order.vendorWarranty,
+        order.billable,
+        order.maintenance,
+        order.nonBillableRepair,
+        order.shop,
+        order.repairType,
+        order.salesName,
+        shippingCost,
+        shipFromGllsCost,
+        order.shippingComments,
+        order.workDescription,
+        order.poNumber,
+        order.notes, // or order.notes, if that's what you use
+        order.status,
+        JSON.stringify(order.statusHistory || []), // this can be an array or JSON
+        order.assignedDays,
+        order.inProgressDays,
+        order.inProgressPendingPartsDays,
+        order.completedPendingApprovalDays,
+        order.submittedForBillingDays,
+        order.closedDays,
+        order.customerSignature,
+        order.customerSignaturePrinted
+      ]
+    );
+    
+    console.log('✅ Successfully inserted work order:', result.rows[0]?.work_order_no);
+    return result.rows[0];
+  } catch (dbError) {
+    console.error('❌ Database error in add() function:', dbError);
+    console.error('❌ Error code:', dbError.code);
+    console.error('❌ Error detail:', dbError.detail);
+    console.error('❌ Error constraint:', dbError.constraint);
+    console.error('❌ Error message:', dbError.message);
+    throw dbError; // Re-throw to be caught by route handler
+  }
 }
 
 // Add a line item for a work order

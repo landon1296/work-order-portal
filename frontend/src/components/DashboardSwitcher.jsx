@@ -7,7 +7,6 @@ import AnalyticsDashboard from "./AnalyticsDashboard";
 import AllTechDashboard from "./AllTechDashboard";
 import ReceptionDashboard from "./ReceptionDashboard";
 import SchedulerDashboard from "./SchedulerDashboard";
-import CallLogDashboard from "./CallLogDashboard";
 
 export default function DashboardSwitcher({ user }) {
   const location = useLocation();
@@ -34,8 +33,6 @@ export default function DashboardSwitcher({ user }) {
         { key: "reception", name: "Reception", component: <ReceptionDashboard user={user} /> },
         { key: "tech", name: "Tech", component: <AllTechDashboard user={user} /> },
         { key: "scheduler", name: "Scheduler", component: <SchedulerDashboard user={user} /> },
-        { key: "calllog", name: "Call Log / Follow-up", component: <CallLogDashboard user={user} /> },
-        
       ];
 
 

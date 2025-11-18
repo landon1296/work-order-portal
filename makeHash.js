@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 
 // Change this to the password you want to hash
-const password = 'DavidManager'; // <-- EDIT THIS
+const password = 'danglls2025'; // <-- EDIT THIS
 
 bcrypt.hash(password, 10, (err, hash) => {
   if (err) throw err;

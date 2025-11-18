@@ -19,7 +19,6 @@ const ReceptionDashboard = lazy(() => import('./components/ReceptionDashboard'))
 const TroubleshootForm = lazy(() => import('./components/TroubleshootForm'));
 const DashboardSwitcher = lazy(() => import('./components/DashboardSwitcher'));
 const RoleSwitcher = lazy(() => import('./components/RoleSwitcher'));
-const CallLogDashboard = lazy(() => import('./components/CallLogDashboard'));
 const OfflineTest = lazy(() => import('./components/OfflineTest'));
 
 // Utility function to check if user has specific role(s)
@@ -171,7 +170,7 @@ function App() {
                 ? (user?.roles && user.roles.length > 1
                     ? <RoleSwitcher user={user} />
                     : <Suspense fallback={<LoadingSpinner message="Loading technician dashboard..." />}>
-                        <TechDashboard username={user.username} />
+                        <TechDashboard username={user.username} user={user} />
                       </Suspense>
                   )
                 : <Navigate to="/" />
@@ -201,17 +200,6 @@ function App() {
             </RequireAuth>
           } />
 
-                   {/* Call Log Dashboard */}
-                   <Route path="/call-log-dashboard" element={
-                     <RequireAuth user={user}>
-                       {hasRole(user, ['manager', 'accounting', 'analytics', 'owner', 'reception'])
-                         ? <Suspense fallback={<LoadingSpinner message="Loading call log dashboard..." />}>
-                             <CallLogDashboard user={user} />
-                           </Suspense>
-                         : <Navigate to="/" />
-                       }
-                     </RequireAuth>
-                   } />
 
                    {/* Offline Test Page */}
                    <Route path="/offline-test" element={

@@ -230,10 +230,12 @@ const useWorkOrders = (user) => {
     setError(null);
     
     try {
-      const res = await API.get('/workorders', { 
+      // Use paginated endpoint with higher limit for scheduler (needs more data for filtering)
+      // Fetch first 200 orders (can be increased if needed, but paginated to reduce egress)
+      const res = await API.get('/workorders?limit=200&offset=0', { 
         headers: { Authorization: `Bearer ${user.token}` } 
       });
-      setOrders(res.data);
+      setOrders(res.data.rows || []);
     } catch (err) {
       console.error('Failed to fetch orders:', err);
       setError('Failed to load work orders. Please refresh the page.');

@@ -6,6 +6,7 @@ import { getStatusColor } from '../utils/statusColors';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import logoBase64 from '../assets/logoBase64';
+import { useServerSideSearch } from '../hooks/useServerSideSearch';
 
 // CSS animations
 const styles = `
@@ -302,21 +303,22 @@ const useGlobalSearch = () => {
 };
 
 // History Check Component
-const HistoryCheck = ({ workOrder, onShowHistory }) => {
+const HistoryCheck = ({ workOrder, onShowHistory, user }) => {
   const [hasHistory, setHasHistory] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
-    if (workOrder.serialNumber) {
+    if (workOrder.serialNumber && user?.token) {
       setIsChecking(true);
-      // Fetch all work orders to check for history
-      API.get('/workorders')
+      // Use optimized search endpoint instead of fetching all work orders
+      API.get(`/workorders/by-serial/${encodeURIComponent(workOrder.serialNumber)}?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      })
         .then(res => {
-          const allOrders = res.data.map(toCamelCaseDeep);
-          const historyCount = allOrders.filter(order => 
-            order.serialNumber && 
-            order.serialNumber.toLowerCase() === workOrder.serialNumber.toLowerCase() &&
+          const matchingOrders = res.data.rows || [];
+          // Filter out current work order
+          const historyCount = matchingOrders.filter(order => 
             order.workOrderNo !== workOrder.workOrderNo
           ).length;
           
@@ -329,7 +331,7 @@ const HistoryCheck = ({ workOrder, onShowHistory }) => {
           setIsChecking(false);
         });
     }
-  }, [workOrder.serialNumber, workOrder.workOrderNo]);
+  }, [workOrder.serialNumber, workOrder.workOrderNo, user?.token]);
 
   const checkHistory = () => {
     console.log('History check clicked for serial number:', workOrder.serialNumber);
@@ -715,7 +717,7 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackT
   );
 };
 
-export default function TechDashboard({ username }) {
+export default function TechDashboard({ username, user }) {
   const [workOrders, setWorkOrders] = useState([]);
   const [troubleshootOrders, setTroubleshootOrders] = useState([]);
   const [closedTroubleshootOrders, setClosedTroubleshootOrders] = useState([]);
@@ -725,6 +727,7 @@ export default function TechDashboard({ username }) {
   const [closedTroubleshootLoading, setClosedTroubleshootLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const { globalSearchTerm, showSearchResults, searchResults, handleGlobalSearch, clearGlobalSearch, performGlobalSearch, setShowSearchResults, setSearchResults } = useGlobalSearch();
+  const { performSearch: serverSideSearch, searchBySerialNumber } = useServerSideSearch(user || {});
 
   // Only show work orders that are NOT "submitted"
   const visibleWorkOrders = workOrders.filter(
@@ -744,17 +747,20 @@ export default function TechDashboard({ username }) {
   }, [handleGlobalSearch]);
 
   const handleGlobalSearchSubmit = useCallback(() => {
-    if (globalSearchTerm.trim()) {
+    if (globalSearchTerm.trim() && user?.token) {
       setSearchLoading(true);
-      // Fetch all work orders for global search
-      API.get('/workorders')
+      // Use optimized server-side search endpoint instead of fetching all work orders
+      API.get(`/workorders/search?q=${encodeURIComponent(globalSearchTerm.trim())}&limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      })
         .then(res => {
-          const allOrders = res.data.map(toCamelCaseDeep);
-          performGlobalSearch(allOrders, globalSearchTerm);
+          const searchResults = res.data.rows || [];
+          setSearchResults(searchResults);
+          setShowSearchResults(true);
           setSearchLoading(false);
         })
         .catch(err => {
-          console.error('Failed to fetch all work orders for search:', err);
+          console.error('Failed to search work orders:', err);
           // Fallback to searching assigned work orders
           performGlobalSearch(workOrders, globalSearchTerm);
           setSearchLoading(false);
@@ -763,7 +769,7 @@ export default function TechDashboard({ username }) {
       setShowSearchResults(false);
       setSearchResults([]);
     }
-  }, [globalSearchTerm, performGlobalSearch, workOrders]);
+  }, [globalSearchTerm, workOrders, user?.token]);
 
   const handleBackToDashboard = useCallback(() => {
     clearGlobalSearch();
@@ -771,34 +777,42 @@ export default function TechDashboard({ username }) {
 
   const handleShowHistory = useCallback((serialNumber) => {
     console.log('Main handleShowHistory called with serial number:', serialNumber);
-    // Set the search term to the serial number and perform search
+    // Set the search term to the serial number
     handleGlobalSearch(serialNumber);
     setSearchLoading(true);
-    // Trigger the search immediately
-    API.get('/workorders')
-      .then(res => {
-        const allOrders = res.data.map(toCamelCaseDeep);
-        // Filter for orders with the same serial number but exclude the current one
-        const historyOrders = allOrders.filter(order => 
-          order.serialNumber && 
-          order.serialNumber.toLowerCase() === serialNumber.toLowerCase()
-        );
-        setSearchResults(historyOrders);
-        setShowSearchResults(true);
-        setSearchLoading(false);
+    // Use optimized search endpoint instead of fetching all work orders
+    if (user?.token) {
+      API.get(`/workorders/by-serial/${encodeURIComponent(serialNumber)}?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` }
       })
-      .catch(err => {
-        console.error('Failed to fetch all work orders for search:', err);
-        // Fallback to searching current work orders
-        const historyOrders = workOrders.filter(order => 
-          order.serialNumber && 
-          order.serialNumber.toLowerCase() === serialNumber.toLowerCase()
-        );
-        setSearchResults(historyOrders);
-        setShowSearchResults(true);
-        setSearchLoading(false);
-      });
-  }, [handleGlobalSearch, workOrders]);
+        .then(res => {
+          const historyOrders = res.data.rows || [];
+          setSearchResults(historyOrders);
+          setShowSearchResults(true);
+          setSearchLoading(false);
+        })
+        .catch(err => {
+          console.error('Failed to fetch work orders by serial number:', err);
+          // Fallback to searching current work orders
+          const historyOrders = workOrders.filter(order => 
+            order.serialNumber && 
+            order.serialNumber.toLowerCase() === serialNumber.toLowerCase()
+          );
+          setSearchResults(historyOrders);
+          setShowSearchResults(true);
+          setSearchLoading(false);
+        });
+    } else {
+      // Fallback if no user token
+      const historyOrders = workOrders.filter(order => 
+        order.serialNumber && 
+        order.serialNumber.toLowerCase() === serialNumber.toLowerCase()
+      );
+      setSearchResults(historyOrders);
+      setShowSearchResults(true);
+      setSearchLoading(false);
+    }
+  }, [handleGlobalSearch, workOrders, user?.token]);
 
   useEffect(() => {
     setLoading(true);
@@ -1049,7 +1063,7 @@ export default function TechDashboard({ username }) {
                 <td>{String(wo.companyName)}</td>
                                                   <td style={{ position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
                     {`${wo.make || ''} / ${wo.model || ''} / ${wo.serialNumber || ''}`}
-                    <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} />
+                    <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} user={user} />
                   </td>
                 <td>{String(wo.status || 'Assigned')}</td>
                 <td>

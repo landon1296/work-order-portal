@@ -116,39 +116,24 @@ for (const key in daysByStatus) {
 function setupWorkOrderRoutes(app) {
   app.get('/workorders', async (req, res) => {
     try {
-      const { limit, offset } = req.query || {};
-      // If pagination params are provided, use lightweight list
-      if (limit !== undefined || offset !== undefined) {
-        const { rows, total } = await getPaginated({ limit, offset });
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('GET /workorders paginated: returned', rows.length, 'of', total);
-        }
-        return res.json({ rows: toCamel(rows), total });
-      }
-
-      // Fallback to full dataset (legacy)
-      const workOrders = await getAll();
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('GET /workorders: count', Array.isArray(workOrders) ? workOrders.length : 'n/a');
-      }
-      function toCamel(obj) {
-  if (Array.isArray(obj)) {
-    return obj.map(v => toCamel(v));
-  } else if (obj !== null && obj.constructor === Object) {
-    return Object.keys(obj).reduce((result, key) => {
-      const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
-      result[camelKey] = toCamel(obj[key]);
-      return result;
-    }, {});
-  }
-  return obj;
-}
-
-// ...in your GET route:
-res.json(toCamel(workOrders));
-
+      const { limit, offset, includeClosed } = req.query || {};
+      // Always use paginated endpoint (default limit=50 if not provided)
+      const paginationLimit = limit !== undefined ? limit : 50;
+      const paginationOffset = offset !== undefined ? offset : 0;
+      const includeClosedFlag = includeClosed === 'true' || includeClosed === true;
       
+      const { rows, total } = await getPaginated({ 
+        limit: paginationLimit, 
+        offset: paginationOffset,
+        includeClosed: includeClosedFlag
+      });
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('GET /workorders paginated: returned', rows.length, 'of', total, includeClosedFlag ? '(including closed)' : '(excluding closed)');
+      }
+      return res.json({ rows: toCamel(rows), total });
     } catch (err) {
+      console.error('Failed to fetch work orders:', err);
       res.status(500).json({ error: 'Failed to fetch work orders.' });
     }
   });
@@ -183,9 +168,12 @@ res.json(toCamel(workOrders));
 
   // POST /workorders -> Save new work order in Supabase and line items and time entries
   app.post('/workorders', async (req, res) => {
-    console.log('POST /workorders hit:', req.body);
+    console.log('POST /workorders hit');
+    console.log('📦 Request body keys:', Object.keys(req.body || {}));
     console.log('📦 Incoming status field:', req.body.status);
-
+    console.log('📦 Incoming workOrderNo:', req.body.workOrderNo);
+    console.log('📦 Incoming date:', req.body.date);
+    console.log('📦 Full request body:', JSON.stringify(req.body, null, 2));
 
     try {
       const order = req.body;
@@ -200,20 +188,22 @@ res.json(toCamel(workOrders));
       const savedOrder = await add(order);
 
       // 2. Add all parts (line items)
-for (const part of order.parts) {
-  const partNumber = (part.partNumber || '').trim();
-  const description = (part.description || '').trim();
-  const quantity = Number(part.quantity || 0);
-  if (!partNumber && !description && quantity === 0) continue;
+      if (order.parts && Array.isArray(order.parts)) {
+        for (const part of order.parts) {
+          const partNumber = (part.partNumber || '').trim();
+          const description = (part.description || '').trim();
+          const quantity = Number(part.quantity || 0);
+          if (!partNumber && !description && quantity === 0) continue;
 
-  await addLineItem({
-    workOrderNo: order.workOrderNo,
-    partNumber,
-    description,
-    quantity,
-    waiting: part.waiting
-  });
-}
+          await addLineItem({
+            workOrderNo: order.workOrderNo,
+            partNumber,
+            description,
+            quantity,
+            waiting: part.waiting
+          });
+        }
+      }
 
 
       // 3. Add all time entries
@@ -241,7 +231,15 @@ for (const part of order.parts) {
       res.status(201).json(savedOrder);
     } catch (err) {
       console.error('Failed to create work order:', err);
-      res.status(500).json({ error: 'Failed to create work order.' });
+      console.error('Error stack:', err.stack);
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        detail: err.detail,
+        constraint: err.constraint
+      });
+      const errorMessage = err.detail || err.message || 'Failed to create work order.';
+      res.status(500).json({ error: errorMessage });
     }
   });
 
@@ -357,9 +355,10 @@ try {
   if (process.env.NODE_ENV !== 'production') {
     console.log('Broadcasting work order update for:', workOrderNo);
   }
+  // Send only changed fields, not the full work order object (reduces egress)
   // Convert snake_case to camelCase for frontend compatibility
-  const camelCaseUpdated = toCamel(updated);
-  WebSocketBroadcaster.broadcastWorkOrderUpdated(workOrderNo, camelCaseUpdated);
+  const camelCaseUpdates = toCamel(updates);
+  WebSocketBroadcaster.broadcastWorkOrderUpdated(workOrderNo, camelCaseUpdates);
   // Only broadcast parts update if parts were specifically modified (not just any update)
   if (updates.hasOwnProperty('parts') && Array.isArray(updates.parts)) {
     if (process.env.NODE_ENV !== 'production') {

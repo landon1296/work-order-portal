@@ -13,7 +13,7 @@ export const usePaginatedWorkOrders = (user, options = {}) => {
   const abortControllerRef = useRef(null);
   
   const pageSize = options.pageSize || DEFAULT_PAGE_SIZE;
-  const useFullDataset = options.useFullDataset || false;
+  const includeClosed = options.includeClosed || false;
 
   const fetchOrders = useCallback(async (page = 1, append = false) => {
     if (!user?.token) return;
@@ -31,40 +31,24 @@ export const usePaginatedWorkOrders = (user, options = {}) => {
     setError(null);
     
     try {
-      let res;
+      // Always use paginated approach (legacy full dataset removed)
+      const offset = (page - 1) * pageSize;
+      const includeClosedParam = includeClosed ? '&includeClosed=true' : '';
+      const res = await API.get(`/workorders?limit=${pageSize}&offset=${offset}${includeClosedParam}`, { 
+        headers: { Authorization: `Bearer ${user.token}` },
+        signal
+      });
       
-      if (useFullDataset) {
-        // Legacy behavior - fetch all work orders
-        const timestamp = Date.now();
-        res = await API.get(`/workorders?_t=${timestamp}`, { 
-          headers: { Authorization: `Bearer ${user.token}` },
-          signal
-        });
-        
-        if (signal.aborted) return;
-        
-        setOrders(res.data);
-        setTotal(res.data.length);
-        setHasMore(false);
+      if (signal.aborted) return;
+      
+      if (append && page > 1) {
+        setOrders(prev => [...prev, ...res.data.rows]);
       } else {
-        // Paginated approach
-        const offset = (page - 1) * pageSize;
-        res = await API.get(`/workorders?limit=${pageSize}&offset=${offset}`, { 
-          headers: { Authorization: `Bearer ${user.token}` },
-          signal
-        });
-        
-        if (signal.aborted) return;
-        
-        if (append && page > 1) {
-          setOrders(prev => [...prev, ...res.data.rows]);
-        } else {
-          setOrders(res.data.rows);
-        }
-        
-        setTotal(res.data.total);
-        setHasMore(offset + pageSize < res.data.total);
+        setOrders(res.data.rows);
       }
+      
+      setTotal(res.data.total);
+      setHasMore(offset + pageSize < res.data.total);
       
       setCurrentPage(page);
       
@@ -83,7 +67,7 @@ export const usePaginatedWorkOrders = (user, options = {}) => {
         setLoading(false);
       }
     }
-  }, [user?.token, pageSize, useFullDataset]);
+  }, [user?.token, pageSize, includeClosed]);
 
   const loadMore = useCallback(() => {
     if (!loading && hasMore) {

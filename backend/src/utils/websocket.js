@@ -110,14 +110,15 @@ class WebSocketBroadcaster {
     this.broadcastWorkOrderUpdate(workOrder.workOrderNo, 'created', workOrder);
   }
 
-  // Broadcast work order update
-  static broadcastWorkOrderUpdated(workOrderNo, updatedData) {
+  // Broadcast work order update - only send changed fields, not full work order object
+  static broadcastWorkOrderUpdated(workOrderNo, updatedFields) {
     console.log('WebSocketBroadcaster: Broadcasting work order update for', workOrderNo);
-    console.log('WebSocketBroadcaster: Data fields:', Object.keys(updatedData || {}));
-    if (updatedData && updatedData.notes) {
-      console.log('WebSocketBroadcaster: Notes field present:', updatedData.notes);
-    }
-    this.broadcastWorkOrderUpdate(workOrderNo, 'updated', updatedData);
+    console.log('WebSocketBroadcaster: Changed fields:', Object.keys(updatedFields || {}));
+    
+    // Only send the changed fields, not the full work order object
+    // This reduces egress usage significantly
+    // The data structure matches what frontend expects: { workOrderNo, updateType, data: { ...updatedFields }, timestamp }
+    this.broadcastWorkOrderUpdate(workOrderNo, 'updated', updatedFields || {});
   }
 
   // Broadcast parts update

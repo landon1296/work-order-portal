@@ -18,11 +18,11 @@ const RoleSwitcher = ({ user }) => {
   const roleConfig = {
     tech: {
       name: "Tech Dashboard",
-      component: <TechDashboard username={user.username} />
+      component: <TechDashboard username={user.username} user={user} />
     },
     technician: {
       name: "Tech Dashboard",
-      component: <TechDashboard username={user.username} />
+      component: <TechDashboard username={user.username} user={user} />
     },
     manager: {
       name: "Manager Dashboard", 

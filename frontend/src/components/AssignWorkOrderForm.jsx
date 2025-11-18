@@ -1498,8 +1498,9 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
           assignedDays: 1
         };
 
-        console.log('NEW MODE: sending to API:', newForm);
-        await API.post('/workorders', newForm);
+        console.log('NEW MODE: sending to API:', JSON.stringify(newForm, null, 2));
+        const response = await API.post('/workorders', newForm);
+        console.log('NEW MODE: API response:', response.data);
         
         // Call onSuccess callback if provided (for scheduler integration)
         if (onSuccess) {
@@ -1509,8 +1510,17 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         }
       }
     } catch (err) {
-      console.error('Failed to save work order:', err);
-      alert('Failed to save work order. Please try again.');
+      console.error('❌ Failed to save work order:', err);
+      console.error('❌ Full error object:', JSON.stringify(err, null, 2));
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Unknown error occurred';
+      console.error('❌ Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: errorMessage,
+        fullResponse: err.response
+      });
+      alert(`Failed to save work order: ${errorMessage}\n\nCheck console for details.`);
     } finally {
       setFormLoading(false);
     }
@@ -1551,8 +1561,9 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
           assignedDays: 1
         };
 
-        console.log('NEW MODE: sending to API:', newForm);
-        await API.post('/workorders', newForm);
+        console.log('NEW MODE: sending to API:', JSON.stringify(newForm, null, 2));
+        const response = await API.post('/workorders', newForm);
+        console.log('NEW MODE: API response:', response.data);
       }
 
       // Generate PDF after successful assignment
@@ -1567,8 +1578,17 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         navigate('/dashboard');
       }
     } catch (err) {
-      console.error('Failed to save work order:', err);
-      alert('Failed to save work order. Please try again.');
+      console.error('❌ Failed to save work order:', err);
+      console.error('❌ Full error object:', JSON.stringify(err, null, 2));
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Unknown error occurred';
+      console.error('❌ Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: errorMessage,
+        fullResponse: err.response
+      });
+      alert(`Failed to save work order: ${errorMessage}\n\nCheck console for details.`);
     } finally {
       setFormLoading(false);
     }

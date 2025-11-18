@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const http = require('http');
 const { Server } = require('socket.io');
 const { setupAuthRoutes } = require('./auth');
@@ -22,6 +23,8 @@ const io = new Server(server, {
 // Make io available globally for use in other modules
 global.io = io;
 
+// Add compression middleware to reduce response sizes (reduces egress usage)
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 app.use('/api/notify', notifyRoutes);

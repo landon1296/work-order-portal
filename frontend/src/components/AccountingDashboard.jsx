@@ -112,9 +112,20 @@ const useWorkOrders = (user) => {
     hasMore,
     loadMore,
     refresh
-  } = usePaginatedWorkOrders(user, { pageSize: 50 });
+  } = usePaginatedWorkOrders(user, { pageSize: 50, includeClosed: false });
 
   return { orders, loading, error, refetch: refresh, total, hasMore, loadMore };
+};
+
+const useClosedWorkOrders = (user) => {
+  const {
+    orders: closedOrders,
+    loading: closedLoading,
+    error: closedError,
+    refresh: refreshClosed
+  } = usePaginatedWorkOrders(user, { pageSize: 100, includeClosed: true });
+
+  return { closedOrders, closedLoading, closedError, refreshClosed };
 };
 
 const useAlerts = () => {
@@ -1439,6 +1450,7 @@ export default function AccountingDashboard({ user }) {
 
   // Custom hooks
   const { orders, loading, error, refetch, total, hasMore, loadMore } = useWorkOrders(user);
+  const { closedOrders, closedLoading, refreshClosed } = useClosedWorkOrders(user);
   const { alerts, clearAlert } = useAlerts();
   const { shopFilter, updateShopFilter, setDefaultShop } = useShopFilter();
   const { 
@@ -1472,7 +1484,8 @@ export default function AccountingDashboard({ user }) {
       o => o.status && (o.status.toLowerCase() === 'submitted for billing' || o.status.toLowerCase() === 'customer invoiced')
     );
 
-    const closed = filteredOrders.filter(
+    // Closed orders are now fetched separately
+    const closed = closedOrders.filter(
       o => o.status && o.status.toLowerCase() === 'closed'
     );
 
@@ -1481,13 +1494,12 @@ export default function AccountingDashboard({ user }) {
         o.status.toLowerCase() !== 'pending review' &&
         o.status.toLowerCase() !== 'pending approval' &&
         o.status.toLowerCase() !== 'submitted for billing' &&
-        o.status.toLowerCase() !== 'customer invoiced' &&
-        o.status.toLowerCase() !== 'closed'
+        o.status.toLowerCase() !== 'customer invoiced'
       )
     );
 
     return { submittedForBilling, closed, regular };
-  }, [filteredOrders]);
+  }, [filteredOrders, closedOrders]);
 
   // Memoized search filters
   const searchFilter = useCallback((order, searchTerm) => {

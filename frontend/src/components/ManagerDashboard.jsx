@@ -207,9 +207,20 @@ const useWorkOrders = (user) => {
     hasMore,
     loadMore,
     refresh
-  } = usePaginatedWorkOrders(user, { pageSize: 50 });
+  } = usePaginatedWorkOrders(user, { pageSize: 50, includeClosed: false });
 
   return { orders, loading, error, refetch: refresh, activeUsers, setActiveUsers, total, hasMore, loadMore };
+};
+
+const useClosedWorkOrders = (user) => {
+  const {
+    orders: closedOrders,
+    loading: closedLoading,
+    error: closedError,
+    refresh: refreshClosed
+  } = usePaginatedWorkOrders(user, { pageSize: 100, includeClosed: true });
+
+  return { closedOrders, closedLoading, closedError, refreshClosed };
 };
 
 const useShopFilter = () => {
@@ -1456,6 +1467,7 @@ export default function ManagerDashboard({ user }) {
 
   // Custom hooks
   const { orders, loading, error, refetch, activeUsers, setActiveUsers, total, hasMore, loadMore } = useWorkOrders(user);
+  const { closedOrders, closedLoading, refreshClosed } = useClosedWorkOrders(user);
   const { shopFilter, updateShopFilter, setDefaultShop } = useShopFilter();
   const { search, setSearch, closedSearch, setClosedSearch, closedPage, setClosedPage, resetClosedPage } = useSearchFilters();
   const { globalSearchTerm, showSearchResults, searchResults, searchLoading, searchError, handleGlobalSearch, clearGlobalSearch, performGlobalSearch, searchBySerialNumber } = useGlobalSearch(user);
@@ -1528,8 +1540,7 @@ export default function ManagerDashboard({ user }) {
         !o.status.toLowerCase().includes('pending review') &&
         !o.status.toLowerCase().includes('pending approval') &&
         o.status.toLowerCase() !== 'submitted for billing' &&
-        o.status.toLowerCase() !== 'customer invoiced' &&
-        o.status.toLowerCase() !== 'closed'
+        o.status.toLowerCase() !== 'customer invoiced'
       )
     );
 
@@ -1537,12 +1548,13 @@ export default function ManagerDashboard({ user }) {
       o.status && (o.status.toLowerCase() === 'submitted for billing' || o.status.toLowerCase() === 'customer invoiced')
     );
 
-    const closed = filteredOrders.filter(o => 
+    // Closed orders are now fetched separately
+    const closed = closedOrders.filter(o => 
       o.status && o.status.toLowerCase() === 'closed'
     );
 
     return { pendingReview, regular, submittedForBilling, closed };
-  }, [filteredOrders]);
+  }, [filteredOrders, closedOrders]);
 
   // Memoized search filters
   const searchFilter = useCallback((order, searchTerm) => {

@@ -310,21 +310,22 @@ const useGlobalSearch = (user) => {
 };
 
 // History Check Component
-const HistoryCheck = ({ workOrder, onShowHistory }) => {
+const HistoryCheck = ({ workOrder, onShowHistory, user }) => {
   const [hasHistory, setHasHistory] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
-    if (workOrder.serialNumber) {
+    if (workOrder.serialNumber && user?.token) {
       setIsChecking(true);
-      // Fetch all work orders to check for history
-      API.get('/workorders')
+      // Use optimized search endpoint instead of fetching all work orders
+      API.get(`/workorders/by-serial/${encodeURIComponent(workOrder.serialNumber)}?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      })
         .then(res => {
-          const allOrders = res.data.map(toCamelCaseDeep);
-          const historyCount = allOrders.filter(order => 
-            order.serialNumber && 
-            order.serialNumber.toLowerCase() === workOrder.serialNumber.toLowerCase() &&
+          const matchingOrders = res.data.rows || [];
+          // Filter out current work order
+          const historyCount = matchingOrders.filter(order => 
             order.workOrderNo !== workOrder.workOrderNo
           ).length;
           
@@ -337,7 +338,7 @@ const HistoryCheck = ({ workOrder, onShowHistory }) => {
           setIsChecking(false);
         });
     }
-  }, [workOrder.serialNumber, workOrder.workOrderNo]);
+  }, [workOrder.serialNumber, workOrder.workOrderNo, user?.token]);
 
   const checkHistory = () => {
     console.log('History check clicked for serial number:', workOrder.serialNumber);
@@ -1022,7 +1023,7 @@ export default function AllTechDashboard({ user }) {
                   <td>{String(wo.companyName)}</td>
                   <td style={{ position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
                     {`${wo.make || ''} / ${wo.model || ''} / ${wo.serialNumber || ''}`}
-                    <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} />
+                    <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} user={user} />
                   </td>
                   <td>{String(wo.status || 'Assigned')}</td>
                   <td>
@@ -1346,7 +1347,7 @@ export default function AllTechDashboard({ user }) {
                      <td>{String(wo.companyName)}</td>
                      <td style={{ position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
                        {`${wo.make || ''} / ${wo.model || ''} / ${wo.serialNumber || ''}`}
-                       <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} />
+                       <HistoryCheck workOrder={wo} onShowHistory={handleShowHistory} user={user} />
                      </td>
                      <td>{String(wo.status || 'Closed')}</td>
                      <td>
