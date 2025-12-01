@@ -25,6 +25,247 @@ function canSeeAllTransactions(user) {
   return userRoles.includes('owner') || userRoles.includes('analytics');
 }
 
+const DAY_MS = 1000 * 60 * 60 * 24;
+const DAYS_PER_MONTH = 28;
+const DAYS_PER_WEEK = 7;
+const MONTH_THRESHOLD_DAYS = 21;
+const WEEK_THRESHOLD_DAYS = 3;
+
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const calculateRentalDaysTotal = (startDate, endDate, fallback) => {
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
+      const diffDays = Math.ceil((end - start) / DAY_MS);
+      return diffDays > 0 ? diffDays : 0;
+    }
+  }
+  const fallbackDays = parseInt(fallback, 10);
+  return Number.isFinite(fallbackDays) && fallbackDays >= 0 ? fallbackDays : null;
+};
+
+const calculateRentalTotal = (days, dailyRate, weeklyRate, monthlyRate, discountPercent = 0) => {
+  const rentalDays = Number.isFinite(days) ? days : parseInt(days, 10);
+  if (!rentalDays || rentalDays <= 0) return null;
+
+  const positiveOrNull = (value) => {
+    const num = toNumber(value);
+    return num && num > 0 ? num : null;
+  };
+
+  let normalizedDailyRate = positiveOrNull(dailyRate);
+  let normalizedWeeklyRate = positiveOrNull(weeklyRate);
+  let normalizedMonthlyRate = positiveOrNull(monthlyRate);
+
+  if (!normalizedDailyRate && normalizedWeeklyRate) {
+    normalizedDailyRate = normalizedWeeklyRate / DAYS_PER_WEEK;
+  } else if (!normalizedDailyRate && normalizedMonthlyRate) {
+    normalizedDailyRate = normalizedMonthlyRate / DAYS_PER_MONTH;
+  }
+
+  if (!normalizedWeeklyRate && normalizedDailyRate) {
+    normalizedWeeklyRate = normalizedDailyRate * DAYS_PER_WEEK;
+  } else if (!normalizedWeeklyRate && normalizedMonthlyRate) {
+    normalizedWeeklyRate = normalizedMonthlyRate / Math.ceil(DAYS_PER_MONTH / DAYS_PER_WEEK);
+  }
+
+  if (!normalizedMonthlyRate && normalizedWeeklyRate) {
+    normalizedMonthlyRate = normalizedWeeklyRate * Math.ceil(DAYS_PER_MONTH / DAYS_PER_WEEK);
+  } else if (!normalizedMonthlyRate && normalizedDailyRate) {
+    normalizedMonthlyRate = normalizedDailyRate * DAYS_PER_MONTH;
+  }
+
+  if (!normalizedDailyRate && !normalizedWeeklyRate && !normalizedMonthlyRate) {
+    return null;
+  }
+
+  let remainingDays = rentalDays;
+  let total = 0;
+
+  if (normalizedMonthlyRate) {
+    const fullMonths = Math.floor(remainingDays / DAYS_PER_MONTH);
+    if (fullMonths > 0) {
+      total += fullMonths * normalizedMonthlyRate;
+      remainingDays -= fullMonths * DAYS_PER_MONTH;
+    }
+  }
+
+  if (normalizedMonthlyRate && remainingDays >= MONTH_THRESHOLD_DAYS) {
+    total += normalizedMonthlyRate;
+    remainingDays -= MONTH_THRESHOLD_DAYS;
+  }
+
+  if (normalizedWeeklyRate) {
+    const remainingWeeks = Math.floor(remainingDays / DAYS_PER_WEEK);
+    if (remainingWeeks > 0) {
+      total += remainingWeeks * normalizedWeeklyRate;
+      remainingDays -= remainingWeeks * DAYS_PER_WEEK;
+    }
+  } else if (normalizedDailyRate) {
+    const remainingWeeks = Math.floor(remainingDays / DAYS_PER_WEEK);
+    if (remainingWeeks > 0) {
+      total += remainingWeeks * DAYS_PER_WEEK * normalizedDailyRate;
+      remainingDays -= remainingWeeks * DAYS_PER_WEEK;
+    }
+  }
+
+  if (remainingDays >= WEEK_THRESHOLD_DAYS) {
+    if (normalizedWeeklyRate) {
+      total += normalizedWeeklyRate;
+      remainingDays = 0;
+    } else if (normalizedDailyRate) {
+      total += remainingDays * normalizedDailyRate;
+      remainingDays = 0;
+    }
+  } else if (remainingDays > 0 && normalizedDailyRate) {
+    total += remainingDays * normalizedDailyRate;
+    remainingDays = 0;
+  }
+
+  if (discountPercent > 0) {
+    total = total * (1 - discountPercent / 100);
+  }
+
+  return total;
+};
+
+const calculateNextBillingAmount = (record = {}) => {
+  const today = new Date();
+  const quantity = parseInt(record.quantity, 10) || 1;
+
+  const monthlyRate = toNumber(record.rental_monthly_rate) || 0;
+  const weeklyRateRaw = toNumber(record.rental_weekly_rate) || 0;
+  const dailyRateRaw = toNumber(record.rental_daily_rate) || 0;
+
+  const derivedWeeklyRate = weeklyRateRaw > 0
+    ? weeklyRateRaw
+    : dailyRateRaw > 0
+      ? dailyRateRaw * DAYS_PER_WEEK
+      : monthlyRate > 0
+        ? monthlyRate / 4
+        : 0;
+
+  const derivedDailyRate = dailyRateRaw > 0
+    ? dailyRateRaw
+    : weeklyRateRaw > 0
+      ? weeklyRateRaw / DAYS_PER_WEEK
+      : monthlyRate > 0
+        ? monthlyRate / DAYS_PER_MONTH
+        : 0;
+
+  let remainingDays = toNumber(record.rental_days_total);
+  const rentalEndDate = record.rental_end_date ? new Date(record.rental_end_date) : null;
+  if (rentalEndDate && !isNaN(rentalEndDate.getTime())) {
+    remainingDays = Math.ceil((rentalEndDate - today) / DAY_MS);
+  }
+
+  if (!Number.isFinite(remainingDays)) {
+    remainingDays = 0;
+  }
+  if (remainingDays < 0) {
+    remainingDays = 0;
+  }
+
+  const discountPercentRaw = toNumber(record.discount_percent);
+  const discountPercent = discountPercentRaw !== null ? clampNumber(discountPercentRaw, 0, 100) : 0;
+  const applyDiscount = (amount) => {
+    if (!amount || amount <= 0) return amount;
+    return amount * (1 - discountPercent / 100);
+  };
+
+  if (remainingDays >= MONTH_THRESHOLD_DAYS && monthlyRate > 0) {
+    return applyDiscount(monthlyRate * quantity);
+  }
+  if (remainingDays >= WEEK_THRESHOLD_DAYS && derivedWeeklyRate > 0) {
+    return applyDiscount(derivedWeeklyRate * quantity);
+  }
+  if (remainingDays > 0 && derivedDailyRate > 0) {
+    return applyDiscount(derivedDailyRate * remainingDays * quantity);
+  }
+
+  if (monthlyRate > 0) {
+    return applyDiscount(monthlyRate * quantity);
+  }
+  if (derivedWeeklyRate > 0) {
+    return applyDiscount(derivedWeeklyRate * quantity);
+  }
+  if (derivedDailyRate > 0) {
+    return applyDiscount(derivedDailyRate * quantity);
+  }
+
+  return null;
+};
+
+const applyRentalDerivedFields = (transaction) => {
+  if (!transaction || transaction.transaction_type !== 'rental') {
+    return transaction;
+  }
+
+  const updated = { ...transaction };
+  const quantity = parseInt(transaction.quantity, 10) || 1;
+  const discountPercentRaw = toNumber(transaction.discount_percent);
+  const discountPercent = discountPercentRaw !== null ? clampNumber(discountPercentRaw, 0, 100) : 0;
+
+  const rentalDays = calculateRentalDaysTotal(
+    transaction.rental_start_date,
+    transaction.rental_end_date,
+    transaction.rental_days_total
+  );
+  if (rentalDays !== null) {
+    updated.rental_days_total = rentalDays;
+  }
+
+  const rentalTotal = calculateRentalTotal(
+    rentalDays,
+    transaction.rental_daily_rate,
+    transaction.rental_weekly_rate,
+    transaction.rental_monthly_rate,
+    discountPercent
+  );
+  if (rentalTotal !== null) {
+    updated.rental_total = Number(rentalTotal.toFixed(2));
+  }
+
+  const commissionPercent = 2;
+  updated.commission_percent = commissionPercent;
+
+  let commissionBase = calculateNextBillingAmount({
+    rental_end_date: transaction.rental_end_date,
+    rental_days_total: rentalDays !== null ? rentalDays : transaction.rental_days_total,
+    rental_monthly_rate: transaction.rental_monthly_rate,
+    rental_weekly_rate: transaction.rental_weekly_rate,
+    rental_daily_rate: transaction.rental_daily_rate,
+    quantity,
+    discount_percent: discountPercent
+  });
+
+  if (!commissionBase && rentalTotal !== null) {
+    commissionBase = rentalTotal;
+  }
+  if (!commissionBase) {
+    const storedTotal = toNumber(transaction.rental_total);
+    if (storedTotal) {
+      commissionBase = storedTotal;
+    }
+  }
+
+  if (commissionBase && commissionBase > 0) {
+    updated.commission_total = Number(((commissionBase * commissionPercent) / 100).toFixed(2));
+  }
+
+  return updated;
+};
+
+const applyDerivedFields = (rows = []) => rows.map(row => applyRentalDerivedFields(row));
+
 // GET /api/sales/transactions - Fetch transactions (filtered by salesman if not admin)
 router.get('/transactions', requireSalesRole, async (req, res) => {
   try {
@@ -98,6 +339,7 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
     params.push(limit, offset);
 
     const result = await pool.query(query, params);
+    const transactions = applyDerivedFields(result.rows);
     
     // Get total count for pagination
     let countQuery = 'SELECT COUNT(*) FROM sales_transactions WHERE 1=1';
@@ -159,7 +401,7 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
-      transactions: result.rows,
+      transactions,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -194,7 +436,7 @@ router.get('/transactions/:id', requireSalesRole, async (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
-    res.json(result.rows[0]);
+    res.json(applyRentalDerivedFields(result.rows[0]));
   } catch (error) {
     console.error('Error fetching sales transaction:', error);
     res.status(500).json({ error: 'Failed to fetch sales transaction' });
@@ -260,7 +502,7 @@ router.post('/transactions/bulk', requireSalesRole, async (req, res) => {
           item.description || null
         ]
       );
-      createdTransactions.push(result.rows[0]);
+      createdTransactions.push(applyRentalDerivedFields(result.rows[0]));
     }
 
     res.status(201).json({ transactions: createdTransactions, count: createdTransactions.length });
@@ -338,7 +580,7 @@ router.post('/transactions', requireSalesRole, async (req, res) => {
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(applyRentalDerivedFields(result.rows[0]));
   } catch (error) {
     console.error('Error creating sales transaction:', error);
     res.status(500).json({ error: 'Failed to create sales transaction' });
@@ -426,7 +668,7 @@ router.put('/transactions/:id', requireSalesRole, async (req, res) => {
       ]
     );
 
-    res.json(result.rows[0]);
+    res.json(applyRentalDerivedFields(result.rows[0]));
   } catch (error) {
     console.error('Error updating sales transaction:', error);
     res.status(500).json({ error: 'Failed to update sales transaction' });
@@ -477,7 +719,7 @@ router.patch('/transactions/:id/call-off', requireSalesRole, async (req, res) =>
       [today, rentalDaysTotal, id]
     );
 
-    res.json(result.rows[0]);
+    res.json(applyRentalDerivedFields(result.rows[0]));
   } catch (error) {
     console.error('Error calling off rental:', error);
     res.status(500).json({ error: 'Failed to call off rental' });
@@ -575,7 +817,7 @@ router.get('/stats', requireSalesRole, async (req, res) => {
     }
 
     const result = await pool.query(query, params);
-    const transactions = result.rows;
+    const transactions = applyDerivedFields(result.rows);
 
     // Calculate statistics
     const stats = {
@@ -719,7 +961,7 @@ router.get('/export/csv', requireSalesRole, async (req, res) => {
     query += ' ORDER BY date DESC, created_at DESC';
 
     const result = await pool.query(query, params);
-    const transactions = result.rows;
+    const transactions = applyDerivedFields(result.rows);
 
     // Generate CSV
     const headers = [
@@ -830,8 +1072,9 @@ router.get('/export/pdf', requireSalesRole, async (req, res) => {
     query += ' ORDER BY date DESC, created_at DESC';
 
     const result = await pool.query(query, params);
+    const transactions = applyDerivedFields(result.rows);
     
-    res.json({ transactions: result.rows });
+    res.json({ transactions });
   } catch (error) {
     console.error('Error fetching transactions for PDF:', error);
     res.status(500).json({ error: 'Failed to fetch transactions for PDF' });
@@ -907,7 +1150,7 @@ router.post('/export/email', requireSalesRole, async (req, res) => {
     query += ' ORDER BY date DESC, created_at DESC';
 
     const result = await pool.query(query, params);
-    const transactions = result.rows;
+    const transactions = applyDerivedFields(result.rows);
 
     let emailBody = '';
     let emailHtml = '';

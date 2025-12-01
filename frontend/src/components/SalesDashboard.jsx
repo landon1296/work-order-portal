@@ -64,7 +64,8 @@ export default function SalesDashboard({ user }) {
   const [filters, setFilters] = useState({
     transactionType: '',
     startDate: currentMonthStart, // Default to first day of current month
-    endDate: currentMonthEnd // Default to last day of current month
+    endDate: currentMonthEnd, // Default to last day of current month
+    salesman: ''
   });
 
   const [formData, setFormData] = useState({
@@ -258,6 +259,72 @@ export default function SalesDashboard({ user }) {
     return diffDays > 0 ? diffDays.toString() : '';
   };
 
+const calculateNextBillingAmount = (item = {}) => {
+  const today = new Date();
+  const dayMs = 1000 * 60 * 60 * 24;
+  const quantity = parseInt(item.quantity, 10) || 1;
+  const discountPercentRaw = parseFloat(item.discount_percent);
+  const discountPercent = Number.isFinite(discountPercentRaw) ? Math.min(Math.max(discountPercentRaw, 0), 100) : 0;
+  const applyDiscount = (amount) => {
+    if (!amount || amount <= 0) return amount;
+    return amount * (1 - discountPercent / 100);
+  };
+
+  const monthlyRate = parseFloat(item.rental_monthly_rate) || 0;
+  const weeklyRateRaw = parseFloat(item.rental_weekly_rate) || 0;
+  const dailyRateRaw = parseFloat(item.rental_daily_rate) || 0;
+
+  const derivedWeeklyRate = weeklyRateRaw > 0
+    ? weeklyRateRaw
+    : dailyRateRaw > 0
+      ? dailyRateRaw * 7
+      : monthlyRate > 0
+        ? monthlyRate / 4
+        : 0;
+
+  const derivedDailyRate = dailyRateRaw > 0
+    ? dailyRateRaw
+    : weeklyRateRaw > 0
+      ? weeklyRateRaw / 7
+      : monthlyRate > 0
+        ? monthlyRate / 28
+        : 0;
+
+  let remainingDays = parseInt(item.rental_days_total, 10);
+  const rentalEndDate = item.rental_end_date ? new Date(item.rental_end_date) : null;
+  if (rentalEndDate && !isNaN(rentalEndDate.getTime())) {
+    remainingDays = Math.ceil((rentalEndDate - today) / dayMs);
+  }
+
+  if (!Number.isFinite(remainingDays)) {
+    remainingDays = 0;
+  }
+  if (remainingDays < 0) {
+    remainingDays = 0;
+  }
+
+  if (remainingDays >= 21 && monthlyRate > 0) {
+    return applyDiscount(monthlyRate * quantity);
+  }
+  if (remainingDays >= 3 && derivedWeeklyRate > 0) {
+    return applyDiscount(derivedWeeklyRate * quantity);
+  }
+  if (remainingDays > 0 && derivedDailyRate > 0) {
+    return applyDiscount(derivedDailyRate * remainingDays * quantity);
+  }
+
+  if (monthlyRate > 0) {
+    return applyDiscount(monthlyRate * quantity);
+  }
+  if (derivedWeeklyRate > 0) {
+    return applyDiscount(derivedWeeklyRate * quantity);
+  }
+  if (derivedDailyRate > 0) {
+    return applyDiscount(derivedDailyRate * quantity);
+  }
+  return null;
+};
+
   const applyCalculationsToItem = (item, transactionType) => {
     const updatedItem = { ...item };
     const quantity = parseInt(item.quantity, 10) || 1;
@@ -284,11 +351,19 @@ export default function SalesDashboard({ user }) {
         updatedItem.rental_total = '';
       }
 
-      const rentalTotalValue = parseFloat(updatedItem.rental_total);
       const commissionPercent = 2;
       updatedItem.commission_percent = commissionPercent.toString();
-      if (!isNaN(rentalTotalValue) && rentalTotalValue > 0) {
-        const commissionTotal = (rentalTotalValue * commissionPercent / 100) * quantity;
+
+      let commissionBase = calculateNextBillingAmount(updatedItem);
+      if (!commissionBase) {
+        const rentalTotalValue = parseFloat(updatedItem.rental_total);
+        if (!isNaN(rentalTotalValue) && rentalTotalValue > 0) {
+          commissionBase = rentalTotalValue;
+        }
+      }
+
+      if (commissionBase > 0) {
+        const commissionTotal = (commissionBase * commissionPercent) / 100;
         updatedItem.commission_total = commissionTotal.toFixed(2);
       } else {
         updatedItem.commission_total = '';
@@ -640,7 +715,7 @@ export default function SalesDashboard({ user }) {
           rental_total: '',
           rental_daily_rate: '',
           rental_weekly_rate: '',
-          rental_monthly_rate: ''
+        rental_monthly_rate: ''
         }]
       });
       fetchTransactions();
@@ -835,6 +910,8 @@ export default function SalesDashboard({ user }) {
   };
 
   const isAdmin = user?.roles?.includes('owner') || user?.roles?.includes('analytics') || user?.roles?.includes('manager') || user?.role === 'owner' || user?.role === 'analytics' || user?.role === 'manager';
+  const canFilterBySalesman = user?.roles?.includes('owner') || user?.roles?.includes('analytics') || user?.role === 'owner' || user?.role === 'analytics';
+  const salesmanOptions = stats?.bySalesman ? Object.keys(stats.bySalesman).sort((a, b) => a.localeCompare(b)) : [];
 
   return (
     <div style={{ paddingBottom: '60px', fontFamily: 'Arial, sans-serif' }}>
@@ -912,6 +989,18 @@ export default function SalesDashboard({ user }) {
           <option value="rental">Rentals</option>
           <option value="service">Service</option>
         </select>
+        {canFilterBySalesman && (
+          <select
+            value={filters.salesman}
+            onChange={(e) => setFilters(prev => ({ ...prev, salesman: e.target.value }))}
+            style={{ padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+          >
+            <option value="">All Salesmen</option>
+            {salesmanOptions.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        )}
         <input
           type="date"
           value={filters.startDate}
@@ -1526,7 +1615,7 @@ export default function SalesDashboard({ user }) {
                         rental_total: '',
                         rental_daily_rate: '',
                         rental_weekly_rate: '',
-                        rental_monthly_rate: ''
+                      rental_monthly_rate: ''
                       }]
     });
                   }}
