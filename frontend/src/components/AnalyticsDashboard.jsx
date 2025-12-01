@@ -51,84 +51,107 @@ const normalizeStatus = (status) => {
   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
 };
 
-const calculateAvgDaysToClose = (closedOrders, invoicedButNotClosedOrders = []) => {
-  // Process closed orders (traditional calculation)
-  const closedDaysArray = closedOrders
-    .map(wo => {
-      if (!wo.created_at || !Array.isArray(wo.status_history)) return null;
-      
-      const history = wo.status_history;
-      const createdAt = new Date(wo.created_at);
-      const closedEntry = [...history].reverse().find(
-        entry => (entry.status || "").toLowerCase() === "closed"
-      );
-
-      let closedAt;
-      if (closedEntry && closedEntry.date) {
-        closedAt = new Date(closedEntry.date);
-      } else if (history.length > 0) {
-        closedAt = new Date(history[history.length - 1].date);
-      } else {
-        return null;
-      }
-      
-      return Math.max(0, (closedAt - createdAt) / (1000 * 60 * 60 * 24));
-    })
-    .filter(days => days !== null && !isNaN(days));
-
-  // Process invoiced but not closed orders (live calculation)
-  const invoicedDaysArray = invoicedButNotClosedOrders
-    .map(wo => {
-      if (!wo.created_at || !Array.isArray(wo.status_history)) return null;
-      
-      const history = wo.status_history;
-      const createdAt = new Date(wo.created_at);
-      const today = new Date();
-      
-      // Use today's date since these work orders are still open
-      return Math.max(0, (today - createdAt) / (1000 * 60 * 60 * 24));
-    })
-    .filter(days => days !== null && !isNaN(days));
-
-  // Combine both arrays
-  const allDaysArray = [...closedDaysArray, ...invoicedDaysArray];
-
-  if (allDaysArray.length === 0) return null;
-  
-  const totalDays = allDaysArray.reduce((sum, days) => sum + days, 0);
-  return (totalDays / allDaysArray.length).toFixed(1);
+const getWeekStartDate = (date) => {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  const day = d.getDay();
+  const diff = (day + 6) % 7; // move to Monday
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - diff);
+  return d;
 };
 
-const calculateAvgDaysToCustomerInvoiced = (orders) => {
-  const invoicedDaysArray = orders
-    .map(wo => {
-      if (!wo.created_at || !Array.isArray(wo.status_history)) return null;
-      
-      const history = wo.status_history;
-      const createdAt = new Date(wo.created_at);
-      
-      // Find when the work order reached "customer invoiced" or "submitted for billing"
-      // These statuses indicate the work is actually finished
-      const invoicedEntry = [...history].reverse().find(
-        entry => {
-          const status = (entry.status || "").toLowerCase();
-          return status.includes("customer invoiced") || 
-                 status.includes("submitted for billing") ||
-                 status === "customer invoiced";
-        }
-      );
+const formatWeekLabel = (date) => {
+  return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+};
 
-      if (!invoicedEntry || !invoicedEntry.date) return null;
-      
-      const invoicedAt = new Date(invoicedEntry.date);
-      return Math.max(0, (invoicedAt - createdAt) / (1000 * 60 * 60 * 24));
-    })
-    .filter(days => days !== null && !isNaN(days));
+const addToWeeklyBucket = (buckets, rawDate, days) => {
+  const weekStart = getWeekStartDate(rawDate);
+  if (!weekStart || days === null || Number.isNaN(days)) return;
+  const key = weekStart.toISOString().slice(0, 10);
+  if (!buckets[key]) {
+    buckets[key] = { total: 0, count: 0, label: formatWeekLabel(weekStart) };
+  }
+  buckets[key].total += days;
+  buckets[key].count += 1;
+};
 
-  if (invoicedDaysArray.length === 0) return null;
-  
+const finalizeWeeklyTrend = (buckets, valueKey) => {
+  const sortedEntries = Object.entries(buckets).sort(
+    (a, b) => new Date(a[0]) - new Date(b[0])
+  );
+  let runningTotal = 0;
+  let runningCount = 0;
+  return sortedEntries.map(([, bucket]) => {
+    runningTotal += bucket.total;
+    runningCount += bucket.count;
+    return {
+      week: bucket.label,
+      [valueKey]: Number((runningTotal / runningCount).toFixed(1))
+    };
+  });
+};
+
+const calculateAvgDaysToCloseStats = (closedOrders, invoicedButNotClosedOrders = []) => {
+  const weeklyBuckets = {};
+  const allDaysArray = [];
+
+  closedOrders.forEach(wo => {
+    if (!wo.created_at || !Array.isArray(wo.status_history)) return;
+    const createdAt = new Date(wo.created_at);
+    const closedEntry = [...wo.status_history].reverse().find(
+      entry => (entry.status || "").toLowerCase() === "closed"
+    );
+    if (!createdAt || !closedEntry || !closedEntry.date) return;
+    const closedAt = new Date(closedEntry.date);
+    const days = Math.max(0, (closedAt - createdAt) / (1000 * 60 * 60 * 24));
+    allDaysArray.push(days);
+    addToWeeklyBucket(weeklyBuckets, closedAt, days);
+  });
+
+  invoicedButNotClosedOrders.forEach(wo => {
+    if (!wo.created_at || !Array.isArray(wo.status_history)) return;
+    const createdAt = new Date(wo.created_at);
+    const today = new Date();
+    const days = Math.max(0, (today - createdAt) / (1000 * 60 * 60 * 24));
+    allDaysArray.push(days);
+    addToWeeklyBucket(weeklyBuckets, today, days);
+  });
+
+  const weeklySeries = finalizeWeeklyTrend(weeklyBuckets, 'avgDaysToClose');
+  if (allDaysArray.length === 0) {
+    return { average: null, weeklySeries };
+  }
+  const totalDays = allDaysArray.reduce((sum, days) => sum + days, 0);
+  return { average: (totalDays / allDaysArray.length).toFixed(1), weeklySeries };
+};
+
+const calculateAvgDaysToCustomerInvoicedStats = (orders) => {
+  const weeklyBuckets = {};
+  const invoicedDaysArray = [];
+
+  orders.forEach(wo => {
+    if (!wo.created_at || !Array.isArray(wo.status_history)) return;
+    const createdAt = new Date(wo.created_at);
+    const invoicedEntry = [...wo.status_history].reverse().find(entry => {
+      const status = (entry.status || "").toLowerCase();
+      return status.includes("customer invoiced") ||
+             status.includes("submitted for billing") ||
+             status === "customer invoiced";
+    });
+    if (!createdAt || !invoicedEntry || !invoicedEntry.date) return;
+    const invoicedAt = new Date(invoicedEntry.date);
+    const days = Math.max(0, (invoicedAt - createdAt) / (1000 * 60 * 60 * 24));
+    invoicedDaysArray.push(days);
+    addToWeeklyBucket(weeklyBuckets, invoicedAt, days);
+  });
+
+  const weeklySeries = finalizeWeeklyTrend(weeklyBuckets, 'avgWorkingDays');
+  if (invoicedDaysArray.length === 0) {
+    return { average: null, weeklySeries };
+  }
   const totalInvoicedDays = invoicedDaysArray.reduce((sum, days) => sum + days, 0);
-  return (totalInvoicedDays / invoicedDaysArray.length).toFixed(1);
+  return { average: (totalInvoicedDays / invoicedDaysArray.length).toFixed(1), weeklySeries };
 };
 
 // Custom hooks
@@ -261,7 +284,10 @@ export default function AnalyticsDashboard({ user }) {
       })
     );
 
-    const avgDaysToCloseFiltered = calculateAvgDaysToClose(closedFiltered, invoicedButNotClosedFiltered);
+    const {
+      average: avgDaysToCloseFiltered,
+      weeklySeries: avgDaysToCloseTrend
+    } = calculateAvgDaysToCloseStats(closedFiltered, invoicedButNotClosedFiltered);
 
     // Calculate average days to customer invoiced (work actually finished)
     const invoicedFiltered = filteredOrders.filter(wo =>
@@ -274,7 +300,10 @@ export default function AnalyticsDashboard({ user }) {
       })
     );
 
-    const avgDaysToCustomerInvoiced = calculateAvgDaysToCustomerInvoiced(invoicedFiltered);
+    const {
+      average: avgDaysToCustomerInvoiced,
+      weeklySeries: avgWorkingDaysTrend
+    } = calculateAvgDaysToCustomerInvoicedStats(invoicedFiltered);
 
     // Chart data calculations
     const countByTechnician = (orders) => {
@@ -343,7 +372,9 @@ export default function AnalyticsDashboard({ user }) {
         techCountsFiltered: countByTechnician(filteredOrders),
         activeStatusCounts: countByStatus(filteredOrders),
         shopCounts: countByShop(filteredOrders),
-        allTimeTechCounts: countAllOrdersByTechnician(orders)
+        allTimeTechCounts: countAllOrdersByTechnician(orders),
+        avgWorkingDaysTrend,
+        avgDaysToCloseTrend
       }
     };
   }, [data, shopFilter]);
@@ -640,7 +671,7 @@ const ChartsSection = ({ chartData, filteredOrders }) => (
             <XAxis dataKey="partNumber" />
             <YAxis />
             <Tooltip 
-              content={({ active, payload, label }) => {
+              content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
                   return (
@@ -669,6 +700,36 @@ const ChartsSection = ({ chartData, filteredOrders }) => (
             <Bar dataKey="count" fill="#10b981" />
           </BarChart>
         </ResponsiveContainer>
+      </ChartCard>
+
+      <ChartCard title="Avg Working Days (Weekly)">
+        {chartData.avgWorkingDaysTrend?.length ? (
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={chartData.avgWorkingDaysTrend}>
+              <XAxis dataKey="week" />
+              <YAxis />
+              <Tooltip formatter={(value) => [`${value} days`, 'Avg Working Days']} />
+              <Line type="monotone" dataKey="avgWorkingDays" stroke="#34d399" strokeWidth={3} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ padding: 16, color: '#94a3b8' }}>Not enough data yet.</div>
+        )}
+      </ChartCard>
+
+      <ChartCard title="Avg Days to Close (Weekly)">
+        {chartData.avgDaysToCloseTrend?.length ? (
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={chartData.avgDaysToCloseTrend}>
+              <XAxis dataKey="week" />
+              <YAxis />
+              <Tooltip formatter={(value) => [`${value} days`, 'Avg Days to Close']} />
+              <Line type="monotone" dataKey="avgDaysToClose" stroke="#f97316" strokeWidth={3} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ padding: 16, color: '#94a3b8' }}>Not enough data yet.</div>
+        )}
       </ChartCard>
     </div>
 
