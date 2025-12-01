@@ -1,6 +1,6 @@
 // Service Worker for GLLS Work Orders App
-const CACHE_NAME = 'glls-work-orders-v1.0.8';
-const API_CACHE_NAME = 'glls-api-cache-v1.0.8';
+const CACHE_NAME = 'glls-work-orders-v1.0.9';
+const API_CACHE_NAME = 'glls-api-cache-v1.0.9';
 
 // Files to cache immediately (app shell)
 const urlsToCache = [
@@ -83,11 +83,14 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/workorders')) {
     event.respondWith(handleApiRequest(request));
   }
+  // Handle navigations/documents with network-first strategy
+  else if (request.mode === 'navigate' || request.destination === 'document') {
+    event.respondWith(handleDocumentRequest(request));
+  }
   // Handle static assets
   else if (request.destination === 'script' || 
            request.destination === 'style' || 
-           request.destination === 'image' ||
-           request.destination === 'document') {
+           request.destination === 'image') {
     event.respondWith(handleStaticRequest(request));
   }
   // Handle everything else
@@ -235,6 +238,28 @@ async function handleApiRequest(request) {
         headers: { 'Content-Type': 'application/json' } 
       }
     );
+  }
+}
+
+// Handle static assets (cache first strategy)
+async function handleDocumentRequest(request) {
+  try {
+    const networkResponse = await fetch(request, { cache: 'no-store' });
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, networkResponse.clone());
+    return networkResponse;
+  } catch (error) {
+    console.log('Service Worker: Document fetch failed, using cache if available:', request.url);
+    const cache = await caches.open(CACHE_NAME);
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    const fallback = await cache.match('/');
+    if (fallback) {
+      return fallback;
+    }
+    return new Response('Offline', { status: 503 });
   }
 }
 
