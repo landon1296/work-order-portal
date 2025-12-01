@@ -496,10 +496,16 @@ export default function SalesDashboard({ user }) {
   };
 
   const handleEdit = (transaction) => {
+    const normalizeDate = (value) => {
+      if (!value) return '';
+      const str = typeof value === 'string' ? value : new Date(value).toISOString();
+      return str.split('T')[0];
+    };
+
     setEditingTransaction(transaction);
     setFormData({
       transaction_type: transaction.transaction_type,
-      date: transaction.date,
+      date: normalizeDate(transaction.date),
       renterra_order_number: transaction.renterra_order_number || '',
       work_order_no: transaction.work_order_no || '',
       customer: transaction.customer,
@@ -514,8 +520,8 @@ export default function SalesDashboard({ user }) {
         commission_percent: transaction.commission_percent || '',
         commission_total: transaction.commission_total || '',
         commission_flat_rate: transaction.commission_flat_rate || '',
-        rental_start_date: transaction.rental_start_date || '',
-        rental_end_date: transaction.rental_end_date || '',
+        rental_start_date: normalizeDate(transaction.rental_start_date),
+        rental_end_date: normalizeDate(transaction.rental_end_date),
         rental_days_total: transaction.rental_days_total || '',
         rental_total: transaction.rental_total || '',
         rental_daily_rate: transaction.rental_daily_rate || '',
