@@ -63,6 +63,9 @@ app.use('/api/calllogs', callLogsRoutes);
 const callLogNotesRoutes = require('./routes/calllognotes');
 app.use('/api/calllognotes', callLogNotesRoutes);
 
+const salesRoutes = require('./routes/sales');
+app.use('/api/sales', salesRoutes);
+
 // WebSocket connection handling
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);

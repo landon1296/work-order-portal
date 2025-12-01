@@ -7,6 +7,7 @@ import AnalyticsDashboard from "./AnalyticsDashboard";
 import AllTechDashboard from "./AllTechDashboard";
 import ReceptionDashboard from "./ReceptionDashboard";
 import SchedulerDashboard from "./SchedulerDashboard";
+import SalesDashboard from "./SalesDashboard";
 import DashboardSwitcher from "./DashboardSwitcher";
 
 const RoleSwitcher = ({ user }) => {
@@ -14,35 +15,39 @@ const RoleSwitcher = ({ user }) => {
   const primaryRole = user.primaryRole || user.role;
   const [selectedRole, setSelectedRole] = useState(primaryRole);
 
-  // Map roles to their display names and components
+  // Map roles to their display names and component factories
   const roleConfig = {
     tech: {
       name: "Tech Dashboard",
-      component: <TechDashboard username={user.username} user={user} />
+      getComponent: () => <TechDashboard username={user.username} user={user} />
     },
     technician: {
       name: "Tech Dashboard",
-      component: <TechDashboard username={user.username} user={user} />
+      getComponent: () => <TechDashboard username={user.username} user={user} />
     },
     manager: {
       name: "Manager Dashboard", 
-      component: <ManagerDashboard user={user} />
+      getComponent: () => <ManagerDashboard user={user} />
     },
     accounting: {
       name: "Accounting Dashboard",
-      component: <AccountingDashboard user={user} />
+      getComponent: () => <AccountingDashboard user={user} />
     },
     analytics: {
       name: "Analytics Dashboard",
-      component: <AnalyticsDashboard user={user} />
+      getComponent: () => <AnalyticsDashboard user={user} />
     },
     owner: {
       name: "Owner Dashboard",
-      component: <DashboardSwitcher user={user} />
+      getComponent: () => <DashboardSwitcher user={user} />
     },
     reception: {
       name: "Reception Dashboard",
-      component: <ReceptionDashboard user={user} />
+      getComponent: () => <ReceptionDashboard user={user} />
+    },
+    sales: {
+      name: "Sales Dashboard",
+      getComponent: () => <SalesDashboard user={user} />
     }
   };
 
@@ -52,7 +57,8 @@ const RoleSwitcher = ({ user }) => {
   // If user only has one role, don't show the switcher
   if (availableRoles.length <= 1) {
     const singleRole = availableRoles[0];
-    return roleConfig[singleRole]?.component || <div>No valid role found</div>;
+    const config = roleConfig[singleRole];
+    return config?.getComponent ? config.getComponent() : <div>No valid role found</div>;
   }
 
   const selectedConfig = roleConfig[selectedRole];
@@ -121,7 +127,7 @@ const RoleSwitcher = ({ user }) => {
 
       {/* Selected Dashboard */}
       <div>
-        {selectedConfig?.component || <div>Dashboard not found</div>}
+        {selectedConfig?.getComponent ? selectedConfig.getComponent() : <div>Dashboard not found</div>}
       </div>
     </div>
   );

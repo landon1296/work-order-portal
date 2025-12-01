@@ -156,4 +156,64 @@ router.get('/managers', async (req, res) => {
   }
 });
 
+// GET /api/masters/sales-machines
+// Expected SalesMasters tab structure:
+// Column A: Brand (Make)
+// Column B: Machine/Item (Model)
+// Column C: Brand & Machine (combined identifier, optional)
+// Column D: Sale Price (for new sales)
+// Column E: Commission % New
+// Column F: Commission % Used
+// Column G: Commission Service (flat amount, not percentage)
+// Column H: Rental Daily Rate
+// Column I: Rental Weekly Rate
+// Column J: Rental Monthly Rate
+// Column K: Commission Flat Rate Sales (flat amount for new/used sales, overrides percentage)
+router.get('/sales-machines', async (req, res) => {
+  try {
+    const client = await authClient.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'SalesMasters!A2:K', // Brand, Machine/Item, Brand & Machine, Sale Price, Commission % New, Commission % Used, Commission Service, Rental Daily, Rental Weekly, Rental Monthly, Commission Flat Rate Sales
+    });
+    
+    const machines = (response.data.values || []).map(row => {
+      // Parse commission percentages (remove % sign if present)
+      const parsePercent = (val) => {
+        if (!val) return null;
+        const str = String(val).replace('%', '').trim();
+        const num = parseFloat(str);
+        return isNaN(num) ? null : num;
+      };
+      
+      // Parse flat amounts (for service commission and flat rate sales)
+      const parseAmount = (val) => {
+        if (!val) return null;
+        const num = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
+        return isNaN(num) ? null : num;
+      };
+      
+      return {
+        brand: row[0] || '',
+        machine: row[1] || '',
+        brandAndMachine: row[2] || '',
+        salePrice: row[3] ? parseFloat(String(row[3]).replace(/[^0-9.-]/g, '')) : null,
+        commissionPercentNew: parsePercent(row[4]),
+        commissionPercentUsed: parsePercent(row[5]),
+        commissionService: parseAmount(row[6]), // Flat amount for service
+        rentalDailyRate: row[7] ? parseFloat(String(row[7]).replace(/[^0-9.-]/g, '')) : null,
+        rentalWeeklyRate: row[8] ? parseFloat(String(row[8]).replace(/[^0-9.-]/g, '')) : null,
+        rentalMonthlyRate: row[9] ? parseFloat(String(row[9]).replace(/[^0-9.-]/g, '')) : null,
+        commissionFlatRateSales: parseAmount(row[10]) // Flat rate for sales (overrides percentage)
+      };
+    }).filter(machine => machine.brand && machine.machine);
+    
+    res.json(machines);
+  } catch (error) {
+    console.error('Error fetching sales machines from SalesMasters tab:', error);
+    res.status(500).json({ error: 'Failed to fetch sales machines.' });
+  }
+});
+
 module.exports = router;

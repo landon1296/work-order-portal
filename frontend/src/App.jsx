@@ -19,6 +19,7 @@ const ReceptionDashboard = lazy(() => import('./components/ReceptionDashboard'))
 const TroubleshootForm = lazy(() => import('./components/TroubleshootForm'));
 const DashboardSwitcher = lazy(() => import('./components/DashboardSwitcher'));
 const RoleSwitcher = lazy(() => import('./components/RoleSwitcher'));
+const SalesDashboard = lazy(() => import('./components/SalesDashboard'));
 const OfflineTest = lazy(() => import('./components/OfflineTest'));
 
 // Utility function to check if user has specific role(s)
@@ -91,6 +92,8 @@ function App() {
                   ? <Navigate to="/dashboard" replace />
                   : hasRole(user, 'reception')
                   ? <Navigate to="/reception-dashboard" replace />
+                  : hasRole(user, 'sales')
+                  ? <Navigate to="/sales-dashboard" replace />
                   : <Navigate to="/tech-dashboard" replace />
                 )
               : <Navigate to="/login" replace />
@@ -200,6 +203,20 @@ function App() {
             </RequireAuth>
           } />
 
+          {/* Sales Dashboard */}
+          <Route path="/sales-dashboard" element={
+            <RequireAuth user={user}>
+              {hasRole(user, ['sales', 'analytics', 'owner', 'manager'])
+                ? (user?.roles && user.roles.length > 1
+                    ? <RoleSwitcher user={user} />
+                    : <Suspense fallback={<LoadingSpinner message="Loading sales dashboard..." />}>
+                        <SalesDashboard user={user} />
+                      </Suspense>
+                  )
+                : <Navigate to="/" />
+              }
+            </RequireAuth>
+          } />
 
                    {/* Offline Test Page */}
                    <Route path="/offline-test" element={
@@ -218,6 +235,8 @@ function App() {
                   ? <Navigate to="/dashboard" replace />
                   : user.role === 'reception'
                   ? <Navigate to="/reception-dashboard" replace />
+                  : user.role === 'sales'
+                  ? <Navigate to="/sales-dashboard" replace />
                   : <Navigate to="/tech-dashboard" replace />
                 )
               : <Navigate to="/login" replace />
