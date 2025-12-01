@@ -28,6 +28,18 @@ const formatPercent = (value) => {
   return `${parseFloat(value).toFixed(2)}%`;
 };
 
+const normalizeDateValue = (value) => {
+  if (!value) return '';
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString().split('T')[0];
+  }
+  if (typeof value === 'string') {
+    return value.split('T')[0];
+  }
+  const parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+};
+
 export default function SalesDashboard({ user }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -144,133 +156,252 @@ export default function SalesDashboard({ user }) {
   // Calculate rental total based on rates and days
   // Rules: 1 month = 28 days, 3+ days = 1 week, 3+ weeks = 1 month
   const calculateRentalTotal = (days, dailyRate, weeklyRate, monthlyRate, discountPercent = 0) => {
-    if (!days || days <= 0 || !dailyRate || !weeklyRate || !monthlyRate) {
+    if (!days || days <= 0) {
       return 0;
     }
-    
+
     const DAYS_PER_MONTH = 28;
     const DAYS_PER_WEEK = 7;
     const DAYS_FOR_WEEK = 3; // 3+ days = 1 week
     const DAYS_FOR_MONTH_FROM_WEEKS = 21; // 3 weeks = 21 days = 1 month
-    
-    let remainingDays = parseInt(days);
-    let total = 0;
-    
-    // Step 1: Calculate full months (28 days each)
-    const fullMonths = Math.floor(remainingDays / DAYS_PER_MONTH);
-    if (fullMonths > 0) {
-      total += fullMonths * monthlyRate;
-      remainingDays -= fullMonths * DAYS_PER_MONTH;
+
+    const positiveOrNull = (value) => {
+      const num = Number(value);
+      return Number.isFinite(num) && num > 0 ? num : null;
+    };
+
+    let normalizedDailyRate = positiveOrNull(dailyRate);
+    let normalizedWeeklyRate = positiveOrNull(weeklyRate);
+    let normalizedMonthlyRate = positiveOrNull(monthlyRate);
+
+    if (!normalizedDailyRate && normalizedWeeklyRate) {
+      normalizedDailyRate = normalizedWeeklyRate / DAYS_PER_WEEK;
+    } else if (!normalizedDailyRate && normalizedMonthlyRate) {
+      normalizedDailyRate = normalizedMonthlyRate / DAYS_PER_MONTH;
     }
-    
-    // Step 2: Check if remaining days can form 3+ weeks (21+ days = 1 month)
-    if (remainingDays >= DAYS_FOR_MONTH_FROM_WEEKS) {
-      // 21+ days (3+ weeks) = 1 month
-      total += monthlyRate;
+
+    if (!normalizedWeeklyRate && normalizedDailyRate) {
+      normalizedWeeklyRate = normalizedDailyRate * DAYS_PER_WEEK;
+    } else if (!normalizedWeeklyRate && normalizedMonthlyRate) {
+      normalizedWeeklyRate = normalizedMonthlyRate / Math.ceil(DAYS_PER_MONTH / DAYS_PER_WEEK);
+    }
+
+    if (!normalizedMonthlyRate && normalizedWeeklyRate) {
+      normalizedMonthlyRate = normalizedWeeklyRate * Math.ceil(DAYS_PER_MONTH / DAYS_PER_WEEK);
+    } else if (!normalizedMonthlyRate && normalizedDailyRate) {
+      normalizedMonthlyRate = normalizedDailyRate * DAYS_PER_MONTH;
+    }
+
+    if (!normalizedDailyRate && !normalizedWeeklyRate && !normalizedMonthlyRate) {
+      return 0;
+    }
+
+    let remainingDays = parseInt(days, 10);
+    let total = 0;
+
+    if (normalizedMonthlyRate) {
+      const fullMonths = Math.floor(remainingDays / DAYS_PER_MONTH);
+      if (fullMonths > 0) {
+        total += fullMonths * normalizedMonthlyRate;
+        remainingDays -= fullMonths * DAYS_PER_MONTH;
+      }
+    }
+
+    if (normalizedMonthlyRate && remainingDays >= DAYS_FOR_MONTH_FROM_WEEKS) {
+      total += normalizedMonthlyRate;
       remainingDays -= DAYS_FOR_MONTH_FROM_WEEKS;
     }
-    
-    // Step 3: Calculate full weeks from remaining days (if any)
-    const remainingWeeks = Math.floor(remainingDays / DAYS_PER_WEEK);
-    if (remainingWeeks > 0) {
-      total += remainingWeeks * weeklyRate;
-      remainingDays -= remainingWeeks * DAYS_PER_WEEK;
+
+    if (normalizedWeeklyRate) {
+      const remainingWeeks = Math.floor(remainingDays / DAYS_PER_WEEK);
+      if (remainingWeeks > 0) {
+        total += remainingWeeks * normalizedWeeklyRate;
+        remainingDays -= remainingWeeks * DAYS_PER_WEEK;
+      }
+    } else if (normalizedDailyRate) {
+      const remainingWeeks = Math.floor(remainingDays / DAYS_PER_WEEK);
+      if (remainingWeeks > 0) {
+        total += remainingWeeks * DAYS_PER_WEEK * normalizedDailyRate;
+        remainingDays -= remainingWeeks * DAYS_PER_WEEK;
+      }
     }
-    
-    // Step 4: Handle remaining days (less than 7 days)
+
     if (remainingDays >= DAYS_FOR_WEEK) {
-      // 3+ days = 1 week
-      total += weeklyRate;
-    } else if (remainingDays > 0) {
-      // Less than 3 days = daily rate
-      total += remainingDays * dailyRate;
+      if (normalizedWeeklyRate) {
+        total += normalizedWeeklyRate;
+        remainingDays = 0;
+      } else if (normalizedDailyRate) {
+        total += remainingDays * normalizedDailyRate;
+        remainingDays = 0;
+      }
+    } else if (remainingDays > 0 && normalizedDailyRate) {
+      total += remainingDays * normalizedDailyRate;
+      remainingDays = 0;
     }
-    
-    // Apply discount if provided
+
     if (discountPercent > 0) {
       total = total * (1 - discountPercent / 100);
     }
-    
+
     return total;
   };
 
-  // Calculate commission and rental days for each item when relevant fields change
-  useEffect(() => {
-    setFormData(prev => {
-      const updatedItems = prev.items.map(item => {
-        let updatedItem = { ...item };
-        
-        // Calculate rental days total from start and end dates
-        if (prev.transaction_type === TRANSACTION_TYPES.RENTAL && item.rental_start_date && item.rental_end_date) {
-          const startDate = new Date(item.rental_start_date);
-          const endDate = new Date(item.rental_end_date);
-          if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && endDate >= startDate) {
-            const diffTime = Math.abs(endDate - startDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
-            updatedItem.rental_days_total = diffDays.toString();
-            
-            // Calculate rental total based on rates
-            const dailyRate = parseFloat(item.rental_daily_rate) || 0;
-            const weeklyRate = parseFloat(item.rental_weekly_rate) || 0;
-            const monthlyRate = parseFloat(item.rental_monthly_rate) || 0;
-            const discountPercent = parseFloat(item.discount_percent) || 0;
-            
-            if (dailyRate && weeklyRate && monthlyRate) {
-              const rentalTotal = calculateRentalTotal(diffDays, dailyRate, weeklyRate, monthlyRate, discountPercent);
-              updatedItem.rental_total = rentalTotal.toFixed(2);
-            }
-          }
-        }
-        
-        // Calculate commission for sales transactions
-        if (prev.transaction_type === TRANSACTION_TYPES.NEW_SALE || prev.transaction_type === TRANSACTION_TYPES.USED_SALE) {
-          // Check if flat rate commission is set (for SpyderCrane, etc.)
-          const flatRateCommission = parseFloat(item.commission_flat_rate) || 0;
-          
-          if (flatRateCommission > 0) {
-            // Use flat rate commission (multiply by quantity)
-            const commissionTotal = flatRateCommission * (parseInt(item.quantity) || 1);
-            updatedItem.commission_total = commissionTotal.toFixed(2);
-          } else {
-            // Use percentage-based calculation
-            const salePrice = parseFloat(item.sale_price) || 0;
-            const discountPercent = parseFloat(item.discount_percent) || 0;
-            const commissionPercent = parseFloat(item.commission_percent) || 0;
-            
-            const discountedPrice = salePrice * (1 - discountPercent / 100);
-            const commissionTotal = (discountedPrice * commissionPercent / 100) * (parseInt(item.quantity) || 1);
-            updatedItem.commission_total = commissionTotal.toFixed(2);
-          }
-        } else if (prev.transaction_type === TRANSACTION_TYPES.RENTAL) {
-          // Salesmen get 2% of the Rental Total as commission
-          const rentalTotal = parseFloat(item.rental_total) || 0;
-          const commissionPercent = 2; // Fixed 2% for rentals
-          const commissionTotal = (rentalTotal * commissionPercent / 100) * (parseInt(item.quantity) || 1);
-          updatedItem.commission_percent = commissionPercent.toString();
+  const calculateRentalDaysTotal = (startDate, endDate) => {
+    if (!startDate || !endDate) return '';
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+      return '';
+    }
+    const diffTime = end - start;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays.toString() : '';
+  };
+
+  const applyCalculationsToItem = (item, transactionType) => {
+    const updatedItem = { ...item };
+    const quantity = parseInt(item.quantity, 10) || 1;
+
+    if (transactionType === TRANSACTION_TYPES.RENTAL) {
+      const rentalDaysTotal = calculateRentalDaysTotal(item.rental_start_date, item.rental_end_date);
+      updatedItem.rental_days_total = rentalDaysTotal;
+
+      const dailyRate = parseFloat(updatedItem.rental_daily_rate) || 0;
+      const weeklyRate = parseFloat(updatedItem.rental_weekly_rate) || 0;
+      const monthlyRate = parseFloat(updatedItem.rental_monthly_rate) || 0;
+      const discountPercent = parseFloat(item.discount_percent) || 0;
+
+      if (rentalDaysTotal) {
+        const rentalTotal = calculateRentalTotal(
+          parseInt(rentalDaysTotal, 10),
+          dailyRate,
+          weeklyRate,
+          monthlyRate,
+          discountPercent
+        );
+        updatedItem.rental_total = rentalTotal ? rentalTotal.toFixed(2) : '';
+      } else {
+        updatedItem.rental_total = '';
+      }
+
+      const rentalTotalValue = parseFloat(updatedItem.rental_total);
+      const commissionPercent = 2;
+      updatedItem.commission_percent = commissionPercent.toString();
+      if (!isNaN(rentalTotalValue) && rentalTotalValue > 0) {
+        const commissionTotal = (rentalTotalValue * commissionPercent / 100) * quantity;
+        updatedItem.commission_total = commissionTotal.toFixed(2);
+      } else {
+        updatedItem.commission_total = '';
+      }
+    } else if (
+      transactionType === TRANSACTION_TYPES.NEW_SALE ||
+      transactionType === TRANSACTION_TYPES.USED_SALE
+    ) {
+      const flatRateCommission = parseFloat(item.commission_flat_rate) || 0;
+      if (flatRateCommission > 0) {
+        const commissionTotal = flatRateCommission * quantity;
+        updatedItem.commission_total = commissionTotal.toFixed(2);
+      } else {
+        const salePrice = parseFloat(item.sale_price) || 0;
+        const discountPercent = parseFloat(item.discount_percent) || 0;
+        const commissionPercent = parseFloat(item.commission_percent) || 0;
+
+        if (salePrice && commissionPercent) {
+          const discountedPrice = salePrice * (1 - discountPercent / 100);
+          const commissionTotal = (discountedPrice * commissionPercent / 100) * quantity;
           updatedItem.commission_total = commissionTotal.toFixed(2);
+        } else {
+          updatedItem.commission_total = '';
         }
-        
-        return updatedItem;
-      });
-      return { ...prev, items: updatedItems };
-    });
-  }, [
-    formData.transaction_type,
-    JSON.stringify(formData.items.map(item => ({
+      }
+    }
+
+    return updatedItem;
+  };
+
+  const calculationDependencies = JSON.stringify(
+    formData.items.map(item => ({
       sale_price: item.sale_price,
       discount_percent: item.discount_percent,
       commission_percent: item.commission_percent,
       quantity: item.quantity,
       commission_flat_rate: item.commission_flat_rate,
-      rental_total: item.rental_total,
       rental_start_date: item.rental_start_date,
       rental_end_date: item.rental_end_date,
       rental_daily_rate: item.rental_daily_rate,
       rental_weekly_rate: item.rental_weekly_rate,
-      rental_monthly_rate: item.rental_monthly_rate,
-      discount_percent: item.discount_percent
-    })))
-  ]);
+      rental_monthly_rate: item.rental_monthly_rate
+    }))
+  );
+
+  // Calculate commission and rental days for each item when relevant fields change
+  useEffect(() => {
+    setFormData(prev => {
+      const recalculatedItems = prev.items.map(item => applyCalculationsToItem(item, prev.transaction_type));
+      const hasChanges = recalculatedItems.some((updatedItem, index) => {
+        return JSON.stringify(updatedItem) !== JSON.stringify(prev.items[index]);
+      });
+      if (!hasChanges) {
+        return prev;
+      }
+      return { ...prev, items: recalculatedItems };
+    });
+  }, [formData.transaction_type, calculationDependencies]);
+
+  // Ensure rental rates are populated when editing existing rentals (especially legacy data)
+  useEffect(() => {
+    if (!showForm || formData.transaction_type !== TRANSACTION_TYPES.RENTAL || machines.length === 0) {
+      return;
+    }
+
+    setFormData(prev => {
+      let hasChanges = false;
+      const updatedItems = prev.items.map(item => {
+        if (!item.machine_make || item.machine_make === 'Other') {
+          return item;
+        }
+
+        const machineData = machines.find(
+          (machine) =>
+            machine.brand?.toLowerCase() === item.machine_make?.toLowerCase() &&
+            machine.machine?.toLowerCase() === item.machine_model?.toLowerCase()
+        );
+
+        if (!machineData) {
+          return item;
+        }
+
+        const nextItem = { ...item };
+        let itemChanged = false;
+
+        if (!nextItem.rental_daily_rate && machineData.rentalDailyRate) {
+          nextItem.rental_daily_rate = machineData.rentalDailyRate.toString();
+          itemChanged = true;
+        }
+        if (!nextItem.rental_weekly_rate && machineData.rentalWeeklyRate) {
+          nextItem.rental_weekly_rate = machineData.rentalWeeklyRate.toString();
+          itemChanged = true;
+        }
+        if (!nextItem.rental_monthly_rate && machineData.rentalMonthlyRate) {
+          nextItem.rental_monthly_rate = machineData.rentalMonthlyRate.toString();
+          itemChanged = true;
+        }
+
+        if (itemChanged) {
+          hasChanges = true;
+          return nextItem;
+        }
+
+        return item;
+      });
+
+      if (!hasChanges) {
+        return prev;
+      }
+
+      return { ...prev, items: updatedItems };
+    });
+  }, [machines, showForm, formData.transaction_type]);
 
   // Handle machine selection - populate commission percent and prices for a specific item
   const handleMachineSelect = (brand, machine, itemIndex) => {
@@ -434,16 +565,41 @@ export default function SalesDashboard({ user }) {
     }));
   };
 
+  const buildUpdatePayload = (item) => {
+    return {
+      transaction_type: formData.transaction_type,
+      date: normalizeDateValue(formData.date),
+      renterra_order_number: formData.renterra_order_number || '',
+      work_order_no: formData.work_order_no || '',
+      customer: formData.customer || '',
+      machine_make: item.machine_make || '',
+      machine_model: item.machine_model || '',
+      machine_serial: item.machine_serial || '',
+      description: item.description || '',
+      quantity: item.quantity || 1,
+      sale_price: item.sale_price || '',
+      discount_percent: item.discount_percent || '',
+      commission_percent: item.commission_percent || '',
+      commission_total: item.commission_total || '',
+      rental_days_total: item.rental_days_total || '',
+      rental_total: item.rental_total || '',
+      rental_start_date: normalizeDateValue(item.rental_start_date) || null,
+      rental_end_date: normalizeDateValue(item.rental_end_date) || null,
+      rental_daily_rate: item.rental_daily_rate || '',
+      rental_weekly_rate: item.rental_weekly_rate || '',
+      rental_monthly_rate: item.rental_monthly_rate || ''
+    };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const recalculatedItems = formData.items.map(item => applyCalculationsToItem(item, formData.transaction_type));
+      setFormData(prev => ({ ...prev, items: recalculatedItems }));
+
       if (editingTransaction) {
-        // For editing, send single item (backward compatibility)
-        const item = formData.items[0];
-        await API.put(`/api/sales/transactions/${editingTransaction.id}`, {
-          ...formData,
-          ...item
-        }, {
+        const payload = buildUpdatePayload(recalculatedItems[0] || {});
+        await API.put(`/api/sales/transactions/${editingTransaction.id}`, payload, {
           headers: { Authorization: `Bearer ${user.token}` }
         });
       } else {
@@ -454,7 +610,7 @@ export default function SalesDashboard({ user }) {
           renterra_order_number: formData.renterra_order_number,
           work_order_no: formData.work_order_no,
           customer: formData.customer,
-          items: formData.items
+          items: recalculatedItems
         }, {
           headers: { Authorization: `Bearer ${user.token}` }
         });
@@ -496,16 +652,10 @@ export default function SalesDashboard({ user }) {
   };
 
   const handleEdit = (transaction) => {
-    const normalizeDate = (value) => {
-      if (!value) return '';
-      const str = typeof value === 'string' ? value : new Date(value).toISOString();
-      return str.split('T')[0];
-    };
-
     setEditingTransaction(transaction);
     setFormData({
       transaction_type: transaction.transaction_type,
-      date: normalizeDate(transaction.date),
+      date: normalizeDateValue(transaction.date),
       renterra_order_number: transaction.renterra_order_number || '',
       work_order_no: transaction.work_order_no || '',
       customer: transaction.customer,
@@ -520,8 +670,8 @@ export default function SalesDashboard({ user }) {
         commission_percent: transaction.commission_percent || '',
         commission_total: transaction.commission_total || '',
         commission_flat_rate: transaction.commission_flat_rate || '',
-        rental_start_date: normalizeDate(transaction.rental_start_date),
-        rental_end_date: normalizeDate(transaction.rental_end_date),
+        rental_start_date: normalizeDateValue(transaction.rental_start_date),
+        rental_end_date: normalizeDateValue(transaction.rental_end_date),
         rental_days_total: transaction.rental_days_total || '',
         rental_total: transaction.rental_total || '',
         rental_daily_rate: transaction.rental_daily_rate || '',

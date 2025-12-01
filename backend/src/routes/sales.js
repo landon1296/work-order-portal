@@ -231,8 +231,9 @@ router.post('/transactions/bulk', requireSalesRole, async (req, res) => {
           transaction_type, date, renterra_order_number, work_order_no, customer,
           salesman_username, machine_make, machine_model, machine_serial, quantity,
           sale_price, discount_percent, commission_percent, commission_total,
-          rental_days_total, rental_total, rental_start_date, rental_end_date, description
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+          rental_days_total, rental_total, rental_start_date, rental_end_date,
+          rental_daily_rate, rental_weekly_rate, rental_monthly_rate, description
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
         RETURNING *`,
         [
           transaction_type,
@@ -253,6 +254,9 @@ router.post('/transactions/bulk', requireSalesRole, async (req, res) => {
           item.rental_total || null,
           item.rental_start_date || null,
           item.rental_end_date || null,
+          item.rental_daily_rate || null,
+          item.rental_weekly_rate || null,
+          item.rental_monthly_rate || null,
           item.description || null
         ]
       );
@@ -284,7 +288,13 @@ router.post('/transactions', requireSalesRole, async (req, res) => {
       commission_percent,
       commission_total,
       rental_days_total,
-      rental_total
+      rental_total,
+      rental_start_date,
+      rental_end_date,
+      rental_daily_rate,
+      rental_weekly_rate,
+      rental_monthly_rate,
+      description
     } = req.body;
 
     if (!transaction_type || !date || !customer) {
@@ -298,8 +308,9 @@ router.post('/transactions', requireSalesRole, async (req, res) => {
         transaction_type, date, renterra_order_number, work_order_no, customer,
         salesman_username, machine_make, machine_model, machine_serial, quantity,
         sale_price, discount_percent, commission_percent, commission_total,
-        rental_days_total, rental_total
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        rental_days_total, rental_total, rental_start_date, rental_end_date,
+        rental_daily_rate, rental_weekly_rate, rental_monthly_rate, description
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       RETURNING *`,
       [
         transaction_type,
@@ -317,7 +328,13 @@ router.post('/transactions', requireSalesRole, async (req, res) => {
         commission_percent || null,
         commission_total || null,
         rental_days_total || null,
-        rental_total || null
+        rental_total || null,
+        rental_start_date || null,
+        rental_end_date || null,
+        rental_daily_rate || null,
+        rental_weekly_rate || null,
+        rental_monthly_rate || null,
+        description || null
       ]
     );
 
@@ -347,7 +364,13 @@ router.put('/transactions/:id', requireSalesRole, async (req, res) => {
       commission_percent,
       commission_total,
       rental_days_total,
-      rental_total
+      rental_total,
+      rental_start_date,
+      rental_end_date,
+      rental_daily_rate,
+      rental_weekly_rate,
+      rental_monthly_rate,
+      description
     } = req.body;
 
     // Check if transaction exists and user has permission
@@ -372,9 +395,10 @@ router.put('/transactions/:id', requireSalesRole, async (req, res) => {
            customer = $5, machine_make = $6, machine_model = $7, machine_serial = $8,
            quantity = $9, sale_price = $10, discount_percent = $11, commission_percent = $12,
            commission_total = $13, rental_days_total = $14, rental_total = $15,
-           rental_start_date = $16, rental_end_date = $17, description = $18,
+           rental_start_date = $16, rental_end_date = $17, rental_daily_rate = $18,
+           rental_weekly_rate = $19, rental_monthly_rate = $20, description = $21,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $19
+       WHERE id = $22
        RETURNING *`,
       [
         transaction_type,
@@ -394,6 +418,9 @@ router.put('/transactions/:id', requireSalesRole, async (req, res) => {
         rental_total || null,
         rental_start_date || null,
         rental_end_date || null,
+        rental_daily_rate || null,
+        rental_weekly_rate || null,
+        rental_monthly_rate || null,
         description || null,
         id
       ]

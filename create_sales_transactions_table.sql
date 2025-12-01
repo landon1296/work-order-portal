@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS sales_transactions (
   rental_total DECIMAL(10,2), -- Only for rentals
   rental_start_date DATE, -- Only for rentals
   rental_end_date DATE, -- Only for rentals
+  rental_daily_rate DECIMAL(10,2), -- Store rental rate snapshot
+  rental_weekly_rate DECIMAL(10,2),
+  rental_monthly_rate DECIMAL(10,2),
   description TEXT, -- For "Other" machine descriptions
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
