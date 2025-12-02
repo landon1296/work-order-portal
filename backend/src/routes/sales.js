@@ -1026,6 +1026,7 @@ router.get('/stats', requireSalesRole, async (req, res) => {
       totalCommission: 0,
       totalSales: 0,
       totalRentals: 0,
+      totalRentalRate: 0,
       byType: {
         new_sale: { count: 0, totalCommission: 0, totalSales: 0 },
         used_sale: { count: 0, totalCommission: 0, totalSales: 0 },
@@ -1059,6 +1060,9 @@ router.get('/stats', requireSalesRole, async (req, res) => {
         if (trans.rental_total) {
           stats.totalRentals += parseFloat(trans.rental_total) || 0;
         }
+        if (trans.next_commission_base_amount) {
+          stats.totalRentalRate += parseFloat(trans.next_commission_base_amount) || 0;
+        }
         stats.byType.rental.count++;
         if (trans.rental_total) {
           stats.byType.rental.totalRental += parseFloat(trans.rental_total) || 0;
@@ -1088,6 +1092,11 @@ router.get('/stats', requireSalesRole, async (req, res) => {
       }
       if (trans.rental_total) {
         stats.bySalesman[trans.salesman_username].totalRentals += parseFloat(trans.rental_total) || 0;
+      }
+      if (trans.next_commission_base_amount) {
+        stats.bySalesman[trans.salesman_username].totalRentalRate =
+          (stats.bySalesman[trans.salesman_username].totalRentalRate || 0) +
+          (parseFloat(trans.next_commission_base_amount) || 0);
       }
     });
 

@@ -1190,6 +1190,10 @@ const calculateNextBillingAmount = (item = {}) => {
             <h3 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#6b7280' }}>Total Rentals</h3>
             <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#8b5cf6' }}>{formatCurrency(stats.totalRentals)}</p>
           </div>
+          <div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#6b7280' }}>Total Rentals (Month)</h3>
+            <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#0ea5e9' }}>{formatCurrency(stats.totalRentalRate)}</p>
+          </div>
         </div>
       )}
 
