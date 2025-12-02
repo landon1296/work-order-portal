@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import API from '../api';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -10,6 +10,66 @@ const TRANSACTION_TYPES = {
   USED_SALE: 'used_sale',
   RENTAL: 'rental',
   SERVICE: 'service'
+};
+
+const getMonthRange = (offset = 0) => {
+  const now = new Date();
+  const base = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const start = base.toISOString().split('T')[0];
+  const end = new Date(base.getFullYear(), base.getMonth() + 1, 0).toISOString().split('T')[0];
+  return { start, end };
+};
+
+const determineRateTier = (days) => {
+  if (Number.isFinite(days)) {
+    if (days >= 21) return 'monthly';
+    if (days >= 3) return 'weekly';
+  }
+  return 'daily';
+};
+
+const normalizeRentalRates = (dailyRate, weeklyRate, monthlyRate) => {
+  const toNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0 ? num : null;
+  };
+
+  let normalizedDaily = toNumber(dailyRate);
+  let normalizedWeekly = toNumber(weeklyRate);
+  let normalizedMonthly = toNumber(monthlyRate);
+
+  if (!normalizedDaily && normalizedWeekly) {
+    normalizedDaily = normalizedWeekly / 7;
+  } else if (!normalizedDaily && normalizedMonthly) {
+    normalizedDaily = normalizedMonthly / 28;
+  }
+
+  if (!normalizedWeekly && normalizedDaily) {
+    normalizedWeekly = normalizedDaily * 7;
+  } else if (!normalizedWeekly && normalizedMonthly) {
+    normalizedWeekly = normalizedMonthly / 4;
+  }
+
+  if (!normalizedMonthly && normalizedWeekly) {
+    normalizedMonthly = normalizedWeekly * 4;
+  } else if (!normalizedMonthly && normalizedDaily) {
+    normalizedMonthly = normalizedDaily * 28;
+  }
+
+  return {
+    daily: normalizedDaily,
+    weekly: normalizedWeekly,
+    monthly: normalizedMonthly
+  };
+};
+
+const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const formatRateTypeLabel = (type) => {
+  if (type === 'monthly') return 'Monthly (28d)';
+  if (type === 'weekly') return 'Weekly';
+  if (type === 'daily') return 'Daily';
+  return '-';
 };
 
 const formatDate = (dateStr) => {
@@ -49,24 +109,22 @@ export default function SalesDashboard({ user }) {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  // Get current month start and end dates
-  const getCurrentMonthDates = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
-    const lastDay = new Date(year, month + 1, 0).toISOString().split('T')[0];
-    return { firstDay, lastDay };
-  };
-
-  const { firstDay: currentMonthStart, lastDay: currentMonthEnd } = getCurrentMonthDates();
+  const { start: currentMonthStart, end: currentMonthEnd } = getMonthRange();
 
   const [filters, setFilters] = useState({
     transactionType: '',
-    startDate: currentMonthStart, // Default to first day of current month
-    endDate: currentMonthEnd, // Default to last day of current month
-    salesman: ''
+    startDate: currentMonthStart,
+    endDate: currentMonthEnd,
+    salesman: '',
+    status: 'active',
+    month: 'current'
   });
+  const monthPresetOptions = [
+    { value: 'current', label: 'Current Month' },
+    { value: 'previous', label: 'Previous Month' },
+    { value: 'next', label: 'Next Month' },
+    { value: 'custom', label: 'Custom Range' }
+  ];
 
   const [formData, setFormData] = useState({
     transaction_type: TRANSACTION_TYPES.NEW_SALE,
@@ -94,6 +152,212 @@ export default function SalesDashboard({ user }) {
       rental_monthly_rate: ''
     }]
   });
+
+  const isAdmin = user?.roles?.includes('owner') || user?.roles?.includes('analytics') || user?.roles?.includes('manager') || user?.role === 'owner' || user?.role === 'analytics' || user?.role === 'manager';
+  const canFilterBySalesman = user?.roles?.includes('owner') || user?.roles?.includes('analytics') || user?.role === 'owner' || user?.role === 'analytics';
+  const [showColumnManager, setShowColumnManager] = useState(false);
+  const columnStorageKey = useMemo(() => `sales_dashboard_columns_${user?.username || 'default'}`, [user?.username]);
+
+  const renderRentalStatusChip = (trans) => {
+    if (trans.transaction_type !== TRANSACTION_TYPES.RENTAL) {
+      return '-';
+    }
+    const label = trans.is_rental_active ? 'Active' : (trans.ended_this_month ? 'Ended this month' : 'Ended');
+    const backgroundColor = trans.is_rental_active ? '#c4b5fd' : '#d1d5db';
+    return (
+      <span
+        style={{
+          display: 'inline-block',
+          padding: '2px 8px',
+          borderRadius: 999,
+          backgroundColor,
+          color: '#111827',
+          fontSize: 12,
+          fontWeight: 'bold'
+        }}
+      >
+        {label}
+      </span>
+    );
+  };
+
+  const columnDefinitions = useMemo(() => [
+    {
+      id: 'date',
+      label: 'Date',
+      render: (trans) => formatDate(trans.date)
+    },
+    {
+      id: 'type',
+      label: 'Type',
+      render: (trans) => trans.transaction_type.replace('_', ' ').toUpperCase()
+    },
+    {
+      id: 'customer',
+      label: 'Customer',
+      render: (trans) => trans.customer || '-'
+    },
+    {
+      id: 'machine',
+      label: 'Machine',
+      render: (trans) => {
+        const machine = `${trans.machine_make || ''} ${trans.machine_model || ''}`.trim();
+        return machine || '-';
+      }
+    },
+    {
+      id: 'renterraOrder',
+      label: 'Renterra Order #',
+      render: (trans) => trans.renterra_order_number || '-'
+    },
+    {
+      id: 'salePrice',
+      label: 'Sale Price',
+      render: (trans) => formatCurrency(trans.sale_price)
+    },
+    {
+      id: 'commissionTotal',
+      label: 'Commission Total',
+      render: (trans) => formatCurrency(trans.commission_total),
+      headerStyle: { borderLeft: '3px solid #10b981', borderRight: '3px solid #10b981', backgroundColor: '#f0fdf4' },
+      cellStyle: { borderLeft: '3px solid #10b981', borderRight: '3px solid #10b981', fontWeight: 'bold' }
+    },
+    {
+      id: 'nextTier',
+      label: 'Next Payout Tier',
+      render: (trans) => trans.transaction_type === TRANSACTION_TYPES.RENTAL ? formatRateTypeLabel(trans.next_commission_rate_type) : '-'
+    },
+    {
+      id: 'nextAmount',
+      label: 'Rental Rate',
+      render: (trans) => trans.transaction_type === TRANSACTION_TYPES.RENTAL ? formatCurrency(trans.next_commission_base_amount) : '-'
+    },
+    {
+      id: 'nextDue',
+      label: 'Next Commission Due',
+      render: (trans) => {
+        if (trans.transaction_type !== TRANSACTION_TYPES.RENTAL) return '-';
+        return trans.next_commission_due_date ? formatDate(trans.next_commission_due_date) : '-';
+      }
+    },
+    {
+      id: 'rentalDays',
+      label: 'Rental Days',
+      render: (trans) => trans.rental_days_total || '-'
+    },
+    {
+      id: 'rentalTotal',
+      label: 'Rental Total',
+      render: (trans) => formatCurrency(trans.rental_total)
+    },
+    {
+      id: 'rentalStatus',
+      label: 'Rental Status',
+      render: (trans) => renderRentalStatusChip(trans)
+    },
+    {
+      id: 'salesman',
+      label: 'Salesman',
+      render: (trans) => trans.salesman_username || '-',
+      adminOnly: true
+    }
+  ], []);
+
+  const computeDefaultVisibility = useCallback(() => {
+    const defaults = {};
+    columnDefinitions.forEach(col => {
+      defaults[col.id] = col.defaultVisible !== false;
+    });
+    return defaults;
+  }, [columnDefinitions]);
+
+  const [columnVisibility, setColumnVisibility] = useState(() => computeDefaultVisibility());
+
+  useEffect(() => {
+    const defaults = computeDefaultVisibility();
+    if (typeof window === 'undefined') {
+      setColumnVisibility(defaults);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(columnStorageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setColumnVisibility({ ...defaults, ...parsed });
+      } else {
+        setColumnVisibility(defaults);
+      }
+    } catch (error) {
+      console.error('Failed to parse column preferences:', error);
+      setColumnVisibility(defaults);
+    }
+  }, [columnStorageKey, computeDefaultVisibility]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(columnStorageKey, JSON.stringify(columnVisibility));
+  }, [columnStorageKey, columnVisibility]);
+
+  const visibleColumns = useMemo(() => columnDefinitions.filter(col => {
+    if (col.adminOnly && !isAdmin) return false;
+    const isVisible = columnVisibility[col.id];
+    if (typeof isVisible === 'boolean') {
+      return isVisible;
+    }
+    return col.defaultVisible !== false;
+  }), [columnDefinitions, columnVisibility, isAdmin]);
+
+  const availableColumnsForManager = useMemo(() => columnDefinitions.filter(col => !col.adminOnly || isAdmin), [columnDefinitions, isAdmin]);
+
+  const handleToggleColumn = useCallback((columnId) => {
+    setColumnVisibility(prev => {
+      const column = columnDefinitions.find(col => col.id === columnId);
+      if (!column) return prev;
+      const currentlyVisible = prev[columnId] !== undefined ? prev[columnId] : (column.defaultVisible !== false);
+      if (currentlyVisible) {
+        const otherVisibleColumns = columnDefinitions.filter(col => {
+          if (col.id === columnId) return false;
+          if (col.adminOnly && !isAdmin) return false;
+          const value = prev[col.id] !== undefined ? prev[col.id] : (col.defaultVisible !== false);
+          return value;
+        }).length;
+        if (otherVisibleColumns === 0) {
+          return prev;
+        }
+      }
+      return { ...prev, [columnId]: !currentlyVisible };
+    });
+  }, [columnDefinitions, isAdmin]);
+
+  const handleMonthPresetChange = (value) => {
+    if (value === 'custom') {
+      setFilters(prev => ({ ...prev, month: '', startDate: prev.startDate, endDate: prev.endDate }));
+      return;
+    }
+
+    const presetMap = {
+      current: getMonthRange(),
+      previous: getMonthRange(-1),
+      next: getMonthRange(1)
+    };
+
+    const selectedRange = presetMap[value] || getMonthRange();
+
+    setFilters(prev => ({
+      ...prev,
+      month: value,
+      startDate: selectedRange.start,
+      endDate: selectedRange.end
+    }));
+  };
+
+  const handleDateInputChange = (field, value) => {
+    setFilters(prev => ({
+      ...prev,
+      month: '',
+      [field]: value
+    }));
+  };
 
   // Fetch machines from SalesMasters
   useEffect(() => {
@@ -255,74 +519,24 @@ export default function SalesDashboard({ user }) {
       return '';
     }
     const diffTime = end - start;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays > 0 ? diffDays.toString() : '';
   };
 
 const calculateNextBillingAmount = (item = {}) => {
-  const today = new Date();
-  const dayMs = 1000 * 60 * 60 * 24;
   const quantity = parseInt(item.quantity, 10) || 1;
-  const discountPercentRaw = parseFloat(item.discount_percent);
-  const discountPercent = Number.isFinite(discountPercentRaw) ? Math.min(Math.max(discountPercentRaw, 0), 100) : 0;
-  const applyDiscount = (amount) => {
-    if (!amount || amount <= 0) return amount;
-    return amount * (1 - discountPercent / 100);
-  };
+  const discountPercent = clampNumber(parseFloat(item.discount_percent) || 0, 0, 100);
+  const rentalDays = parseInt(item.rental_days_total, 10);
+  const rateType = determineRateTier(rentalDays);
+  const rates = normalizeRentalRates(item.rental_daily_rate, item.rental_weekly_rate, item.rental_monthly_rate);
+  let rateValue = rates[rateType] || rates.monthly || rates.weekly || rates.daily;
 
-  const monthlyRate = parseFloat(item.rental_monthly_rate) || 0;
-  const weeklyRateRaw = parseFloat(item.rental_weekly_rate) || 0;
-  const dailyRateRaw = parseFloat(item.rental_daily_rate) || 0;
-
-  const derivedWeeklyRate = weeklyRateRaw > 0
-    ? weeklyRateRaw
-    : dailyRateRaw > 0
-      ? dailyRateRaw * 7
-      : monthlyRate > 0
-        ? monthlyRate / 4
-        : 0;
-
-  const derivedDailyRate = dailyRateRaw > 0
-    ? dailyRateRaw
-    : weeklyRateRaw > 0
-      ? weeklyRateRaw / 7
-      : monthlyRate > 0
-        ? monthlyRate / 28
-        : 0;
-
-  let remainingDays = parseInt(item.rental_days_total, 10);
-  const rentalEndDate = item.rental_end_date ? new Date(item.rental_end_date) : null;
-  if (rentalEndDate && !isNaN(rentalEndDate.getTime())) {
-    remainingDays = Math.ceil((rentalEndDate - today) / dayMs);
+  if (!rateValue) {
+    return null;
   }
 
-  if (!Number.isFinite(remainingDays)) {
-    remainingDays = 0;
-  }
-  if (remainingDays < 0) {
-    remainingDays = 0;
-  }
-
-  if (remainingDays >= 21 && monthlyRate > 0) {
-    return applyDiscount(monthlyRate * quantity);
-  }
-  if (remainingDays >= 3 && derivedWeeklyRate > 0) {
-    return applyDiscount(derivedWeeklyRate * quantity);
-  }
-  if (remainingDays > 0 && derivedDailyRate > 0) {
-    return applyDiscount(derivedDailyRate * remainingDays * quantity);
-  }
-
-  if (monthlyRate > 0) {
-    return applyDiscount(monthlyRate * quantity);
-  }
-  if (derivedWeeklyRate > 0) {
-    return applyDiscount(derivedWeeklyRate * quantity);
-  }
-  if (derivedDailyRate > 0) {
-    return applyDiscount(derivedDailyRate * quantity);
-  }
-  return null;
+  const discounted = rateValue * quantity * (1 - discountPercent / 100);
+  return discounted > 0 ? discounted : null;
 };
 
   const applyCalculationsToItem = (item, transactionType) => {
@@ -860,13 +1074,18 @@ const calculateNextBillingAmount = (item = {}) => {
         formatCurrency(trans.sale_price),
         formatPercent(trans.commission_percent),
         formatCurrency(trans.commission_total),
+        formatRateTypeLabel(trans.next_commission_rate_type),
+        trans.next_commission_due_date ? formatDate(trans.next_commission_due_date) : '',
         trans.rental_days_total || '',
-        formatCurrency(trans.rental_total)
+        formatCurrency(trans.rental_total),
+        trans.transaction_type === TRANSACTION_TYPES.RENTAL
+          ? (trans.is_rental_active ? 'Active' : (trans.ended_this_month ? 'Ended this month' : 'Ended'))
+          : ''
       ]);
 
       doc.autoTable({
         startY: y,
-        head: [['Date', 'Type', 'Salesman', 'Customer', 'Machine', 'Renterra Order #', 'Work Order #', 'Sale Price', 'Commission %', 'Commission Total', 'Rental Days', 'Rental Total']],
+        head: [['Date', 'Type', 'Salesman', 'Customer', 'Machine', 'Renterra Order #', 'Work Order #', 'Sale Price', 'Commission %', 'Commission Total', 'Next Tier', 'Next Due', 'Rental Days', 'Rental Total', 'Rental Status']],
         body: tableData,
         margin: { top: 10, bottom: 20, left: leftMargin, right: rightMargin },
         styles: {
@@ -909,8 +1128,6 @@ const calculateNextBillingAmount = (item = {}) => {
     }
   };
 
-  const isAdmin = user?.roles?.includes('owner') || user?.roles?.includes('analytics') || user?.roles?.includes('manager') || user?.role === 'owner' || user?.role === 'analytics' || user?.role === 'manager';
-  const canFilterBySalesman = user?.roles?.includes('owner') || user?.roles?.includes('analytics') || user?.role === 'owner' || user?.role === 'analytics';
   const salesmanOptions = stats?.bySalesman ? Object.keys(stats.bySalesman).sort((a, b) => a.localeCompare(b)) : [];
 
   return (
@@ -1001,20 +1218,105 @@ const calculateNextBillingAmount = (item = {}) => {
             ))}
           </select>
         )}
+        <select
+          value={filters.status}
+          onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+          style={{ padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+        >
+          <option value="active">Active Rentals</option>
+          <option value="all">All Transactions</option>
+          <option value="inactive">Called Off Rentals</option>
+        </select>
+        <select
+          value={filters.month || 'custom'}
+          onChange={(e) => handleMonthPresetChange(e.target.value)}
+          style={{ padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+        >
+          {monthPresetOptions.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
         <input
           type="date"
           value={filters.startDate}
-          onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+          onChange={(e) => handleDateInputChange('startDate', e.target.value)}
           placeholder="Start Date"
           style={{ padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
         />
         <input
           type="date"
           value={filters.endDate}
-          onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+          onChange={(e) => handleDateInputChange('endDate', e.target.value)}
           placeholder="End Date"
           style={{ padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
         />
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowColumnManager(prev => !prev)}
+            style={{
+              padding: '8px 16px',
+              background: '#f97316',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Manage Columns
+          </button>
+          {showColumnManager && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '110%',
+                right: 0,
+                zIndex: 30,
+                background: '#ffffff',
+                border: '1px solid #e5e7eb',
+                borderRadius: 8,
+                padding: '16px',
+                width: '240px',
+                boxShadow: '0 15px 30px rgba(0,0,0,0.15)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <span style={{ fontWeight: 'bold', fontSize: 14 }}>Manage Columns</span>
+                <button
+                  onClick={() => setShowColumnManager(false)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: 16,
+                    lineHeight: 1
+                  }}
+                  aria-label="Close column manager"
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                {availableColumnsForManager.map(col => {
+                  const isChecked = columnVisibility[col.id] !== undefined ? columnVisibility[col.id] : (col.defaultVisible !== false);
+                  const otherVisibleCount = isChecked ? visibleColumns.filter(vc => vc.id !== col.id).length : visibleColumns.length;
+                  const disableUncheck = isChecked && otherVisibleCount === 0;
+                  return (
+                    <label key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={disableUncheck}
+                        onChange={() => handleToggleColumn(col.id)}
+                      />
+                      {col.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
         <button
           onClick={() => setShowForm(true)}
           style={{
@@ -1647,47 +1949,43 @@ const calculateNextBillingAmount = (item = {}) => {
             <table className="manager-table" style={{ width: '100%', fontFamily: 'Arial, Sans-Serif' }}>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Customer</th>
-                  <th>Machine</th>
-                  <th>Renterra Order #</th>
-                  <th>Work Order #</th>
-                  <th>Sale Price</th>
-                  <th>Commission %</th>
-                  <th style={{ borderLeft: '3px solid #10b981', borderRight: '3px solid #10b981', backgroundColor: '#f0fdf4' }}>Commission Total</th>
-                  <th>Rental Days</th>
-                  <th>Rental Total</th>
-                  {isAdmin && <th>Salesman</th>}
+                  {visibleColumns.map(col => (
+                    <th key={col.id} style={col.headerStyle || undefined}>{col.label}</th>
+                  ))}
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {transactions.map(trans => {
-                  // Determine background color based on transaction type
-                  let rowStyle = {};
-                  if (trans.transaction_type === TRANSACTION_TYPES.RENTAL) {
-                    rowStyle.backgroundColor = '#e9d5ff'; // Purple with more contrast
+                  const isRental = trans.transaction_type === TRANSACTION_TYPES.RENTAL;
+                  const rowStyle = {};
+                  if (isRental) {
+                    rowStyle.backgroundColor = trans.is_rental_active ? '#ede9fe' : '#f3f4f6';
+                    rowStyle.borderLeft = `4px solid ${trans.is_rental_active ? '#7c3aed' : '#9ca3af'}`;
+                    if (!trans.is_rental_active && trans.ended_this_month) {
+                      rowStyle.opacity = 0.85;
+                    }
                   } else if (trans.transaction_type === TRANSACTION_TYPES.NEW_SALE || trans.transaction_type === TRANSACTION_TYPES.USED_SALE) {
-                    rowStyle.backgroundColor = '#bbf7d0'; // Green with more contrast
+                    rowStyle.backgroundColor = '#bbf7d0';
                   } else if (trans.transaction_type === TRANSACTION_TYPES.SERVICE) {
-                    rowStyle.backgroundColor = '#bfdbfe'; // Blue with more contrast
+                    rowStyle.backgroundColor = '#bfdbfe';
                   }
+
+                  const rentalStatusLabel = !isRental
+                    ? '-'
+                    : trans.is_rental_active
+                      ? 'Active'
+                      : trans.ended_this_month
+                        ? 'Ended this month'
+                        : 'Ended';
                   
                   return (
                     <tr key={trans.id} style={rowStyle}>
-                      <td>{formatDate(trans.date)}</td>
-                      <td>{trans.transaction_type.replace('_', ' ').toUpperCase()}</td>
-                      <td>{trans.customer}</td>
-                      <td>{`${trans.machine_make || ''} ${trans.machine_model || ''}`.trim() || '-'}</td>
-                      <td>{trans.renterra_order_number || '-'}</td>
-                      <td>{trans.work_order_no || '-'}</td>
-                      <td>{formatCurrency(trans.sale_price)}</td>
-                      <td>{formatPercent(trans.commission_percent)}</td>
-                      <td style={{ borderLeft: '3px solid #10b981', borderRight: '3px solid #10b981', fontWeight: 'bold' }}>{formatCurrency(trans.commission_total)}</td>
-                      <td>{trans.rental_days_total || '-'}</td>
-                      <td>{formatCurrency(trans.rental_total)}</td>
-                      {isAdmin && <td>{trans.salesman_username}</td>}
+                      {visibleColumns.map(col => (
+                        <td key={col.id} style={col.cellStyle || undefined}>
+                          {col.render(trans)}
+                        </td>
+                      ))}
                       <td>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'nowrap' }}>
                           {trans.transaction_type === TRANSACTION_TYPES.RENTAL && (

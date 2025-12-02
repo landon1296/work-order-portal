@@ -30,6 +30,7 @@ const DAYS_PER_MONTH = 28;
 const DAYS_PER_WEEK = 7;
 const MONTH_THRESHOLD_DAYS = 21;
 const WEEK_THRESHOLD_DAYS = 3;
+const COMMISSION_PERCENT = 2;
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === '') return null;
@@ -38,29 +39,29 @@ const toNumber = (value) => {
 };
 
 const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
-
-const calculateRentalDaysTotal = (startDate, endDate, fallback) => {
-  if (startDate && endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
-      const diffDays = Math.ceil((end - start) / DAY_MS);
-      return diffDays > 0 ? diffDays : 0;
-    }
-  }
-  const fallbackDays = parseInt(fallback, 10);
-  return Number.isFinite(fallbackDays) && fallbackDays >= 0 ? fallbackDays : null;
+const positiveOrNull = (value) => {
+  const num = toNumber(value);
+  return num && num > 0 ? num : null;
 };
 
-const calculateRentalTotal = (days, dailyRate, weeklyRate, monthlyRate, discountPercent = 0) => {
-  const rentalDays = Number.isFinite(days) ? days : parseInt(days, 10);
-  if (!rentalDays || rentalDays <= 0) return null;
+const addDays = (date, days) => new Date(date.getTime() + days * DAY_MS);
 
-  const positiveOrNull = (value) => {
-    const num = toNumber(value);
-    return num && num > 0 ? num : null;
-  };
+const startOfDay = (date) => {
+  if (!date) return null;
+  const result = new Date(date);
+  result.setUTCHours(0, 0, 0, 0);
+  return result;
+};
 
+const formatDateOnly = (date) => (date ? date.toISOString().split('T')[0] : null);
+
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? null : startOfDay(parsed);
+};
+
+const normalizeRates = (dailyRate, weeklyRate, monthlyRate) => {
   let normalizedDailyRate = positiveOrNull(dailyRate);
   let normalizedWeeklyRate = positiveOrNull(weeklyRate);
   let normalizedMonthlyRate = positiveOrNull(monthlyRate);
@@ -83,50 +84,88 @@ const calculateRentalTotal = (days, dailyRate, weeklyRate, monthlyRate, discount
     normalizedMonthlyRate = normalizedDailyRate * DAYS_PER_MONTH;
   }
 
-  if (!normalizedDailyRate && !normalizedWeeklyRate && !normalizedMonthlyRate) {
+  return {
+    daily: normalizedDailyRate,
+    weekly: normalizedWeeklyRate,
+    monthly: normalizedMonthlyRate
+  };
+};
+
+const calculateRentalDaysTotal = (startDate, endDate, fallback) => {
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
+      const diffDays = Math.floor((end - start) / DAY_MS) + 1;
+      return diffDays > 0 ? diffDays : 0;
+    }
+  }
+  const fallbackDays = parseInt(fallback, 10);
+  return Number.isFinite(fallbackDays) && fallbackDays >= 0 ? fallbackDays : null;
+};
+
+const determineRateType = (rentalDays) => {
+  if (Number.isFinite(rentalDays)) {
+    if (rentalDays >= MONTH_THRESHOLD_DAYS) {
+      return 'monthly';
+    }
+    if (rentalDays >= WEEK_THRESHOLD_DAYS) {
+      return 'weekly';
+    }
+  }
+  return 'daily';
+};
+
+const calculateRentalTotal = (days, dailyRate, weeklyRate, monthlyRate, discountPercent = 0) => {
+  const rentalDays = Number.isFinite(days) ? days : parseInt(days, 10);
+  if (!rentalDays || rentalDays <= 0) return null;
+
+  const normalizedRates = normalizeRates(dailyRate, weeklyRate, monthlyRate);
+
+  if (!normalizedRates.daily && !normalizedRates.weekly && !normalizedRates.monthly) {
     return null;
   }
 
   let remainingDays = rentalDays;
   let total = 0;
 
-  if (normalizedMonthlyRate) {
+  if (normalizedRates.monthly) {
     const fullMonths = Math.floor(remainingDays / DAYS_PER_MONTH);
     if (fullMonths > 0) {
-      total += fullMonths * normalizedMonthlyRate;
+      total += fullMonths * normalizedRates.monthly;
       remainingDays -= fullMonths * DAYS_PER_MONTH;
     }
   }
 
-  if (normalizedMonthlyRate && remainingDays >= MONTH_THRESHOLD_DAYS) {
-    total += normalizedMonthlyRate;
+  if (normalizedRates.monthly && remainingDays >= MONTH_THRESHOLD_DAYS) {
+    total += normalizedRates.monthly;
     remainingDays -= MONTH_THRESHOLD_DAYS;
   }
 
-  if (normalizedWeeklyRate) {
+  if (normalizedRates.weekly) {
     const remainingWeeks = Math.floor(remainingDays / DAYS_PER_WEEK);
     if (remainingWeeks > 0) {
-      total += remainingWeeks * normalizedWeeklyRate;
+      total += remainingWeeks * normalizedRates.weekly;
       remainingDays -= remainingWeeks * DAYS_PER_WEEK;
     }
-  } else if (normalizedDailyRate) {
+  } else if (normalizedRates.daily) {
     const remainingWeeks = Math.floor(remainingDays / DAYS_PER_WEEK);
     if (remainingWeeks > 0) {
-      total += remainingWeeks * DAYS_PER_WEEK * normalizedDailyRate;
+      total += remainingWeeks * DAYS_PER_WEEK * normalizedRates.daily;
       remainingDays -= remainingWeeks * DAYS_PER_WEEK;
     }
   }
 
   if (remainingDays >= WEEK_THRESHOLD_DAYS) {
-    if (normalizedWeeklyRate) {
-      total += normalizedWeeklyRate;
+    if (normalizedRates.weekly) {
+      total += normalizedRates.weekly;
       remainingDays = 0;
-    } else if (normalizedDailyRate) {
-      total += remainingDays * normalizedDailyRate;
+    } else if (normalizedRates.daily) {
+      total += remainingDays * normalizedRates.daily;
       remainingDays = 0;
     }
-  } else if (remainingDays > 0 && normalizedDailyRate) {
-    total += remainingDays * normalizedDailyRate;
+  } else if (remainingDays > 0 && normalizedRates.daily) {
+    total += remainingDays * normalizedRates.daily;
     remainingDays = 0;
   }
 
@@ -137,74 +176,173 @@ const calculateRentalTotal = (days, dailyRate, weeklyRate, monthlyRate, discount
   return total;
 };
 
-const calculateNextBillingAmount = (record = {}) => {
-  const today = new Date();
-  const quantity = parseInt(record.quantity, 10) || 1;
-
-  const monthlyRate = toNumber(record.rental_monthly_rate) || 0;
-  const weeklyRateRaw = toNumber(record.rental_weekly_rate) || 0;
-  const dailyRateRaw = toNumber(record.rental_daily_rate) || 0;
-
-  const derivedWeeklyRate = weeklyRateRaw > 0
-    ? weeklyRateRaw
-    : dailyRateRaw > 0
-      ? dailyRateRaw * DAYS_PER_WEEK
-      : monthlyRate > 0
-        ? monthlyRate / 4
-        : 0;
-
-  const derivedDailyRate = dailyRateRaw > 0
-    ? dailyRateRaw
-    : weeklyRateRaw > 0
-      ? weeklyRateRaw / DAYS_PER_WEEK
-      : monthlyRate > 0
-        ? monthlyRate / DAYS_PER_MONTH
-        : 0;
-
-  let remainingDays = toNumber(record.rental_days_total);
-  const rentalEndDate = record.rental_end_date ? new Date(record.rental_end_date) : null;
-  if (rentalEndDate && !isNaN(rentalEndDate.getTime())) {
-    remainingDays = Math.ceil((rentalEndDate - today) / DAY_MS);
+const calculateMonthlyDueDate = (startDate, endDate, today = new Date()) => {
+  if (!startDate) {
+    return endDate ? formatDateOnly(endDate) : null;
   }
 
-  if (!Number.isFinite(remainingDays)) {
-    remainingDays = 0;
-  }
-  if (remainingDays < 0) {
-    remainingDays = 0;
+  const todayStart = startOfDay(today);
+  let cycleStart = startOfDay(startDate);
+  let dueDate = addDays(cycleStart, DAYS_PER_MONTH);
+
+  while (dueDate && dueDate <= todayStart) {
+    if (endDate && cycleStart >= endDate) {
+      return formatDateOnly(endDate);
+    }
+    cycleStart = dueDate;
+    dueDate = addDays(cycleStart, DAYS_PER_MONTH);
   }
 
-  const discountPercentRaw = toNumber(record.discount_percent);
-  const discountPercent = discountPercentRaw !== null ? clampNumber(discountPercentRaw, 0, 100) : 0;
-  const applyDiscount = (amount) => {
-    if (!amount || amount <= 0) return amount;
-    return amount * (1 - discountPercent / 100);
-  };
-
-  if (remainingDays >= MONTH_THRESHOLD_DAYS && monthlyRate > 0) {
-    return applyDiscount(monthlyRate * quantity);
-  }
-  if (remainingDays >= WEEK_THRESHOLD_DAYS && derivedWeeklyRate > 0) {
-    return applyDiscount(derivedWeeklyRate * quantity);
-  }
-  if (remainingDays > 0 && derivedDailyRate > 0) {
-    return applyDiscount(derivedDailyRate * remainingDays * quantity);
+  if (endDate && dueDate && dueDate > endDate) {
+    return formatDateOnly(endDate);
   }
 
-  if (monthlyRate > 0) {
-    return applyDiscount(monthlyRate * quantity);
-  }
-  if (derivedWeeklyRate > 0) {
-    return applyDiscount(derivedWeeklyRate * quantity);
-  }
-  if (derivedDailyRate > 0) {
-    return applyDiscount(derivedDailyRate * quantity);
-  }
-
-  return null;
+  return dueDate ? formatDateOnly(dueDate) : null;
 };
 
-const applyRentalDerivedFields = (transaction) => {
+const getCommissionDueDate = (startDate, endDate, rateType, today = new Date()) => {
+  const start = parseDateOnly(startDate);
+  const end = parseDateOnly(endDate);
+
+  if (rateType === 'monthly') {
+    return calculateMonthlyDueDate(start, end, today);
+  }
+  if (rateType === 'weekly') {
+    if (end) return formatDateOnly(end);
+    if (start) return formatDateOnly(addDays(start, DAYS_PER_WEEK));
+    return null;
+  }
+  return end ? formatDateOnly(end) : (start ? formatDateOnly(start) : null);
+};
+
+const calculateCommissionDetails = (transaction, rentalDays, quantity, discountPercent, today = new Date()) => {
+  const rates = normalizeRates(
+    transaction.rental_daily_rate,
+    transaction.rental_weekly_rate,
+    transaction.rental_monthly_rate
+  );
+
+  let rateType = determineRateType(rentalDays);
+  let rateValue = rates[rateType];
+
+  if (!rateValue) {
+    if (rates.monthly) {
+      rateType = 'monthly';
+      rateValue = rates.monthly;
+    } else if (rates.weekly) {
+      rateType = 'weekly';
+      rateValue = rates.weekly;
+    } else if (rates.daily) {
+      rateType = 'daily';
+      rateValue = rates.daily;
+    }
+  }
+
+  if (!rateValue) {
+    return {
+      rateType,
+      commissionBase: null,
+      commissionDueDate: getCommissionDueDate(transaction.rental_start_date, transaction.rental_end_date, rateType, today)
+    };
+  }
+
+  const discountMultiplier = 1 - (discountPercent / 100);
+  const commissionBase = rateValue * quantity * discountMultiplier;
+
+  return {
+    rateType,
+    commissionBase,
+    commissionDueDate: getCommissionDueDate(transaction.rental_start_date, transaction.rental_end_date, rateType, today)
+  };
+};
+
+const getDefaultMonthRange = (referenceDate = new Date()) => {
+  const start = startOfDay(new Date(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), 1));
+  const end = startOfDay(new Date(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() + 1, 0));
+  return {
+    start,
+    end,
+    startFormatted: formatDateOnly(start),
+    endFormatted: formatDateOnly(end)
+  };
+};
+
+const getMonthRangeFromFilter = (monthParam) => {
+  if (!monthParam) return null;
+  const today = new Date();
+  let targetDate = today;
+
+  if (monthParam === 'previous') {
+    targetDate = new Date(today.getUTCFullYear(), today.getUTCMonth() - 1, 1);
+  } else if (monthParam === 'next') {
+    targetDate = new Date(today.getUTCFullYear(), today.getUTCMonth() + 1, 1);
+  } else if (monthParam !== 'current') {
+    const match = /^(\d{4})-(\d{2})$/.exec(monthParam);
+    if (match) {
+      const [_, yearStr, monthStr] = match;
+      targetDate = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10) - 1, 1);
+    }
+  }
+
+  const start = startOfDay(new Date(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), 1));
+  const end = startOfDay(new Date(targetDate.getUTCFullYear(), targetDate.getUTCMonth() + 1, 0));
+
+  return {
+    start,
+    end,
+    startFormatted: formatDateOnly(start),
+    endFormatted: formatDateOnly(end)
+  };
+};
+
+const resolveDateFilters = ({ startDate, endDate, month, today = new Date() }) => {
+  const defaultMonthRange = getDefaultMonthRange(today);
+  const monthRangeFilter = getMonthRangeFromFilter(month);
+  const resolvedStartDate = startDate || monthRangeFilter?.startFormatted || null;
+  const resolvedEndDate = endDate || monthRangeFilter?.endFormatted || null;
+
+  let monthRangeForFlags = monthRangeFilter || null;
+  if (!monthRangeForFlags && (startDate || endDate)) {
+    const customStart = parseDateOnly(startDate) || parseDateOnly(endDate);
+    const customEnd = parseDateOnly(endDate) || parseDateOnly(startDate);
+    if (customStart || customEnd) {
+      monthRangeForFlags = {
+        start: customStart || customEnd || defaultMonthRange.start,
+        end: customEnd || customStart || defaultMonthRange.end
+      };
+    }
+  }
+
+  if (!monthRangeForFlags) {
+    monthRangeForFlags = defaultMonthRange;
+  }
+
+  return {
+    resolvedStartDate,
+    resolvedEndDate,
+    monthRangeForFlags,
+    monthRangeFilter
+  };
+};
+
+const rangesOverlap = (rangeStart, rangeEnd, windowStart, windowEnd) => {
+  if (!windowStart || !windowEnd) return false;
+  const start = rangeStart || windowStart;
+  const end = rangeEnd || windowEnd;
+  if (!start) return false;
+  const endTime = end ? end.getTime() : Number.MAX_SAFE_INTEGER;
+  return start.getTime() <= windowEnd.getTime() && endTime >= windowStart.getTime();
+};
+
+const isSameMonth = (dateA, referenceDate) => {
+  if (!dateA || !referenceDate) return false;
+  return (
+    dateA.getUTCFullYear() === referenceDate.getUTCFullYear() &&
+    dateA.getUTCMonth() === referenceDate.getUTCMonth()
+  );
+};
+
+const applyRentalDerivedFields = (transaction, options = {}) => {
   if (!transaction || transaction.transaction_type !== 'rental') {
     return transaction;
   }
@@ -234,44 +372,66 @@ const applyRentalDerivedFields = (transaction) => {
     updated.rental_total = Number(rentalTotal.toFixed(2));
   }
 
-  const commissionPercent = 2;
-  updated.commission_percent = commissionPercent;
+  updated.commission_percent = COMMISSION_PERCENT;
 
-  let commissionBase = calculateNextBillingAmount({
-    rental_end_date: transaction.rental_end_date,
-    rental_days_total: rentalDays !== null ? rentalDays : transaction.rental_days_total,
-    rental_monthly_rate: transaction.rental_monthly_rate,
-    rental_weekly_rate: transaction.rental_weekly_rate,
-    rental_daily_rate: transaction.rental_daily_rate,
+  const commissionDetails = calculateCommissionDetails(
+    updated,
+    rentalDays,
     quantity,
-    discount_percent: discountPercent
-  });
+    discountPercent,
+    options.today || new Date()
+  );
 
-  if (!commissionBase && rentalTotal !== null) {
-    commissionBase = rentalTotal;
-  }
-  if (!commissionBase) {
-    const storedTotal = toNumber(transaction.rental_total);
-    if (storedTotal) {
-      commissionBase = storedTotal;
-    }
+  if (commissionDetails.commissionBase && commissionDetails.commissionBase > 0) {
+    const commissionTotal = (commissionDetails.commissionBase * COMMISSION_PERCENT) / 100;
+    updated.next_commission_base_amount = Number(commissionDetails.commissionBase.toFixed(2));
+    updated.commission_total = Number(commissionTotal.toFixed(2));
   }
 
-  if (commissionBase && commissionBase > 0) {
-    updated.commission_total = Number(((commissionBase * commissionPercent) / 100).toFixed(2));
+  updated.next_commission_rate_type = commissionDetails.rateType;
+  if (commissionDetails.commissionDueDate) {
+    updated.next_commission_due_date = commissionDetails.commissionDueDate;
   }
+
+  const today = options.today ? startOfDay(options.today) : startOfDay(new Date());
+  const monthRange = options.monthRange || getDefaultMonthRange(today);
+  const startDateObj = parseDateOnly(transaction.rental_start_date);
+  const endDateObj = parseDateOnly(transaction.rental_end_date);
+
+  updated.is_rental_active = !endDateObj || (today && endDateObj >= today);
+  updated.is_active_this_month = rangesOverlap(startDateObj, endDateObj, monthRange.start, monthRange.end);
+  updated.ended_this_month = endDateObj ? isSameMonth(endDateObj, monthRange.start) : false;
 
   return updated;
 };
 
-const applyDerivedFields = (rows = []) => rows.map(row => applyRentalDerivedFields(row));
+const applyDerivedFields = (rows = [], options = {}) => rows.map(row => applyRentalDerivedFields(row, options));
 
 // GET /api/sales/transactions - Fetch transactions (filtered by salesman if not admin)
 router.get('/transactions', requireSalesRole, async (req, res) => {
   try {
-    const { page = 1, limit = 50, salesman, transactionType, startDate, endDate } = req.query;
-    const offset = (page - 1) * limit;
-    
+    const {
+      page = 1,
+      limit = 50,
+      salesman,
+      transactionType,
+      startDate,
+      endDate,
+      status,
+      month
+    } = req.query;
+
+    const parsedPage = parseInt(page, 10) > 0 ? parseInt(page, 10) : 1;
+    const parsedLimit = parseInt(limit, 10) > 0 ? Math.min(parseInt(limit, 10), 200) : 50;
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    const today = new Date();
+    const {
+      resolvedStartDate,
+      resolvedEndDate,
+      monthRangeForFlags
+    } = resolveDateFilters({ startDate, endDate, month, today });
+
     let query = 'SELECT * FROM sales_transactions WHERE 1=1';
     const params = [];
     let paramCount = 0;
@@ -296,17 +456,21 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
       params.push(transactionType);
     }
 
-    // Filter by date range
-    // For sales/service: filter by transaction date
-    // For rentals: filter by rental period overlapping with date range
-    if (startDate && endDate) {
+    if (status === 'active') {
+      query += ` AND (transaction_type != 'rental' OR rental_end_date IS NULL OR rental_end_date >= CURRENT_DATE)`;
+    } else if (status === 'inactive') {
+      query += ` AND transaction_type = 'rental' AND rental_end_date IS NOT NULL AND rental_end_date < CURRENT_DATE`;
+    }
+
+    // Filter by date range (explicit or derived month)
+    if (resolvedStartDate && resolvedEndDate) {
       paramCount++;
       const startDateParam = `$${paramCount}`;
-      params.push(startDate);
+      params.push(resolvedStartDate);
       
       paramCount++;
       const endDateParam = `$${paramCount}`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
       
       // For rentals: show if rental period overlaps with date range
       // For sales/service: show if transaction date is in date range
@@ -316,7 +480,7 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= ${startDateParam} AND date <= ${endDateParam})
       )`;
-    } else if (startDate) {
+    } else if (resolvedStartDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -324,22 +488,25 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= $${paramCount})
       )`;
-      params.push(startDate);
-    } else if (endDate) {
+      params.push(resolvedStartDate);
+    } else if (resolvedEndDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_start_date <= $${paramCount})
         OR
         (transaction_type != 'rental' AND date <= $${paramCount})
       )`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
     }
 
     query += ` ORDER BY date DESC, created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-    params.push(limit, offset);
+    params.push(parsedLimit, offset);
 
     const result = await pool.query(query, params);
-    const transactions = applyDerivedFields(result.rows);
+    const transactions = applyDerivedFields(result.rows, {
+      today,
+      monthRange: monthRangeForFlags
+    });
     
     // Get total count for pagination
     let countQuery = 'SELECT COUNT(*) FROM sales_transactions WHERE 1=1';
@@ -362,15 +529,21 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
       countParams.push(transactionType);
     }
 
+    if (status === 'active') {
+      countQuery += ` AND (transaction_type != 'rental' OR rental_end_date IS NULL OR rental_end_date >= CURRENT_DATE)`;
+    } else if (status === 'inactive') {
+      countQuery += ` AND transaction_type = 'rental' AND rental_end_date IS NOT NULL AND rental_end_date < CURRENT_DATE`;
+    }
+
     // Apply same date filtering logic for count query
-    if (startDate && endDate) {
+    if (resolvedStartDate && resolvedEndDate) {
       countParamCount++;
       const startDateParam = `$${countParamCount}`;
-      countParams.push(startDate);
+      countParams.push(resolvedStartDate);
       
       countParamCount++;
       const endDateParam = `$${countParamCount}`;
-      countParams.push(endDate);
+      countParams.push(resolvedEndDate);
       
       countQuery += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -378,7 +551,7 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= ${startDateParam} AND date <= ${endDateParam})
       )`;
-    } else if (startDate) {
+    } else if (resolvedStartDate) {
       countParamCount++;
       countQuery += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -386,15 +559,15 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= $${countParamCount})
       )`;
-      countParams.push(startDate);
-    } else if (endDate) {
+      countParams.push(resolvedStartDate);
+    } else if (resolvedEndDate) {
       countParamCount++;
       countQuery += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_start_date <= $${countParamCount})
         OR
         (transaction_type != 'rental' AND date <= $${countParamCount})
       )`;
-      countParams.push(endDate);
+      countParams.push(resolvedEndDate);
     }
 
     const countResult = await pool.query(countQuery, countParams);
@@ -403,10 +576,10 @@ router.get('/transactions', requireSalesRole, async (req, res) => {
     res.json({
       transactions,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parsedPage,
+        limit: parsedLimit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / parsedLimit)
       }
     });
   } catch (error) {
@@ -762,7 +935,13 @@ router.delete('/transactions/:id', requireSalesRole, async (req, res) => {
 // GET /api/sales/stats - Get aggregate statistics
 router.get('/stats', requireSalesRole, async (req, res) => {
   try {
-    const { salesman, startDate, endDate } = req.query;
+    const { salesman, startDate, endDate, status, month, transactionType } = req.query;
+    const today = new Date();
+    const {
+      resolvedStartDate,
+      resolvedEndDate,
+      monthRangeForFlags
+    } = resolveDateFilters({ startDate, endDate, month, today });
     
     let query = 'SELECT * FROM sales_transactions WHERE 1=1';
     const params = [];
@@ -779,17 +958,29 @@ router.get('/stats', requireSalesRole, async (req, res) => {
       params.push(salesman);
     }
 
+    if (transactionType) {
+      paramCount++;
+      query += ` AND transaction_type = $${paramCount}`;
+      params.push(transactionType);
+    }
+
+    if (status === 'active') {
+      query += ` AND (transaction_type != 'rental' OR rental_end_date IS NULL OR rental_end_date >= CURRENT_DATE)`;
+    } else if (status === 'inactive') {
+      query += ` AND transaction_type = 'rental' AND rental_end_date IS NOT NULL AND rental_end_date < CURRENT_DATE`;
+    }
+
     // Filter by date range
     // For sales/service: filter by transaction date
     // For rentals: filter by rental period overlapping with date range
-    if (startDate && endDate) {
+    if (resolvedStartDate && resolvedEndDate) {
       paramCount++;
       const startDateParam = `$${paramCount}`;
-      params.push(startDate);
+      params.push(resolvedStartDate);
       
       paramCount++;
       const endDateParam = `$${paramCount}`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
       
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -797,7 +988,7 @@ router.get('/stats', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= ${startDateParam} AND date <= ${endDateParam})
       )`;
-    } else if (startDate) {
+    } else if (resolvedStartDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -805,19 +996,22 @@ router.get('/stats', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= $${paramCount})
       )`;
-      params.push(startDate);
-    } else if (endDate) {
+      params.push(resolvedStartDate);
+    } else if (resolvedEndDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_start_date <= $${paramCount})
         OR
         (transaction_type != 'rental' AND date <= $${paramCount})
       )`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
     }
 
     const result = await pool.query(query, params);
-    const transactions = applyDerivedFields(result.rows);
+    const transactions = applyDerivedFields(result.rows, {
+      today,
+      monthRange: monthRangeForFlags
+    });
 
     // Calculate statistics
     const stats = {
@@ -900,7 +1094,13 @@ router.get('/stats', requireSalesRole, async (req, res) => {
 // GET /api/sales/export/csv - Generate CSV export
 router.get('/export/csv', requireSalesRole, async (req, res) => {
   try {
-    const { salesman, transactionType, startDate, endDate } = req.query;
+    const { salesman, transactionType, startDate, endDate, status, month } = req.query;
+    const today = new Date();
+    const {
+      resolvedStartDate,
+      resolvedEndDate,
+      monthRangeForFlags
+    } = resolveDateFilters({ startDate, endDate, month, today });
     
     let query = 'SELECT * FROM sales_transactions WHERE 1=1';
     const params = [];
@@ -923,15 +1123,21 @@ router.get('/export/csv', requireSalesRole, async (req, res) => {
       params.push(transactionType);
     }
 
+    if (status === 'active') {
+      query += ` AND (transaction_type != 'rental' OR rental_end_date IS NULL OR rental_end_date >= CURRENT_DATE)`;
+    } else if (status === 'inactive') {
+      query += ` AND transaction_type = 'rental' AND rental_end_date IS NOT NULL AND rental_end_date < CURRENT_DATE`;
+    }
+
     // Apply same date filtering logic for CSV export
-    if (startDate && endDate) {
+    if (resolvedStartDate && resolvedEndDate) {
       paramCount++;
       const startDateParam = `$${paramCount}`;
-      params.push(startDate);
+      params.push(resolvedStartDate);
       
       paramCount++;
       const endDateParam = `$${paramCount}`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
       
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -939,7 +1145,7 @@ router.get('/export/csv', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= ${startDateParam} AND date <= ${endDateParam})
       )`;
-    } else if (startDate) {
+    } else if (resolvedStartDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -947,28 +1153,31 @@ router.get('/export/csv', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= $${paramCount})
       )`;
-      params.push(startDate);
-    } else if (endDate) {
+      params.push(resolvedStartDate);
+    } else if (resolvedEndDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_start_date <= $${paramCount})
         OR
         (transaction_type != 'rental' AND date <= $${paramCount})
       )`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
     }
 
     query += ' ORDER BY date DESC, created_at DESC';
 
     const result = await pool.query(query, params);
-    const transactions = applyDerivedFields(result.rows);
+    const transactions = applyDerivedFields(result.rows, {
+      today,
+      monthRange: monthRangeForFlags
+    });
 
     // Generate CSV
     const headers = [
       'ID', 'Transaction Type', 'Date', 'Renterra Order #', 'Work Order #',
       'Customer', 'Salesman', 'Machine Make', 'Machine Model', 'Machine Serial',
       'Quantity', 'Sale Price', 'Discount %', 'Commission %', 'Commission Total',
-      'Rental Days', 'Rental Total', 'Created At'
+      'Rental Days', 'Rental Total', 'Next Commission Tier', 'Next Commission Due', 'Created At'
     ];
 
     const csvRows = [headers.join(',')];
@@ -992,6 +1201,8 @@ router.get('/export/csv', requireSalesRole, async (req, res) => {
         trans.commission_total || '',
         trans.rental_days_total || '',
         trans.rental_total || '',
+        trans.next_commission_rate_type || '',
+        trans.next_commission_due_date || '',
         trans.created_at
       ];
       csvRows.push(row.join(','));
@@ -1011,7 +1222,13 @@ router.get('/export/csv', requireSalesRole, async (req, res) => {
 // GET /api/sales/export/pdf - Return data for PDF generation (frontend will generate PDF)
 router.get('/export/pdf', requireSalesRole, async (req, res) => {
   try {
-    const { salesman, transactionType, startDate, endDate } = req.query;
+    const { salesman, transactionType, startDate, endDate, status, month } = req.query;
+    const today = new Date();
+    const {
+      resolvedStartDate,
+      resolvedEndDate,
+      monthRangeForFlags
+    } = resolveDateFilters({ startDate, endDate, month, today });
     
     let query = 'SELECT * FROM sales_transactions WHERE 1=1';
     const params = [];
@@ -1034,15 +1251,21 @@ router.get('/export/pdf', requireSalesRole, async (req, res) => {
       params.push(transactionType);
     }
 
+    if (status === 'active') {
+      query += ` AND (transaction_type != 'rental' OR rental_end_date IS NULL OR rental_end_date >= CURRENT_DATE)`;
+    } else if (status === 'inactive') {
+      query += ` AND transaction_type = 'rental' AND rental_end_date IS NOT NULL AND rental_end_date < CURRENT_DATE`;
+    }
+
     // Apply same date filtering logic for PDF export
-    if (startDate && endDate) {
+    if (resolvedStartDate && resolvedEndDate) {
       paramCount++;
       const startDateParam = `$${paramCount}`;
-      params.push(startDate);
+      params.push(resolvedStartDate);
       
       paramCount++;
       const endDateParam = `$${paramCount}`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
       
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -1050,7 +1273,7 @@ router.get('/export/pdf', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= ${startDateParam} AND date <= ${endDateParam})
       )`;
-    } else if (startDate) {
+    } else if (resolvedStartDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -1058,21 +1281,24 @@ router.get('/export/pdf', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= $${paramCount})
       )`;
-      params.push(startDate);
-    } else if (endDate) {
+      params.push(resolvedStartDate);
+    } else if (resolvedEndDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_start_date <= $${paramCount})
         OR
         (transaction_type != 'rental' AND date <= $${paramCount})
       )`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
     }
 
     query += ' ORDER BY date DESC, created_at DESC';
 
     const result = await pool.query(query, params);
-    const transactions = applyDerivedFields(result.rows);
+    const transactions = applyDerivedFields(result.rows, {
+      today,
+      monthRange: monthRangeForFlags
+    });
     
     res.json({ transactions });
   } catch (error) {
@@ -1084,11 +1310,18 @@ router.get('/export/pdf', requireSalesRole, async (req, res) => {
 // POST /api/sales/export/email - Send email with export data
 router.post('/export/email', requireSalesRole, async (req, res) => {
   try {
-    const { to, subject, format, salesman, transactionType, startDate, endDate } = req.body;
+    const { to, subject, format, salesman, transactionType, startDate, endDate, status, month } = req.body;
 
     if (!to || !subject) {
       return res.status(400).json({ error: 'Recipient email and subject are required' });
     }
+
+    const today = new Date();
+    const {
+      resolvedStartDate,
+      resolvedEndDate,
+      monthRangeForFlags
+    } = resolveDateFilters({ startDate, endDate, month, today });
 
     // Fetch transactions
     let query = 'SELECT * FROM sales_transactions WHERE 1=1';
@@ -1112,15 +1345,21 @@ router.post('/export/email', requireSalesRole, async (req, res) => {
       params.push(transactionType);
     }
 
+    if (status === 'active') {
+      query += ` AND (transaction_type != 'rental' OR rental_end_date IS NULL OR rental_end_date >= CURRENT_DATE)`;
+    } else if (status === 'inactive') {
+      query += ` AND transaction_type = 'rental' AND rental_end_date IS NOT NULL AND rental_end_date < CURRENT_DATE`;
+    }
+
     // Apply same date filtering logic for email export
-    if (startDate && endDate) {
+    if (resolvedStartDate && resolvedEndDate) {
       paramCount++;
       const startDateParam = `$${paramCount}`;
-      params.push(startDate);
+      params.push(resolvedStartDate);
       
       paramCount++;
       const endDateParam = `$${paramCount}`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
       
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -1128,7 +1367,7 @@ router.post('/export/email', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= ${startDateParam} AND date <= ${endDateParam})
       )`;
-    } else if (startDate) {
+    } else if (resolvedStartDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_end_date IS NOT NULL 
@@ -1136,21 +1375,24 @@ router.post('/export/email', requireSalesRole, async (req, res) => {
         OR
         (transaction_type != 'rental' AND date >= $${paramCount})
       )`;
-      params.push(startDate);
-    } else if (endDate) {
+      params.push(resolvedStartDate);
+    } else if (resolvedEndDate) {
       paramCount++;
       query += ` AND (
         (transaction_type = 'rental' AND rental_start_date IS NOT NULL AND rental_start_date <= $${paramCount})
         OR
         (transaction_type != 'rental' AND date <= $${paramCount})
       )`;
-      params.push(endDate);
+      params.push(resolvedEndDate);
     }
 
     query += ' ORDER BY date DESC, created_at DESC';
 
     const result = await pool.query(query, params);
-    const transactions = applyDerivedFields(result.rows);
+    const transactions = applyDerivedFields(result.rows, {
+      today,
+      monthRange: monthRangeForFlags
+    });
 
     let emailBody = '';
     let emailHtml = '';
@@ -1161,7 +1403,7 @@ router.post('/export/email', requireSalesRole, async (req, res) => {
         'ID', 'Transaction Type', 'Date', 'Renterra Order #', 'Work Order #',
         'Customer', 'Salesman', 'Machine Make', 'Machine Model', 'Machine Serial',
         'Quantity', 'Sale Price', 'Discount %', 'Commission %', 'Commission Total',
-        'Rental Days', 'Rental Total', 'Created At'
+        'Rental Days', 'Rental Total', 'Next Commission Tier', 'Next Commission Due', 'Created At'
       ];
 
       const csvRows = [headers.join(',')];
@@ -1184,6 +1426,8 @@ router.post('/export/email', requireSalesRole, async (req, res) => {
           trans.commission_total || '',
           trans.rental_days_total || '',
           trans.rental_total || '',
+          trans.next_commission_rate_type || '',
+          trans.next_commission_due_date || '',
           trans.created_at
         ];
         csvRows.push(row.join(','));
@@ -1221,6 +1465,9 @@ router.post('/export/email', requireSalesRole, async (req, res) => {
                   <th>Commission Total</th>
                   <th>Rental Days</th>
                   <th>Rental Total</th>
+                  <th>Next Payout Tier</th>
+                  <th>Next Commission Due</th>
+                  <th>Rental Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -1238,6 +1485,11 @@ router.post('/export/email', requireSalesRole, async (req, res) => {
                     <td>${trans.commission_total || ''}</td>
                     <td>${trans.rental_days_total || ''}</td>
                     <td>${trans.rental_total || ''}</td>
+                    <td>${trans.next_commission_rate_type || ''}</td>
+                    <td>${trans.next_commission_due_date || ''}</td>
+                    <td>${trans.transaction_type === 'rental'
+                      ? (trans.is_rental_active ? 'Active' : (trans.ended_this_month ? 'Ended this month' : 'Ended'))
+                      : ''}</td>
                   </tr>
                 `).join('')}
               </tbody>
