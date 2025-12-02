@@ -382,7 +382,14 @@ const applyRentalDerivedFields = (transaction, options = {}) => {
     options.today || new Date()
   );
 
-  if (commissionDetails.commissionBase && commissionDetails.commissionBase > 0) {
+  const isShortRental = Number.isFinite(rentalDays) && rentalDays > 0 && rentalDays < MONTH_THRESHOLD_DAYS;
+
+  if (isShortRental && rentalTotal !== null) {
+    const shortBase = rentalTotal;
+    const commissionTotal = (shortBase * COMMISSION_PERCENT) / 100;
+    updated.next_commission_base_amount = Number(shortBase.toFixed(2));
+    updated.commission_total = Number(commissionTotal.toFixed(2));
+  } else if (commissionDetails.commissionBase && commissionDetails.commissionBase > 0) {
     const commissionTotal = (commissionDetails.commissionBase * COMMISSION_PERCENT) / 100;
     updated.next_commission_base_amount = Number(commissionDetails.commissionBase.toFixed(2));
     updated.commission_total = Number(commissionTotal.toFixed(2));
