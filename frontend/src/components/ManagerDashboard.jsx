@@ -1714,7 +1714,8 @@ export default function ManagerDashboard({ user }) {
 
   // Duplicate work order handler
   const handleDuplicateWorkOrder = useCallback(async (order) => {
-    if (!window.confirm(`Are you sure you want to duplicate work order ${order.workOrderNo}? This will create a new work order with all the same information except for the work order number.`)) {
+    const workOrderNo = order.workOrderNo ?? order.work_order_no;
+    if (!window.confirm(`Are you sure you want to duplicate work order ${workOrderNo}? This will create a new work order with all the same information except for the work order number.`)) {
       return;
     }
 
@@ -1725,9 +1726,15 @@ export default function ManagerDashboard({ user }) {
       });
       const nextWorkOrderNo = nextNumberResponse.data.nextWorkOrderNo;
 
-      // Create a copy of the work order with the new work order number
+      // Fetch full work order so we have contact, PO, work description, and all fields in camelCase
+      const fullRes = await API.get(`/workorders/${workOrderNo}`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      const fullOrder = fullRes.data;
+
+      // Build duplicate from full order with resets
       const duplicatedOrder = {
-        ...order,
+        ...fullOrder,
         workOrderNo: nextWorkOrderNo,
         date: new Date().toISOString().slice(0, 10), // Set to today's date
         status: 'Assigned', // Reset status to assigned
@@ -1742,8 +1749,8 @@ export default function ManagerDashboard({ user }) {
         customerSignaturePrinted: null, // Clear printed signature
         signatureTimestamp: null, // Clear signature timestamp
         // Reset time logs to just the assignment
-        timeLogs: order.timeLogs && order.timeLogs.length > 0 ? [{
-          technicianAssigned: order.timeLogs[0].technicianAssigned,
+        timeLogs: fullOrder.timeLogs && fullOrder.timeLogs.length > 0 ? [{
+          technicianAssigned: fullOrder.timeLogs[0].technicianAssigned,
           assignDate: new Date().toISOString().slice(0, 10),
           startTime: '',
           finishTime: '',
@@ -1758,7 +1765,7 @@ export default function ManagerDashboard({ user }) {
         headers: { Authorization: `Bearer ${user.token}` }
       });
 
-      alert(`Work order ${order.workOrderNo} duplicated successfully as work order ${nextWorkOrderNo}!`);
+      alert(`Work order ${workOrderNo} duplicated successfully as work order ${nextWorkOrderNo}!`);
       refetch(); // Refresh the dashboard
     } catch (err) {
       console.error('Failed to duplicate work order:', err);

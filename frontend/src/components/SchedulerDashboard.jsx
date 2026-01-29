@@ -3374,3 +3374,5 @@ export default function SchedulerDashboard({ user }) {
   );
 }
 
+export { SchedulePickupModal };
+
