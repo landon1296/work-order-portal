@@ -272,6 +272,12 @@ if (Array.isArray(updates.statusHistory)) {
       if (updates.hasOwnProperty(f)) delete updates[f];
     });
 
+    // Capture previous status when transitioning to Customer Invoiced (for email)
+    let previousStatus = null;
+    if ((updates.status || '').toString().toLowerCase() === 'customer invoiced') {
+      const currentResult = await pool.query('SELECT status FROM workorders WHERE work_order_no = $1', [workOrderNo]);
+      if (currentResult.rows.length > 0) previousStatus = currentResult.rows[0].status;
+    }
 
     // You'll need to write an updateWorkOrderByNo function in your store!
 const updated = await updateWorkOrderByNo(workOrderNo, updates);
@@ -349,6 +355,50 @@ if (updates.timeLogs && Array.isArray(updates.timeLogs)) {
 
 
 if (!updated) return res.status(404).json({ error: 'Work order not found' });
+
+// Send email when transitioning from "Submitted for Billing" to "Customer Invoiced"
+if (previousStatus && previousStatus.toLowerCase() === 'submitted for billing' && (updates.status || '').toString().toLowerCase() === 'customer invoiced') {
+  try {
+    const sheetsClient = new google.auth.GoogleAuth({
+      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    });
+    const sheets = google.sheets({ version: 'v4', auth: sheetsClient });
+    const emailResp = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Config!D2:D',
+    });
+    const emailRows = emailResp.data.values || [];
+    const notificationEmails = emailRows.map(r => r[0]).filter(email => email && email.includes('@'));
+    if (notificationEmails.length > 0) {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+      const subject = `Work Order ${workOrderNo}: Customer Invoiced`;
+      const text = `Work Order #${workOrderNo} has been marked as Customer Invoiced.
+
+Company: ${updated.company_name || 'N/A'}
+Date: ${updated.date || 'N/A'}
+Previous Status: Submitted for Billing
+Current Status: Customer Invoiced
+
+This work order has been invoiced to the customer.`;
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: notificationEmails.join(','),
+        subject,
+        text
+      });
+      console.log('Customer Invoiced notification email sent');
+    }
+  } catch (emailError) {
+    console.error('Failed to send Customer Invoiced notification email:', emailError);
+  }
+}
 
 // Broadcast the work order update via WebSocket (with error handling)
 try {
