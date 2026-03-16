@@ -128,9 +128,28 @@ async function getMaxWorkOrderNo() {
 }
 
 async function getAssignedForTechnician(username) {
-  // Query only what we need and filter at DB layer
+  // Include time_logs (assign_date for this tech) so frontend can show Date Assigned and Days Open
   const result = await pool.query(
-    `SELECT w.*
+    `SELECT w.*,
+       COALESCE(
+         (
+           SELECT json_agg(
+             json_build_object(
+               'technician_assigned', te.technician_assigned,
+               'assign_date', te.assign_date
+             )
+           )
+           FROM (
+             SELECT te.technician_assigned, te.assign_date
+             FROM time_entries te
+             WHERE te.work_order_no = w.work_order_no
+               AND te.technician_assigned = $1
+             ORDER BY te.assign_date ASC NULLS LAST
+             LIMIT 1
+           ) te
+         ),
+         '[]'::json
+       ) AS time_logs
      FROM workorders w
      WHERE w.status <> 'Closed'
        AND EXISTS (

@@ -1276,7 +1276,7 @@ console.log("form", form);
 
 
   return (
-    <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} style={{ padding: '8px', fontFamily: 'Arial' }}>
+    <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} autoComplete="off" style={{ padding: '8px', fontFamily: 'Arial' }}>
       {/* WebSocket status indicator */}
       {wsConnected && (
         <div style={{

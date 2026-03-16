@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import API from '../api';
 import { useNavigate } from 'react-router-dom';
 import GLLSLogo from '../assets/GLLSLogo.png';
@@ -717,10 +717,15 @@ const SearchResultsPage = ({ searchTerm, results, onViewEdit, onViewPDF, onBackT
   );
 };
 
+const TECH_NEW_FORM_LAYOUT_KEY = 'glls_tech_use_new_form_layout';
+
 export default function TechDashboard({ username, user }) {
   const [workOrders, setWorkOrders] = useState([]);
   const [troubleshootOrders, setTroubleshootOrders] = useState([]);
   const [closedTroubleshootOrders, setClosedTroubleshootOrders] = useState([]);
+  const [useNewFormLayout, setUseNewFormLayout] = useState(() =>
+    JSON.parse(localStorage.getItem(TECH_NEW_FORM_LAYOUT_KEY) || 'false')
+  );
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [troubleshootLoading, setTroubleshootLoading] = useState(true);
@@ -733,6 +738,90 @@ export default function TechDashboard({ username, user }) {
   const visibleWorkOrders = workOrders.filter(
     wo => !wo.status || wo.status.toLowerCase() !== 'submitted for billing'
   );
+
+  // Column filters (Excel-style): selected values per column; empty = no filter
+  const [columnFilters, setColumnFilters] = useState({
+    workOrderNo: [],
+    company: [],
+    makeModelSerial: [],
+    status: [],
+    dateAssigned: [],
+    daysOpen: []
+  });
+  const [openFilterColumn, setOpenFilterColumn] = useState(null);
+
+  // Unique values per column (from visible work orders) for filter dropdowns
+  const filterOptions = useMemo(() => {
+    const statusSet = new Set();
+    const companySet = new Set();
+    const workOrderNoSet = new Set();
+    const makeModelSerialSet = new Set();
+    visibleWorkOrders.forEach(wo => {
+      statusSet.add(String(wo.status || 'Assigned').trim());
+      companySet.add(String(wo.companyName || '').trim() || '(blank)');
+      workOrderNoSet.add(String(wo.workOrderNo ?? ''));
+      makeModelSerialSet.add(`${wo.make || ''} / ${wo.model || ''} / ${wo.serialNumber || ''}`.trim() || '(blank)');
+    });
+    return {
+      status: Array.from(statusSet).sort(),
+      company: Array.from(companySet).filter(Boolean).sort(),
+      workOrderNo: Array.from(workOrderNoSet).filter(Boolean).sort((a, b) => Number(a) - Number(b)),
+      makeModelSerial: Array.from(makeModelSerialSet).filter(Boolean).sort()
+    };
+  }, [visibleWorkOrders]);
+
+  // Apply column filters to get the list to render
+  const filteredWorkOrders = useMemo(() => {
+    return visibleWorkOrders.filter(wo => {
+      if (columnFilters.status.length > 0) {
+        const s = String(wo.status || 'Assigned').trim();
+        if (!columnFilters.status.includes(s)) return false;
+      }
+      if (columnFilters.company.length > 0) {
+        const c = String(wo.companyName || '').trim() || '(blank)';
+        if (!columnFilters.company.includes(c)) return false;
+      }
+      if (columnFilters.workOrderNo.length > 0) {
+        const n = String(wo.workOrderNo ?? '');
+        if (!columnFilters.workOrderNo.includes(n)) return false;
+      }
+      if (columnFilters.makeModelSerial.length > 0) {
+        const m = `${wo.make || ''} / ${wo.model || ''} / ${wo.serialNumber || ''}`.trim() || '(blank)';
+        if (!columnFilters.makeModelSerial.includes(m)) return false;
+      }
+      return true;
+    });
+  }, [visibleWorkOrders, columnFilters]);
+
+  const setFilter = useCallback((column, selectedValues) => {
+    setColumnFilters(prev => ({ ...prev, [column]: selectedValues }));
+  }, []);
+
+  const toggleFilterValue = useCallback((column, value) => {
+    setColumnFilters(prev => {
+      const current = prev[column] || [];
+      const next = current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value];
+      return { ...prev, [column]: next };
+    });
+  }, []);
+
+  const clearColumnFilter = useCallback((column) => {
+    setColumnFilters(prev => ({ ...prev, [column]: [] }));
+  }, []);
+
+  // Close filter popover when clicking outside
+  useEffect(() => {
+    if (!openFilterColumn) return;
+    const onMouseDown = (e) => {
+      if (!e.target.closest('[data-filter-popover], [data-filter-trigger]')) {
+        setOpenFilterColumn(null);
+      }
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [openFilterColumn]);
 
   const handleOpenEdit = (workOrderNo, isPreview = false) => {
     navigate(`/tech-dashboard/workorder/${workOrderNo}${isPreview ? '?preview=true' : ''}`);
@@ -923,6 +1012,29 @@ export default function TechDashboard({ username, user }) {
         <img src={GLLSLogo} alt="Company Logo" style={{ height: 100, marginRight: 0, marginTop:10 }} />
       </div>
 
+      {/* Use new form layout toggle */}
+      <div style={{
+        margin: '0 30px 12px 30px',
+        fontFamily: 'Arial, sans-serif',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }}>
+        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            checked={useNewFormLayout}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setUseNewFormLayout(checked);
+              localStorage.setItem(TECH_NEW_FORM_LAYOUT_KEY, JSON.stringify(checked));
+            }}
+            style={{ marginRight: 8, width: 16, height: 16, cursor: 'pointer' }}
+          />
+          Use new form layout?
+        </label>
+      </div>
+
       {/* Global Search Bar */}
       <div style={{ 
         display: 'flex', 
@@ -1040,22 +1152,100 @@ export default function TechDashboard({ username, user }) {
         
         <thead>
           <tr>
-            <th>Work Order #</th>
-            <th>Company</th>
-            <th>Make / Model / Serial#</th>
-            <th>Status</th>
+            {(['workOrderNo', 'company', 'makeModelSerial', 'status']).map(col => {
+              const label = { workOrderNo: 'Work Order #', company: 'Company', makeModelSerial: 'Make / Model / Serial#', status: 'Status' }[col];
+              const options = filterOptions[col] || [];
+              const selected = columnFilters[col] || [];
+              const isOpen = openFilterColumn === col;
+              const hasActiveFilter = selected.length > 0;
+              return (
+                <th key={col} style={{ position: 'relative', whiteSpace: 'nowrap' }}>
+                  <span style={{ marginRight: 4 }}>{label}</span>
+                  <button
+                    type="button"
+                    data-filter-trigger
+                    onClick={() => setOpenFilterColumn(prev => prev === col ? null : col)}
+                    title="Filter column"
+                    style={{
+                      padding: '2px 6px',
+                      border: '1px solid #cbd5e0',
+                      borderRadius: 4,
+                      background: hasActiveFilter ? '#e0e7ff' : '#f8fafc',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      verticalAlign: 'middle'
+                    }}
+                  >
+                    {hasActiveFilter ? `▾ (${selected.length})` : '▾'}
+                  </button>
+                  {isOpen && (
+                    <div
+                      data-filter-popover
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: '100%',
+                        marginTop: 2,
+                        zIndex: 1000,
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        padding: '8px 12px',
+                        minWidth: 160,
+                        maxHeight: 240,
+                        overflowY: 'auto'
+                      }}
+                    >
+                      <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 12 }}>Filter by {label}</div>
+                      <label style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                        <input
+                          type="checkbox"
+                          checked={selected.length === 0}
+                          onChange={(e) => {
+                            if (e.target.checked) clearColumnFilter(col);
+                          }}
+                        />
+                        <span style={{ marginLeft: 6 }}>Show all</span>
+                      </label>
+                      {options.map(opt => (
+                        <label key={opt} style={{ display: 'block', marginBottom: 2, fontSize: 12 }}>
+                          <input
+                            type="checkbox"
+                            checked={selected.length === 0 || selected.includes(opt)}
+                            onChange={() => toggleFilterValue(col, opt)}
+                          />
+                          <span style={{ marginLeft: 6, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200, display: 'inline-block' }} title={String(opt)}>{String(opt)}</span>
+                        </label>
+                      ))}
+                      {hasActiveFilter && (
+                        <button
+                          type="button"
+                          onClick={() => clearColumnFilter(col)}
+                          style={{ marginTop: 6, fontSize: 11, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        >
+                          Clear filter
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </th>
+              );
+            })}
             <th>Date Assigned</th>
             <th>Days Open</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          {visibleWorkOrders.length === 0 && (
+          {filteredWorkOrders.length === 0 && (
             <tr>
-              <td colSpan={6} style={{ textAlign: 'center' }}>No assigned work orders.</td>
+              <td colSpan={7} style={{ textAlign: 'center' }}>
+                {visibleWorkOrders.length === 0 ? 'No assigned work orders.' : 'No work orders match the current filters.'}
+              </td>
             </tr>
           )}
-          {visibleWorkOrders.map(wo => {
+          {filteredWorkOrders.map(wo => {
 
             return (
               <tr key={wo.id}>

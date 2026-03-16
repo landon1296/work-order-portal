@@ -8,7 +8,7 @@ import 'jspdf-autotable';
 import GLLSLogo from '../assets/GLLSLogo.png';
 import logoBase64 from '../assets/logoBase64';
 import { workOrderWS, useWebSocket, persistentWSManager } from '../utils/websocket';
-
+import { getStatusColor } from '../utils/statusColors';
 
 // Constants
 const REPAIR_TYPES = {
@@ -391,41 +391,28 @@ const useKeyboardNavigation = () => {
     const currentIndex = focusableElements.indexOf(document.activeElement);
     if (currentIndex === -1) return;
     
-    // Define the grid layout based on the ACTUAL form structure
-    // Each row represents the actual table rows, columns represent fields within that row
+    // Grid layout matching visual form order: ... Sales → Assignment → Problem Summary & Notes → Parts
     const gridLayout = [
-      // Row 1: Company Info (5 columns)
-      ['companyName', 'make', 'model', 'serialNumber', 'date'],
-      // Row 2: Company Street (1 column, spans 2)
+      ['workOrderNo', 'date'],
+      ['companyName'],
       ['companyStreet'],
-      // Row 3: Company City | Field Contact Info (4 columns)
-      ['companyCity', 'fieldContact', 'fieldContactNumber', 'workOrderNo'],
-      // Row 4: Company State | Field Address | PO Number (4 columns)
-      ['companyState', 'fieldStreet', 'fieldCity', 'poNumber'],
-      // Row 5: Company Zip | Field State/Zip (3 columns)
-      ['companyZip', 'fieldState', 'fieldZipcode'],
-      // Row 6: Contact Info | Work Type | Shop | Repair Type (4 columns)
-      ['contactName', 'vendorWarranty', 'shop', 'repairType'],
-      // Row 7: Contact Phone | Billable checkbox (2 columns)
-      ['contactPhone', 'billable'],
-      // Row 8: Contact Email | Maintenance checkbox (2 columns)
-      ['contactEmail', 'maintenance'],
-      // Row 9: Non-billable repair checkbox (1 column)
-      ['nonBillableRepair'],
-      // Row 10: Technician Time Logs (5 columns)
-      ['technicianAssigned', 'assignDate', 'startTime', 'finishTime', 'travelTime'],
-      // Row 11: Add Time Log button (1 column)
-      ['addTimeLog'],
-      // Row 12: Sales & Shipping (4 columns)
+      ['companyCity', 'companyState', 'companyZip'],
+      ['poNumber'],
+      ['make', 'model', 'serialNumber'],
+      ['otherDesc'],
+      ['contactName', 'contactPhone', 'contactEmail'],
+      ['repairType', 'shop'],
+      ['vendorWarranty', 'billable', 'maintenance', 'nonBillableRepair'],
+      ['fieldContact', 'fieldContactNumber'],
+      ['fieldStreet'],
+      ['fieldCity', 'fieldState', 'fieldZipcode'],
       ['salesName', 'shippingCost', 'shipFromGllsCost', 'shippingComments'],
-      // Row 13: Parts (5 columns)
-      ['partNumber', 'description', 'quantity', 'waiting', 'estimatedDeliveryDate'],
-      // Row 14: Add Part button (1 column)
-      ['addPart'],
-      // Row 15: Work Description (1 column)
+      ['technicianAssigned', 'assignDate', 'startTime', 'finishTime', 'travelTime'],
+      ['addTimeLog'],
       ['workDescription'],
-      // Row 16: Notes (1 column)
-      ['notes']
+      ['notes'],
+      ['partNumber', 'description', 'quantity', 'waiting', 'estimatedDeliveryDate'],
+      ['addPart']
     ];
     
     // Find current field position in grid
@@ -448,14 +435,18 @@ const useKeyboardNavigation = () => {
       if (currentRow !== -1) break;
     }
     
-    // If we can't find the field in the grid, fall back to simple navigation
+    // If we can't find the field in the grid, fall back to simple DOM-order navigation
     if (currentRow === -1) {
       if (e.key === 'Enter' && !e.shiftKey) {
-        // Move to next element
         const nextIndex = currentIndex < focusableElements.length - 1 ? currentIndex + 1 : 0;
         focusableElements[nextIndex].focus();
       } else if (e.key === 'Enter' && e.shiftKey) {
-        // Move to previous element
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusableElements.length - 1;
+        focusableElements[prevIndex].focus();
+      } else if (e.key === 'Tab' && !e.shiftKey) {
+        const nextIndex = currentIndex < focusableElements.length - 1 ? currentIndex + 1 : 0;
+        focusableElements[nextIndex].focus();
+      } else if (e.key === 'Tab' && e.shiftKey) {
         const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusableElements.length - 1;
         focusableElements[prevIndex].focus();
       }
@@ -614,6 +605,8 @@ const useKeyboardNavigation = () => {
 
 const useFormData = (id) => {
   const [form, setForm] = useState({
+    workOrderNo: '',
+    date: new Date().toISOString().slice(0, 10),
     companyName: '',
     companyStreet: '',
     companyCity: '',
@@ -629,19 +622,18 @@ const useFormData = (id) => {
     make: '',
     model: '',
     serialNumber: '',
-    date: new Date().toISOString().slice(0, 10),
     contactName: '',
     contactPhone: '',
     contactEmail: '',
     vendorWarranty: false,
-    billable: false,
+    billable: true,
     maintenance: false,
     nonBillableRepair: false,
     timeLogs: [
       { technicianAssigned: '', assignDate: new Date().toISOString().slice(0, 10), startTime: '', finishTime: '', travelTime: '' }
     ],
-    shop: '',
-    repairType: '',
+    shop: 'Peotone Shop',
+    repairType: 'Customer Machine',
     salesName: '',
     shippingCost: '',
     shipFromGllsCost: '',
@@ -731,7 +723,7 @@ const useMasterData = () => {
 };
 
 // Main component
-export default function AssignWorkOrderForm({ token, user, editMode = false, prefilledData = null, onSuccess = null }) {
+export default function AssignWorkOrderForm({ token, user, editMode = false, techMode = false, prefilledData = null, onSuccess = null }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -803,6 +795,9 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   
   // Smart back navigation based on user role and referrer
   const getBackRoute = () => {
+    // When opened from tech dashboard (new form layout), always go back to tech dashboard
+    if (techMode) return '/tech-dashboard';
+
     // Check if we have a specific dashboard type in location state
     if (location.state?.dashboard) {
       console.log('Navigating back to dashboard type:', location.state.dashboard);
@@ -849,7 +844,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [photoDescription, setPhotoDescription] = useState('');
-  
+  const [showFieldRepairSection, setShowFieldRepairSection] = useState(false);
 
   const prevMakeRef = useRef();
 
@@ -872,6 +867,41 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
       setModels([]);
     }
   }, [form.make, makeModelMap, setModels, updateFormField]);
+
+  // Default shop to Peotone Shop for new WO when shops list has loaded
+  useEffect(() => {
+    if (id || !shops.length) return;
+    const current = (form.shop || '').trim();
+    const hasMatch = shops.some(s => (s || '').trim().toLowerCase() === current.toLowerCase());
+    if (current && hasMatch) return;
+    const peotoneShop = shops.find(s => (s || '').trim().toLowerCase().includes('peotone'));
+    const defaultShop = peotoneShop != null ? peotoneShop : shops[0];
+    if (defaultShop) {
+      updateFormField('shop', defaultShop);
+    }
+  }, [id, shops, form.shop, updateFormField]);
+
+  // Default technician by equipment make (new WO only, when first time log has no technician)
+  // Spydercrane → Ron; SmartLift → Chris; Wood's Powr-Grip → Joe
+  useEffect(() => {
+    if (id) return;
+    const firstLog = form.timeLogs?.[0];
+    if (!firstLog?.technicianAssigned?.trim() && form.make?.trim()) {
+      const makeNormalized = form.make.toLowerCase().trim().replace(/'/g, '').replace(/\s/g, '');
+      let defaultTech = '';
+      if (makeNormalized.includes('woods') && makeNormalized.includes('powr')) defaultTech = 'Joe';
+      else if (makeNormalized.includes('smartlift')) defaultTech = 'Chris';
+      else if (makeNormalized.includes('spydercrane')) defaultTech = 'Ron';
+      if (defaultTech && technicians.includes(defaultTech)) {
+        setForm(prev => ({
+          ...prev,
+          timeLogs: prev.timeLogs.map((log, i) =>
+            i === 0 ? { ...log, technicianAssigned: defaultTech } : log
+          )
+        }));
+      }
+    }
+  }, [id, form.make, form.timeLogs?.[0]?.technicianAssigned, technicians]);
 
   useEffect(() => {
     if (id) return; // Only run if NOT editing!
@@ -974,6 +1004,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
           });
 
           setForm(formObj);
+          setShowFieldRepairSection(formObj.repairType === REPAIR_TYPES.FIELD_REPAIR);
 
           // Fetch photos
           try {
@@ -1308,6 +1339,19 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
       }).catch(() => {});
     }
   }, [form.parts, form.status, id, form.workOrderNo, token, prevWaitingState]);
+
+  // Autofocus company name when form is shown (after master data load for new WO, or after work order load for edit)
+  useEffect(() => {
+    if (masterLoading || formLoading) return;
+    // Defer focus so the form is in the DOM and we win over any default focus (e.g. from navigation)
+    const t = setTimeout(() => {
+      const el = document.getElementById('assign-form-company-name');
+      if (el && typeof el.focus === 'function') {
+        el.focus();
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, [masterLoading, formLoading]);
 
   // Event handlers
   const handleChange = useCallback((e) => {
@@ -1841,7 +1885,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
   }
 
   return (
-    <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} style={{ padding: '8px', fontFamily: 'Arial' }}>
+    <form className="assign-work-order-form" onSubmit={handleSubmit} onKeyDown={handleKeyDown} autoComplete="off" style={{ padding: '8px', fontFamily: 'Arial' }}>
       <NavigationButton onBack={() => navigate(getBackRoute())} />
       
       {/* WebSocket Connection Status */}
@@ -1897,7 +1941,7 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         )}
       </div>
       
-      <FormTable
+      <FormSections
         form={form}
         makes={makes}
         models={models}
@@ -1921,6 +1965,8 @@ export default function AssignWorkOrderForm({ token, user, editMode = false, pre
         onAssignAndPrintPDF={handleAssignAndPrintPDF}
         loading={formLoading}
         isEdit={!!id}
+        showFieldRepairSection={showFieldRepairSection}
+        setShowFieldRepairSection={setShowFieldRepairSection}
       />
 
       <SignatureSection
@@ -2045,7 +2091,7 @@ const NavigationButton = ({ onBack }) => (
   </button>
 );
 
-const FormTable = ({
+const FormSections = ({
   form,
   makes,
   models,
@@ -2068,840 +2114,397 @@ const FormTable = ({
   getFieldStyle,
   onAssignAndPrintPDF,
   loading,
-  isEdit
+  isEdit,
+  showFieldRepairSection,
+  setShowFieldRepairSection
 }) => (
-  <table className="assign-table">
-    <thead>
-      <tr>
-        <th>Company Name & Address</th>
-        <th>Make</th>
-        <th>Model</th>
-        <th>Serial #</th>
-        <th>Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      <CompanyInfoRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} makes={makes} models={models} getFieldStyle={getFieldStyle} />
-      <FieldContactRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
-      <ContactInfoRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
-      <FieldAddressRow form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
-      <FieldAddressRow2 form={form} onChange={onChange} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
-      <WorkTypeRow form={form} onChange={onChange} handleRepairTypeChange={handleRepairTypeChange} shops={shops} repairTypes={repairTypes} />
-      <TechnicianRow form={form} technicians={technicians} onAddTimeLog={onAddTimeLog} onRemoveTimeLog={onRemoveTimeLog} onTimeLogChange={onTimeLogChange} />
-      <SalesRow form={form} onChange={onChange} salesNames={salesNames} disabledIfInHouse={disabledIfInHouse} isInHouseRepair={isInHouseRepair} />
-      <PartsRow form={form} onAddPart={onAddPart} onRemovePart={onRemovePart} onPartChange={onPartChange} onPartWaitingChange={onPartWaitingChange} getFieldStyle={getFieldStyle} />
-      <WorkDescriptionRow form={form} onChange={onChange} />
-      <TechSummaryRow form={form} onChange={onChange} getFieldStyle={getFieldStyle} />
-      
-      {/* Status History Section */}
-      {Array.isArray(form.statusHistory) && form.statusHistory.length > 0 && (
-        <tr>
-          <td colSpan={5}>
-            <div style={{margin: "16px 0"}}>
-              <h4>Status History</h4>
-              <ul>
-                {form.statusHistory.map((s, i) => (
-                  <li key={i}>
-                    <strong>{s.status}</strong>: {new Date(s.date).toLocaleString()}
-                    {s.updatedBy && <span style={{ color: '#666', marginLeft: '8px' }}>(by {s.updatedBy})</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </td>
-        </tr>
-      )}
-      
-      <SubmitRow onSubmit={onSubmit} onAssignAndPrintPDF={onAssignAndPrintPDF} loading={loading} isEdit={isEdit} />
-    </tbody>
-  </table>
-);
-
-const CompanyInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair, makes, models, getFieldStyle }) => (
-  <tr>
-    <td>
-      <input
-        name="companyName"
-        data-field="companyName"
-        value={form.companyName ?? ""}
-        {...getFieldStyle('companyName')}
-        onChange={onChange}
-        placeholder="Company Name"
-      />
-    </td>
-    <td>
-      <select
-        name="make"
-        data-field="make"
-        value={form.make ?? ""}
-        style={{width: '100%'}}
-        {...getFieldStyle('make')}
-        onChange={onChange}
-        required
-      >
-        <option value="">-- Select Make --</option>
-        {makes.map(make => (
-          <option key={make} value={make}>{make}</option>
-        ))}
-      </select>
-    </td>
-    <td>
-      <select
-        name="model"
-        data-field="model"
-        value={form.model ?? ""}
-        onChange={onChange}
-        required
-        disabled={!form.make}
-        style={{ width: '100%' }}
-      >
-        <option value="">-- Select Model --</option>
-        {models.map(model => (
-          <option key={model} value={model}>{model}</option>
-        ))}
-      </select>
-    </td>
-    <td>
-      <input 
-        name="serialNumber" 
-        data-field="serialNumber"
-        value={form.serialNumber ?? ""} 
-        onChange={onChange} 
-      />
-    </td>
-    <td>
-      <input 
-        type="date" 
-        name="date" 
-        data-field="date"
-        value={form.date ?? ""} 
-        onChange={onChange} 
-      />
-    </td>
-  </tr>
-);
-
-const FieldContactRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair }) => (
-  <tr>
-    <td colSpan={2}>
-      <input
-        name="companyStreet"
-        data-field="companyStreet"
-        value={form.companyStreet ?? ""}
-        onChange={onChange}
-        placeholder="Company Street"
-      />
-    </td>
-    <th className="assign-table-header" colSpan={2}>
-      Field Repair Point of Contact
-    </th>
-    <td className="assign-table-header">
-      <strong>Work Order Number</strong>
-    </td>
-  </tr>
-);
-
-const ContactInfoRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair }) => (
-  <tr>
-    <td colSpan={2}>
-      <input
-        name="companyCity"
-        data-field="companyCity"
-        value={form.companyCity ?? ""}
-        onChange={onChange}
-        placeholder="Company City"
-      />
-    </td>
-    <td>
-          <input
-            name="fieldContact"
-            data-field="fieldContact"
-            value={form.fieldContact ?? ""}
-            onChange={onChange}
-            placeholder="Field Contact Name"
-            style={
-              form.repairType === "Field Repair"
-                ? { backgroundColor: "#fff68f" }
-                : {}
-            }
-          />
-
-      </td>
-      <td>
-        <input
-        name="fieldContactNumber"
-        data-field="fieldContactNumber"
-        value={form.fieldContactNumber ?? ""}
-        onChange={onChange}
-        placeholder="Field Contact Phone"
-        {...disabledIfInHouse}
-            style={
-              form.repairType === "Field Repair"
-                ? { backgroundColor: "#fff68f" }
-                : {}
-            }
-        />
-      </td>
-    <td>
-      <input
-        name="workOrderNo"
-        value={form.workOrderNo ?? ""}
-        readOnly
-        className="assign-table-readonly"
-      />
-    </td>
-  </tr>
-);
-
-const FieldAddressRow = ({ form, onChange, disabledIfInHouse, isInHouseRepair }) => (
-  <tr>
-    <td colSpan={2}>
-      <input
-        name="companyState"
-        value={form.companyState ?? ""}
-        onChange={onChange}
-        placeholder="Company State"
-      />
-    </td>
-    <td>
-      <input
-        name="fieldStreet"
-        value={form.fieldStreet ?? ""}
-        onChange={onChange}
-        placeholder="Field Street"
-        {...disabledIfInHouse}
-        style={
-          isInHouseRepair
-            ? { backgroundColor: "#808080", color: "#808080" }
-            : form.repairType === "Field Repair"
-            ? { backgroundColor: "#fff68f" }
-            : {}
-        }
-      />
-    </td>
-    <td>
-      <input
-        name="fieldCity"
-        value={form.fieldCity ?? ""}
-        onChange={onChange}
-        placeholder="Field City"
-        {...disabledIfInHouse}
-        style={
-          isInHouseRepair
-            ? { backgroundColor: "#808080", color: "#808080" }
-            : form.repairType === "Field Repair"
-            ? { backgroundColor: "#fff68f" }
-            : {}
-        }
-      />
-    </td>
-    <td>
-      <input
-        name="poNumber"
-        value={form.poNumber ?? ""}
-        onChange={onChange}
-        placeholder="PO Number"
-      />
-    </td>
-  </tr>
-);
-
-const FieldAddressRow2 = ({ form, onChange, disabledIfInHouse, isInHouseRepair }) => (
-  <tr>
-    <td colSpan={2}>
-      <input
-        name="companyZip"
-        value={form.companyZip ?? ""}
-        onChange={onChange}
-        placeholder="Company ZIP"
-      />
-    </td>
-    <td>
-      <input
-        name="fieldState"
-        value={form.fieldState ?? ""}
-        onChange={onChange}
-        placeholder="Field State"
-        {...disabledIfInHouse}
-        style={
-          isInHouseRepair
-            ? { backgroundColor: "#808080", color: "#808080" }
-            : form.repairType === "Field Repair"
-            ? { backgroundColor: "#fff68f" }
-            : {}
-        }
-      />
-    </td>
-    <td>
-      <input
-        name="fieldZipcode"
-        value={form.fieldZipcode ?? ""}
-        onChange={onChange}
-        placeholder="Field ZIP"
-        {...disabledIfInHouse}
-        style={
-          isInHouseRepair
-            ? { backgroundColor: "#808080", color: "#808080" }
-            : form.repairType === "Field Repair"
-            ? { backgroundColor: "#fff68f" }
-            : {}
-        }
-      />
-    </td>
-    <td style={{background: "#808080"}}></td>
-  </tr>
-);
-
-const WorkTypeRow = ({ form, onChange, handleRepairTypeChange, shops, repairTypes }) => (
-  <>
-    <tr>
-      <th className="assign-table-header" colSpan={2}>
-       Contact Info
-      </th>
-      
-      <th className="assign-table-header" colSpan={1}>
-       Work Type
-      </th>
-      <th className="assign-table-header" colSpan={1}>
-       Shop Location
-      </th>
-      <th className="assign-table-header" colSpan={1}>
-       GLLS / Customer Machine?
-        </th>
-    </tr>
-
-    <tr>
-      <td colSpan={2}>
-        <input
-          name="contactName"
-          value={form.contactName ?? ""}
-          onChange={onChange}
-          placeholder="Contact Name"
-        />
-      </td> 
-      <td style={{ background: '#fff', padding: 0, position:'relative'}}>
-        <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>GLLS Vendor Warranty</span>
-        <div style={{
-          position: 'absolute',
-          left: '60%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)'
-        }}>
-          <input
-            type="checkbox"
-            name="vendorWarranty"
-            checked={form.vendorWarranty}
-            onChange={onChange}
-          /> 
+  <div className="assign-bento">
+    {/* Row 1: Company name (large) + WO# + Date in one line */}
+    <div className="assign-bento-block assign-bento-full assign-bento-bar">
+      <div className="assign-bento-bar-row">
+        <div className={`assign-bento-bar-company ${!form.companyName?.trim() ? 'assign-bento-bar-placeholder' : ''}`}>
+          {form.companyName?.trim() || 'Company name'}
         </div>
-      </td>
-      <td>
-        <select
-          name="shop"
-          value={form.shop ?? ""}
-          onChange={onChange}
-          style={{ width: '100%' }}
-          required
+        <span
+          className="assign-bento-bar-status"
+          style={{ backgroundColor: getStatusColor(form.status || 'Assigned'), color: '#fff' }}
         >
-          <option value="">-- Select Shop Location --</option>
-          {shops.map(shop => (
-            <option key={shop} value={shop}>{shop}</option>
-          ))}
-        </select>
-      </td>
-      <td>
-        <select
-          name="repairType"
-          value={form.repairType ?? ""}
-          onChange={handleRepairTypeChange}
-          style={{ width: '100%'}}
-          required
-        >
-          <option value="">-- Select Repair Type --</option>
-          {repairTypes.map((type, i) =>(
-            <option key={i} value={type}>{type}</option>
-          ))}
-        </select>
-      </td>
-    </tr>
-    <tr>
-      <td colSpan={2}>
-        <input
-          name="contactPhone"
-          value={form.contactPhone ?? ""}
-          onChange={onChange}
-          placeholder="Contact Phone"
-        />
-      </td>
-      <td style={{ background: '#fff', padding: 0, position:'relative'}}>
-        <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Billable</span>
-        <div style={{
-          position: 'absolute',
-          left: '60%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)'
-        }}>
-          <input
-            type="checkbox"
-            name="billable"
-            checked={form.billable}
-            onChange={onChange}
-          /> 
+          {form.status?.trim() || 'Assigned'}
+        </span>
+        <div className="assign-bento-bar-fields">
+          <div className="assign-form-field assign-bento-bar-field">
+            <label>Work Order #</label>
+            <input name="workOrderNo" data-field="workOrderNo" value={form.workOrderNo ?? ""} readOnly className="assign-input-readonly assign-bento-wo-number" />
+          </div>
+          <div className="assign-form-field assign-bento-bar-field">
+            <label>Date</label>
+            <input type="date" name="date" data-field="date" value={form.date ?? ""} onChange={onChange} />
+          </div>
         </div>
-      </td>
-      <td colSpan={2}
-        style={{background:
-          (form.make === "Other" || form.model === "Other") ? "#fff68f" : "#808080",
-          transition: 'background 0.2s'
-        }}
-      >
-        {(form.make === "Other" || form.model === "Other") && (
-          <input
-            name="otherDesc"
-            value={form.otherDesc ?? ""}
-            onChange={onChange}
-            placeholder="Please Specify 'Other' Make & Model"
-            required
-            style={{
-              width: "96%",
-              border: "2px solid #ffab00",
-              fontWeight: "bold"
-            }}
-          />
-        )}
-      </td>                  
-    </tr>
-    <tr>
-      <td colSpan={2}>
-        <input
-          name="contactEmail"
-          value={form.contactEmail ?? ""}
-          onChange={onChange}
-          placeholder="Contact Email"
-        />
-      </td>
-      <td style={{ background: '#fff', padding: 0, position:'relative'}}>
-        <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Maintenance</span>
-        <div style={{
-          position: 'absolute',
-          left: '60%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)'
-        }}>
-          <input
-            type="checkbox"
-            name="maintenance"
-            checked={form.maintenance}
-            onChange={onChange}
-          /> 
-        </div>
-      </td>
-      <td colSpan={2} style={{background: "#808080"}}></td>
-    </tr>
-    <tr>
-      <td colSpan={2} style={{background:"#808080"}}></td>
-      <td style={{ background: '#fff', padding: 0, position:'relative'}}>
-        <span style={{ float: 'left', paddingLeft: '8px', lineHeight: '24px'}}>Non-billable Repair</span>
-        <div style={{
-          position: 'absolute',
-          left: '60%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)'
-        }}>
-          <input
-            type="checkbox"
-            name="nonBillableRepair"
-            checked={form.nonBillableRepair}
-            onChange={onChange}
-          /> 
-        </div>
-      </td>
-      <td colSpan={2} style={{background: "#808080"}}></td>
-    </tr>
-  </>
-);
+      </div>
+    </div>
 
-const TechnicianRow = ({ form, technicians, onAddTimeLog, onRemoveTimeLog, onTimeLogChange }) => (
-  <>
-    <tr>
-      <th className="assign-table-header" colSpan={1}>
-        Technician Assigned
-      </th>
-      <th className="assign-table-header" colSpan={1}>
-        Date
-      </th>
-      <th className="assign-table-header" colSpan={1}>
-        Start Time
-      </th>
-      <th className="assign-table-header" colSpan={1}>
-        Finish Time
-      </th>
-      <th className="assign-table-header" colSpan={1}>
-        Travel Time
-      </th>
-    </tr>
-    {form.timeLogs.map((log, idx) => (
-      <tr key={idx}>
-        <td>
-          <select
-            name="technicianAssigned"
-            value={log.technicianAssigned}
-            onChange={e => onTimeLogChange(idx, e)}
-            style={{ width: '100%' }}
-            required
-          >
-            <option value="">-- Select Technician --</option>
-            {technicians.map(tech => (
-              <option key={tech} value={tech}>{tech}</option>
-            ))}
+    {/* Row 2: Company & Address (full width) */}
+    <div className="assign-bento-block assign-bento-full">
+      <h3 className="assign-bento-title">Company & Address</h3>
+      <div className="assign-form-grid assign-form-grid-1">
+        <div className="assign-form-field">
+          <label>Company Name</label>
+          <input id="assign-form-company-name" name="companyName" data-field="companyName" value={form.companyName ?? ""} {...getFieldStyle('companyName')} onChange={onChange} placeholder="Company Name" />
+        </div>
+        <div className="assign-form-field">
+          <label>Street</label>
+          <input name="companyStreet" data-field="companyStreet" value={form.companyStreet ?? ""} onChange={onChange} placeholder="Company Street" />
+        </div>
+        <div className="assign-form-grid assign-form-grid-3">
+          <div className="assign-form-field">
+            <label>City</label>
+            <input name="companyCity" data-field="companyCity" value={form.companyCity ?? ""} onChange={onChange} placeholder="City" />
+          </div>
+          <div className="assign-form-field">
+            <label>State</label>
+            <input name="companyState" value={form.companyState ?? ""} onChange={onChange} placeholder="State" />
+          </div>
+          <div className="assign-form-field">
+            <label>ZIP</label>
+            <input name="companyZip" value={form.companyZip ?? ""} onChange={onChange} placeholder="ZIP" />
+          </div>
+        </div>
+        <div className="assign-form-field">
+          <label>PO Number</label>
+          <input name="poNumber" value={form.poNumber ?? ""} onChange={onChange} placeholder="PO Number" />
+        </div>
+      </div>
+    </div>
+
+    {/* Row 3: Equipment (left) | Contact (right) - bento side-by-side */}
+    <div className="assign-bento-block assign-bento-half">
+      <h3 className="assign-bento-title">Equipment</h3>
+      <div className="assign-form-grid assign-form-grid-1">
+        <div className="assign-form-field">
+          <label>Make</label>
+          <select name="make" data-field="make" value={form.make ?? ""} {...getFieldStyle('make')} onChange={onChange} required>
+            <option value="">-- Select Make --</option>
+            {makes.map(make => <option key={make} value={make}>{make}</option>)}
           </select>
-        </td>
-        <td>
-          <input
-            type="date"
-            name="assignDate"
-            value={log.assignDate}
-            onChange={e => onTimeLogChange(idx, e)}
-            style={{ width: '100%' }}
-            required
-          />
-        </td>
-        <td>
-          <input
-            type="time"
-            name="startTime"
-            value={log.startTime}
-            onChange={e => onTimeLogChange(idx, e)}
-            style={{ width: '100%' }}
-          />
-        </td>
-        <td>
-          <input
-            type="time"
-            name="finishTime"
-            value={log.finishTime}
-            onChange={e => onTimeLogChange(idx, e)}
-            style={{ width: '100%' }}
-          />
-        </td>
-        <td>
-          <input
-            type="text"
-            name="travelTime"
-            value={log.travelTime}
-            onChange={e => onTimeLogChange(idx, e)}
-            placeholder="hh:mm"
-            style={{ width: '70%', display: 'inline-block' }}
-          />
-          {form.timeLogs.length > 1 && (
-            <button
-              type="button"
-              onClick={() => onRemoveTimeLog(idx)}
-              style={{marginLeft: '8px', verticalAlign: 'middle', background: '#ffe0e0', border: '1px solid #f00', cursor: 'pointer', padding: '2px 8px'}}
-              title="Remove this time log"
-            >-</button>
-          )}
-        </td>
-      </tr>
-    ))}
-    <tr>
-      <td colSpan={5}>
-        <button type="button" onClick={onAddTimeLog}>+ Add Time Log</button>
-      </td>
-    </tr>
-  </>
-);
+        </div>
+        <div className="assign-form-field">
+          <label>Model</label>
+          <select name="model" data-field="model" value={form.model ?? ""} onChange={onChange} required disabled={!form.make} style={{ width: '100%' }}>
+            <option value="">-- Select Model --</option>
+            {models.map(model => <option key={model} value={model}>{model}</option>)}
+          </select>
+        </div>
+        <div className="assign-form-field">
+          <label>Serial #</label>
+          <input name="serialNumber" data-field="serialNumber" value={form.serialNumber ?? ""} onChange={onChange} placeholder="Serial Number" />
+        </div>
+        {(form.make === "Other" || form.model === "Other") && (
+          <div className="assign-form-field">
+            <label>Specify Other Make & Model</label>
+            <input name="otherDesc" value={form.otherDesc ?? ""} onChange={onChange} placeholder="Please Specify 'Other' Make & Model" required style={{ border: '2px solid #ffab00', fontWeight: 'bold' }} />
+          </div>
+        )}
+      </div>
+    </div>
+    <div className="assign-bento-block assign-bento-half">
+      <h3 className="assign-bento-title">Contact</h3>
+      <div className="assign-form-grid assign-form-grid-1">
+        <div className="assign-form-field">
+          <label>Contact Name</label>
+          <input name="contactName" value={form.contactName ?? ""} onChange={onChange} placeholder="Contact Name" />
+        </div>
+        <div className="assign-form-field">
+          <label>Contact Phone</label>
+          <input name="contactPhone" value={form.contactPhone ?? ""} onChange={onChange} placeholder="Contact Phone" />
+        </div>
+        <div className="assign-form-field">
+          <label>Contact Email</label>
+          <input name="contactEmail" value={form.contactEmail ?? ""} onChange={onChange} placeholder="Contact Email" />
+        </div>
+      </div>
+    </div>
 
-const SalesRow = ({ form, onChange, salesNames, disabledIfInHouse, isInHouseRepair }) => (
-  <>
-    <tr>
-      <th className="assign-table-header" colSpan={1}>
-        Salesman
-      </th>
-      <th className="assign-table-header" colSpan={1}>
-        Inbound Shipping
-      </th>
-      <th className="assign-table-header" colSpan={1}>
-        Outbound Shipping
-      </th>
-      <th className="assign-table-header" colSpan={2} style={{textAlign:'left'}}>
-        Shipping Comments
-      </th>
-    </tr>
-    <tr>
-      <td>
-        <select
-          name="salesName"
-          value={form.salesName ?? ""}
-          onChange={onChange}
-          {...disabledIfInHouse}
-          style={isInHouseRepair ? { backgroundColor: "#808080", color: "#808080" } : {}}
-        >
-          <option value="">-- Select Sales Name --</option>
-          {salesNames.map(name => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
-      </td>
-      <td>
-        <input
-          name="shippingCost"
-          value={form.shippingCost ?? ""}
-          onChange={onChange}
-          placeholder="Ex. 1234.00"
-          type="number"
-          min="0"
-          step="0.01"
-          {...disabledIfInHouse}
-          style={
-            isInHouseRepair
-              ? { backgroundColor: "#808080", color: "#808080" }
-              : {}
-          }
-        />
-      </td>
-      <td>
-        <input
-          name="shipFromGllsCost"
-          value={form.shipFromGllsCost ?? ""}
-          onChange={onChange}
-          placeholder="Ex. 1234.00"
-          type="number"
-          min="0"
-          step="0.01"
-          {...disabledIfInHouse}
-          style={
-            isInHouseRepair
-              ? { backgroundColor: "#808080", color: "#808080" }
-              : {}
-          }
-        />
-      </td>
-      <td colSpan={2} style={{textAlign:'left'}}>
-        <input
-          name="shippingComments"
-          value={form.shippingComments ?? ""}
-          onChange={onChange}
-          placeholder="Shipping Comments"
-        
-        />
-    </td>
-    </tr>
-  </>
-);
-
-const PartsRow = ({ form, onAddPart, onRemovePart, onPartChange, onPartWaitingChange, getFieldStyle }) => (
-  <>
-    <tr>
-      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
-        Part Number
-      </th>
-      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
-        Part Name/ Description
-      </th>
-      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
-        Quantity
-      </th>
-      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
-        Pending Parts?
-      </th>
-      <th className="assign-table-header" colSpan={1} style={getFieldStyle('parts')}>
-        Est. Delivery Date
-      </th>
-    </tr>
-    {form.parts.map((part, idx) => {
-      const unitPrice = parseFloat(part.unitPrice) || 0;
-      const quantity = parseFloat(part.quantity) || 0;
-      const amount = unitPrice * quantity;
-      return (
-        <tr key={idx}>
-          <td>
-            <input
-              name="partNumber"
-              value={part.partNumber}
-              onChange={e => onPartChange(idx, 'partNumber', e.target.value)}
-              placeholder="Part Number"
-            />
-          </td>
-          <td>
-            <input
-              name="description"
-              value={part.description}
-              onChange={e => onPartChange(idx, 'description', e.target.value)}
-              placeholder="Part Name/ Description"
-            />
-          </td>
-          <td>
-            <input
-              name="quantity"
-              value={part.quantity}
-              onChange={e => onPartChange(idx, 'quantity', e.target.value)}
-              placeholder="Quantity"
-              type="number"
-              min="0"
-            />
-          </td>
-          <td>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              height: '100%',
-              whiteSpace: 'nowrap',
-            }}>
+    {/* Row 4: Repair Type & Shop & Work Type (full) */}
+    <div className="assign-bento-block assign-bento-full">
+      <h3 className="assign-bento-title">Repair Type & Shop</h3>
+      <div className="assign-form-grid assign-form-grid-2">
+        <div className="assign-form-field">
+          <label>Repair Type</label>
+          <select name="repairType" value={form.repairType ?? ""} onChange={handleRepairTypeChange} style={{ width: '100%' }} required>
+            <option value="">-- Select Repair Type --</option>
+            {repairTypes.map((type, i) => <option key={i} value={type}>{type}</option>)}
+          </select>
+        </div>
+        <div className="assign-form-field">
+          <label>Shop Location</label>
+          <select name="shop" value={form.shop ?? ""} onChange={onChange} style={{ width: '100%' }} required>
+            <option value="">-- Select Shop Location --</option>
+            {shops.map(shop => <option key={shop} value={shop}>{shop}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="assign-form-checkboxes">
+        <label className="assign-form-checkbox-label">
+          <input type="checkbox" name="vendorWarranty" checked={form.vendorWarranty} onChange={onChange} />
+          <span>GLLS Vendor Warranty</span>
+        </label>
+        <label className="assign-form-checkbox-label">
+          <input type="checkbox" name="billable" checked={form.billable} onChange={onChange} />
+          <span>Billable</span>
+        </label>
+        <label className="assign-form-checkbox-label">
+          <input type="checkbox" name="maintenance" checked={form.maintenance} onChange={onChange} />
+          <span>Maintenance</span>
+        </label>
+        <label className="assign-form-checkbox-label">
+          <input type="checkbox" name="nonBillableRepair" checked={form.nonBillableRepair} onChange={onChange} />
+          <span>Non-billable Repair</span>
+        </label>
+        <label className="assign-form-checkbox-label assign-bento-field-repair-label">
+          <input
+            type="checkbox"
+            checked={showFieldRepairSection}
+            onChange={(e) => setShowFieldRepairSection(e.target.checked)}
+          />
+          <span>Field repair</span>
+        </label>
+      </div>
+      {showFieldRepairSection && (
+        <div className="assign-form-field-repair-fields">
+          <div className="assign-form-grid assign-form-grid-2">
+            <div className="assign-form-field">
+              <label>Field Contact Name</label>
               <input
-                type="checkbox"
-                checked={part.waiting || false}
-                onChange={e => onPartChange(idx, 'waiting', e.target.checked)}
-                style={{
-                  width: 18,
-                  height: 18,
-                  margin: 0,
-                }}
+                name="fieldContact"
+                data-field="fieldContact"
+                value={form.fieldContact ?? ""}
+                onChange={onChange}
+                placeholder="Field Contact Name"
+                style={form.repairType === REPAIR_TYPES.FIELD_REPAIR ? { backgroundColor: '#fff68f' } : {}}
               />
-              <span style={{
-                fontSize: 14,
-                fontWeight: 500,
-                textAlign: 'center',
-                lineHeight: 1.2,
-              }}>
-                Waiting on Part
-              </span>
-              {form.parts.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onRemovePart(idx)}
-                  style={{
-                    background: '#ffe0e0',
-                    border: '1px solid #f00',
-                    cursor: 'pointer',
-                    padding: '2px 8px',
-                    height: '20px',
-                    minWidth: '30px',
-                    fontSize: 14,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginLeft: 80
-                  }}
-                  title="Remove this part"
-                >-</button>
-              )}
             </div>
-          </td>
-          <td>
+            <div className="assign-form-field">
+              <label>Field Contact Phone</label>
+              <input
+                name="fieldContactNumber"
+                data-field="fieldContactNumber"
+                value={form.fieldContactNumber ?? ""}
+                onChange={onChange}
+                placeholder="Field Contact Phone"
+                {...disabledIfInHouse}
+                style={form.repairType === REPAIR_TYPES.FIELD_REPAIR ? { backgroundColor: '#fff68f' } : {}}
+              />
+            </div>
+          </div>
+          <div className="assign-form-field">
+            <label>Field Street</label>
             <input
-              type="date"
-              value={part.estimatedDeliveryDate || ""}
-              onChange={e => onPartChange(idx, 'estimatedDeliveryDate', e.target.value)}
-              style={{
-                width: '100%',
-                opacity: part.waiting ? 1 : 0.5,
-                pointerEvents: part.waiting ? 'auto' : 'none'
-              }}
-              disabled={!part.waiting}
-              placeholder="Est. Delivery Date"
+              name="fieldStreet"
+              value={form.fieldStreet ?? ""}
+              onChange={onChange}
+              placeholder="Field Street"
+              {...disabledIfInHouse}
+              style={isInHouseRepair ? { backgroundColor: '#808080', color: '#808080' } : form.repairType === REPAIR_TYPES.FIELD_REPAIR ? { backgroundColor: '#fff68f' } : {}}
             />
-          </td>
-        </tr>
-      );
-    })}
-    <tr>
-      <td colSpan={1}>
-        <button type="button" onClick={onAddPart}>Add Part</button>
-      </td>
-      <td colSpan={4} style={{background:"#808080"}}></td>
-    </tr>
-  </>
-);
+          </div>
+          <div className="assign-form-grid assign-form-grid-3">
+            <div className="assign-form-field">
+              <label>Field City</label>
+              <input
+                name="fieldCity"
+                value={form.fieldCity ?? ""}
+                onChange={onChange}
+                placeholder="Field City"
+                {...disabledIfInHouse}
+                style={isInHouseRepair ? { backgroundColor: '#808080', color: '#808080' } : form.repairType === REPAIR_TYPES.FIELD_REPAIR ? { backgroundColor: '#fff68f' } : {}}
+              />
+            </div>
+            <div className="assign-form-field">
+              <label>Field State</label>
+              <input
+                name="fieldState"
+                value={form.fieldState ?? ""}
+                onChange={onChange}
+                placeholder="Field State"
+                {...disabledIfInHouse}
+                style={isInHouseRepair ? { backgroundColor: '#808080', color: '#808080' } : form.repairType === REPAIR_TYPES.FIELD_REPAIR ? { backgroundColor: '#fff68f' } : {}}
+              />
+            </div>
+            <div className="assign-form-field">
+              <label>Field ZIP</label>
+              <input
+                name="fieldZipcode"
+                value={form.fieldZipcode ?? ""}
+                onChange={onChange}
+                placeholder="Field ZIP"
+                {...disabledIfInHouse}
+                style={isInHouseRepair ? { backgroundColor: '#808080', color: '#808080' } : form.repairType === REPAIR_TYPES.FIELD_REPAIR ? { backgroundColor: '#fff68f' } : {}}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
 
-const WorkDescriptionRow = ({ form, onChange }) => (
-  <>
-    <tr>
-      <th className="assing-table-header" colSpan={5} style={{textAlign:'center'}}>
-        Work Description
-      </th>
-    </tr>
-    <tr>
-      <td colSpan={5}>
-        <textarea
-          name="workDescription"
-          value={form.workDescription ?? ""}
-          onChange={onChange}
-          rows={3}
-          style={{ width: '100%' }}
-          placeholder="Brief Description of Work Completed"
-          required
-        />
-      </td>
-    </tr>
-  </>
-);
+    {/* Sales & Shipping (full width, under Repair Type & Shop) */}
+    <div className="assign-bento-block assign-bento-full">
+      <h3 className="assign-bento-title">Sales & Shipping</h3>
+      <div className="assign-form-grid assign-form-grid-4">
+        <div className="assign-form-field">
+          <label>Salesman</label>
+          <select name="salesName" value={form.salesName ?? ""} onChange={onChange} {...disabledIfInHouse} style={isInHouseRepair ? { backgroundColor: '#808080', color: '#808080' } : {}}>
+            <option value="">-- Select Sales Name --</option>
+            {salesNames.map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </div>
+        <div className="assign-form-field">
+          <label>Inbound Shipping</label>
+          <input name="shippingCost" value={form.shippingCost ?? ""} onChange={onChange} placeholder="Ex. 1234.00" type="number" min="0" step="0.01" {...disabledIfInHouse} style={isInHouseRepair ? { backgroundColor: '#808080', color: '#808080' } : {}} />
+        </div>
+        <div className="assign-form-field">
+          <label>Outbound Shipping</label>
+          <input name="shipFromGllsCost" value={form.shipFromGllsCost ?? ""} onChange={onChange} placeholder="Ex. 1234.00" type="number" min="0" step="0.01" {...disabledIfInHouse} style={isInHouseRepair ? { backgroundColor: '#808080', color: '#808080' } : {}} />
+        </div>
+        <div className="assign-form-field">
+          <label>Shipping Comments</label>
+          <input name="shippingComments" value={form.shippingComments ?? ""} onChange={onChange} placeholder="Shipping Comments" />
+        </div>
+      </div>
+    </div>
 
-const TechSummaryRow = ({ form, onChange, getFieldStyle }) => (
-  <>
-    <tr>
-      <th className="assign-table-header" colSpan={5} style={{textAlign:'center'}}>
-        Tech Summary
-      </th>
-    </tr>
-    <tr>
-      <td colSpan={5}>
-        <textarea
-          name="notes"
-          value={form.notes ?? ""}
-          style={{width: '100%'}}
-          {...getFieldStyle('notes')}
-          onChange={onChange}
-          rows={3}
-          placeholder="Notes"
-        />
-      </td>
-    </tr>
-  </>
-);
+    {/* Row 6: Assignment - refined table (full width) */}
+    <div className="assign-bento-block assign-bento-full">
+      <h3 className="assign-bento-title">Assignment</h3>
+      <table className="assign-table assign-table-refined">
+        <thead>
+          <tr>
+            <th>Technician</th>
+            <th>Date</th>
+            <th>Start Time</th>
+            <th>Finish Time</th>
+            <th>Travel Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {form.timeLogs.map((log, idx) => (
+            <tr key={idx}>
+              <td>
+                <select name="technicianAssigned" value={log.technicianAssigned} onChange={e => onTimeLogChange(idx, e)} style={{ width: '100%' }} required>
+                  <option value="">-- Select Technician --</option>
+                  {technicians.map(tech => <option key={tech} value={tech}>{tech}</option>)}
+                </select>
+              </td>
+              <td>
+                <input type="date" name="assignDate" value={log.assignDate} onChange={e => onTimeLogChange(idx, e)} style={{ width: '100%' }} required />
+              </td>
+              <td>
+                <input type="time" name="startTime" value={log.startTime} onChange={e => onTimeLogChange(idx, e)} style={{ width: '100%' }} />
+              </td>
+              <td>
+                <input type="time" name="finishTime" value={log.finishTime} onChange={e => onTimeLogChange(idx, e)} style={{ width: '100%' }} />
+              </td>
+              <td>
+                <input type="text" name="travelTime" value={log.travelTime} onChange={e => onTimeLogChange(idx, e)} placeholder="hh:mm" style={{ width: '70%', display: 'inline-block' }} />
+                {form.timeLogs.length > 1 && (
+                  <button type="button" onClick={() => onRemoveTimeLog(idx)} className="assign-form-remove-btn" title="Remove this time log">-</button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button type="button" onClick={onAddTimeLog} className="assign-form-add-btn">+ Add Time Log</button>
+    </div>
 
-const SubmitRow = ({ onSubmit, onAssignAndPrintPDF, loading, isEdit }) => (
-  <tr>
-    <td colSpan={5} style={{ textAlign: 'right' }}>
+    {/* Problem Summary & Tech Summary (full width, under Assignment) */}
+    <div className="assign-bento-block assign-bento-full">
+      <h3 className="assign-bento-title">Problem Summary & Tech Summary</h3>
+      <div className="assign-form-grid assign-form-grid-1">
+        <div className="assign-form-field">
+          <label>Problem Summary</label>
+          <textarea name="workDescription" value={form.workDescription ?? ""} onChange={onChange} rows={3} className="assign-form-textarea" placeholder="Provide a summary of the reason equipment is entering service" required />
+        </div>
+        <div className="assign-form-field">
+          <label>Tech Summary</label>
+          <textarea name="notes" value={form.notes ?? ""} style={{ width: '100%' }} {...getFieldStyle('notes')} onChange={onChange} rows={3} className="assign-form-textarea" placeholder="Provide a summary of the work completed." />
+        </div>
+      </div>
+    </div>
+
+    {/* Row 8: Parts - refined table (full width) */}
+    <div className="assign-bento-block assign-bento-full">
+      <h3 className="assign-bento-title">Parts</h3>
+      <table className="assign-table assign-table-refined">
+        <thead>
+          <tr>
+            <th>Part #</th>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Pending Parts?</th>
+            <th>Est. Delivery Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {form.parts.map((part, idx) => (
+            <tr key={idx}>
+              <td>
+                <input name="partNumber" value={part.partNumber} onChange={e => onPartChange(idx, 'partNumber', e.target.value)} placeholder="Part Number" />
+              </td>
+              <td>
+                <input name="description" value={part.description} onChange={e => onPartChange(idx, 'description', e.target.value)} placeholder="Part Name/ Description" />
+              </td>
+              <td>
+                <input name="quantity" value={part.quantity} onChange={e => onPartChange(idx, 'quantity', e.target.value)} placeholder="Quantity" type="number" min="0" />
+              </td>
+              <td>
+                <div className="assign-form-part-waiting">
+                  <input type="checkbox" checked={part.waiting || false} onChange={e => onPartChange(idx, 'waiting', e.target.checked)} style={{ width: 18, height: 18, margin: 0 }} />
+                  <span>Waiting on Part</span>
+                  {form.parts.length > 1 && (
+                    <button type="button" onClick={() => onRemovePart(idx)} className="assign-form-remove-btn" title="Remove this part">-</button>
+                  )}
+                </div>
+              </td>
+              <td>
+                <input type="date" value={part.estimatedDeliveryDate || ""} onChange={e => onPartChange(idx, 'estimatedDeliveryDate', e.target.value)} style={{ width: '100%', opacity: part.waiting ? 1 : 0.5, pointerEvents: part.waiting ? 'auto' : 'none' }} disabled={!part.waiting} placeholder="Est. Delivery Date" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button type="button" onClick={onAddPart} className="assign-form-add-btn">Add Part</button>
+    </div>
+
+    {/* Status History (full width when present) */}
+    {Array.isArray(form.statusHistory) && form.statusHistory.length > 0 && (
+      <div className="assign-bento-block assign-bento-full">
+        <h3 className="assign-bento-title">Status History</h3>
+        <ul className="assign-form-status-list">
+          {form.statusHistory.map((s, i) => (
+            <li key={i}>
+              <strong>{s.status}</strong>: {new Date(s.date).toLocaleString()}
+              {s.updatedBy && <span style={{ color: '#666', marginLeft: '8px' }}>(by {s.updatedBy})</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    {/* Actions (full width) */}
+    <div className="assign-bento-block assign-bento-full assign-form-actions-wrap">
+    <div className="assign-form-actions">
       {!isEdit && (
-        <button 
-          type="button"
-          onClick={onAssignAndPrintPDF}
-          disabled={loading}
-          style={{
-            marginRight: '8px', 
-            background: '#2563eb', 
-            color: 'white',
-            border: '1px solid #2563eb', 
-            borderRadius: 4, 
-            padding: '4px 16px', 
-            fontWeight: 'bold',
-            opacity: loading ? 0.6 : 1,
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
-        >
+        <button type="button" onClick={onAssignAndPrintPDF} disabled={loading} className="assign-form-btn assign-form-btn-primary">
           {loading ? 'Saving...' : 'Assign & Print PDF'}
         </button>
       )}
-      <button 
-        type="submit"
-        disabled={loading}
-        style={{
-          marginRight: '8px', 
-          background: '#adebb3', 
-          border: '1px solid #aaa', 
-          borderRadius: 4, 
-          padding: '4px 16px', 
-          fontWeight: 'bold',
-          opacity: loading ? 0.6 : 1,
-          cursor: loading ? 'not-allowed' : 'pointer'
-        }}
-      >
+      <button type="submit" disabled={loading} className="assign-form-btn assign-form-btn-save">
         {loading ? 'Saving...' : (isEdit ? 'Save Changes' : 'Assign')}
       </button>
-    </td>
-  </tr>
+    </div>
+    </div>
+  </div>
 );
 
 const SignatureSection = ({ form, signatureModalOpen, setSignatureModalOpen, sigPadRef, setForm }) => (

@@ -88,6 +88,408 @@ button:focus::after, input[type="checkbox"]:focus::after {
   border: 1px solid #39547e;
 }
 
+/* Assign Work Order Form - bento grid + refined table */
+.assign-work-order-form {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px;
+  font-family: Arial, sans-serif;
+}
+
+/* Bento grid: 2 columns, blocks can span full or half */
+.assign-bento {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-content: start;
+}
+
+.assign-bento-block {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 18px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  min-height: 0;
+}
+
+.assign-bento-full {
+  grid-column: 1 / -1;
+}
+
+.assign-bento-half {
+  grid-column: span 1;
+}
+
+.assign-bento-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 10px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
+  letter-spacing: 0.02em;
+}
+
+/* Top bar: company name (large, fills space) + WO# + Date in one row */
+.assign-bento-bar {
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-color: #cbd5e1;
+}
+
+.assign-bento-bar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.assign-bento-bar-company {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  align-self: center;
+}
+
+.assign-bento-bar-company.assign-bento-bar-placeholder {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.assign-bento-bar-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.assign-bento-bar-fields {
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.assign-bento-bar-field {
+  min-width: 120px;
+}
+
+.assign-bento-bar-field label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.assign-bento-wo-number {
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  color: #0f172a !important;
+}
+
+/* Refined table (option 4): cleaner tables for Assignment & Parts */
+.assign-table-refined {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.assign-table-refined thead {
+  background: #f1f5f9;
+}
+
+.assign-table-refined th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-bottom: 2px solid #cbd5e1;
+}
+
+.assign-table-refined td {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  vertical-align: middle;
+}
+
+.assign-table-refined tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.assign-table-refined input,
+.assign-table-refined select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.assign-table-refined input:focus,
+.assign-table-refined select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.assign-form-actions-wrap {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+@media (max-width: 720px) {
+  .assign-bento-half {
+    grid-column: 1 / -1;
+  }
+}
+
+.assign-form-grid {
+  display: grid;
+  gap: 12px 16px;
+  align-items: end;
+}
+
+.assign-form-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.assign-form-grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.assign-form-grid-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.assign-form-grid-4 {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+.assign-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.assign-form-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.assign-form-field input,
+.assign-form-field select,
+.assign-form-field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.assign-form-field input:focus,
+.assign-form-field select:focus,
+.assign-form-field textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.assign-form-field-span-2 {
+  grid-column: span 2;
+}
+
+.assign-form-checkboxes .assign-bento-field-repair-label {
+  margin-left: auto;
+  margin-bottom: 0;
+}
+
+.assign-form-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-top: 12px;
+}
+
+.assign-form-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+}
+
+.assign-form-checkbox-label input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.assign-form-collapse-trigger {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.assign-form-collapse-trigger:hover {
+  background: #dbeafe;
+}
+
+@media print {
+  .assign-form-collapse-trigger {
+    display: none;
+  }
+}
+
+.assign-form-field-repair-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.assign-form-remove-btn {
+  margin-left: 8px;
+  vertical-align: middle;
+  background: #fee2e2;
+  border: 1px solid #ef4444;
+  cursor: pointer;
+  padding: 2px 8px;
+  height: 20px;
+  min-width: 30px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.assign-form-add-btn {
+  margin-top: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.assign-form-add-btn:hover {
+  background: #e5e7eb;
+}
+
+.assign-form-textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+}
+
+.assign-form-status-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.assign-form-status-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+
+.assign-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 16px 0;
+}
+
+.assign-form-btn {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.assign-form-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.assign-form-btn-primary {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.assign-form-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.assign-form-btn-save {
+  background: #adebb3;
+  color: #111;
+  border-color: #9ca3af;
+}
+
+.assign-form-btn-save:hover:not(:disabled) {
+  background: #9dd9a3;
+}
+
+.assign-input-readonly {
+  background: #f3f4f6 !important;
+  color: #6b7280;
+  cursor: default;
+}
+
+.assign-parts-table {
+  margin-top: 8px;
+}
+
+.assign-form-part-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  white-space: nowrap;
+}
+
+.assign-form-part-waiting span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .assign-select {
   border: 1px solid #b6b6b6;
   border-radius: 2px;

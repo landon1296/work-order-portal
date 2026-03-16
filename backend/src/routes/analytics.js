@@ -6,12 +6,13 @@ const { requireAnalyticsRole } = require('../middleware/auth');
 // GET /api/analytics/summary - OPTIMIZED VERSION
 router.get('/summary', requireAnalyticsRole, async (req, res) => {
   try {
-    // 🚀 OPTIMIZATION: Use JOIN queries instead of N+1 queries
+    // Use scalar subqueries for parts and time_logs to avoid Cartesian product
+    // (JOIN would duplicate each part once per time entry)
     const query = `
       SELECT 
         w.*,
         COALESCE(
-          json_agg(
+          (SELECT json_agg(
             json_build_object(
               'id', li.id,
               'part_number', li.part_number,
@@ -24,11 +25,11 @@ router.get('/summary', requireAnalyticsRole, async (req, res) => {
               'ordered_date', li.ordered_date,
               'estimated_delivery_date', li.estimated_delivery_date
             )
-          ) FILTER (WHERE li.id IS NOT NULL), 
+          ) FROM line_items li WHERE li.work_order_no = w.work_order_no),
           '[]'::json
         ) as parts,
         COALESCE(
-          json_agg(
+          (SELECT json_agg(
             json_build_object(
               'id', te.id,
               'technician_assigned', te.technician_assigned,
@@ -37,13 +38,10 @@ router.get('/summary', requireAnalyticsRole, async (req, res) => {
               'finish_time', te.finish_time,
               'travel_time', te.travel_time
             )
-          ) FILTER (WHERE te.id IS NOT NULL), 
+          ) FROM time_entries te WHERE te.work_order_no = w.work_order_no),
           '[]'::json
         ) as time_logs
       FROM workorders w
-      LEFT JOIN line_items li ON w.work_order_no = li.work_order_no
-      LEFT JOIN time_entries te ON w.work_order_no = te.work_order_no
-      GROUP BY w.id, w.work_order_no, w.date, w.company_name, w.company_street, w.company_city, w.company_state, w.company_zip, w.field_contact_name, w.field_contact_number, w.field_street, w.field_city, w.field_state, w.field_zipcode, w.make, w.model, w.other_desc, w.serial_number, w.contact_name, w.contact_phone, w.contact_email, w.vendor_warranty, w.billable, w.maintenance, w.non_billable_repair, w.shop, w.repair_type, w.sales_name, w.shipping_cost, w.work_description, w.notes, w.status, w.created_at, w.status_history, w.assigned_days, w.in_progress_days, w.in_progress_pending_parts_days, w.completed_pending_approval_days, w.submitted_for_billing_days, w.closed_days, w.po_number, w.customer_signature, w.customer_signature_printed, w.shipping_comments
       ORDER BY w.id DESC
     `;
 

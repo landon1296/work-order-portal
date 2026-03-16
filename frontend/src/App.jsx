@@ -22,6 +22,9 @@ const RoleSwitcher = lazy(() => import('./components/RoleSwitcher'));
 const SalesDashboard = lazy(() => import('./components/SalesDashboard'));
 const OfflineTest = lazy(() => import('./components/OfflineTest'));
 
+// localStorage key used by TechDashboard for "Use new form layout?" preference
+const TECH_NEW_FORM_LAYOUT_KEY = 'glls_tech_use_new_form_layout';
+
 // Utility function to check if user has specific role(s)
 const hasRole = (user, roleOrRoles) => {
   if (!user) return false;
@@ -33,8 +36,15 @@ const hasRole = (user, roleOrRoles) => {
   return userRoles.includes(roleOrRoles);
 };
 
-// 
-
+// Renders either AssignWorkOrderForm (new bento layout) or TechWorkOrderForm based on tech preference
+function TechWorkOrderRoute({ user }) {
+  const useNewLayout = JSON.parse(localStorage.getItem(TECH_NEW_FORM_LAYOUT_KEY) || 'false');
+  return useNewLayout ? (
+    <AssignWorkOrderForm token={user.token} user={user} editMode={true} techMode={true} />
+  ) : (
+    <TechWorkOrderForm token={user.token} user={user} />
+  );
+}
 
 // Guard for auth
 function RequireAuth({ user, children }) {
@@ -184,7 +194,7 @@ function App() {
             <RequireAuth user={user}>
               {hasRole(user, ['technician', 'tech'])
                 ? <Suspense fallback={<LoadingSpinner message="Loading work order form..." />}>
-                    <TechWorkOrderForm token={user.token} user={user} />
+                    <TechWorkOrderRoute user={user} />
                   </Suspense>
                 : <Navigate to="/" />
               }

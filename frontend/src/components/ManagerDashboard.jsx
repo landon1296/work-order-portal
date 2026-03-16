@@ -1588,6 +1588,20 @@ export default function ManagerDashboard({ user }) {
     navigate('/assign');
   }, [navigate]);
 
+  // Keyboard shortcut: "n" opens Assign Work Order form (when not typing in an input)
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'n' && e.key !== 'N') return;
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable;
+      if (isInput) return;
+      e.preventDefault();
+      handleAssignNewWorkOrder();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleAssignNewWorkOrder]);
+
   const handleLogout = useCallback(() => {
     window.location.href = '/login';
   }, []);
