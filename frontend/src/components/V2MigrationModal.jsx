@@ -15,6 +15,17 @@ const LANDON_EMAIL = 'landon@greatlakeslifting.com';
 // all afternoon gets asked again rather than dismissing once and forgetting.
 const NAG_INTERVAL_MS = 15 * 60 * 1000;
 
+// Kathy and Dan keep working here past August 1 until v2 replaces the tools
+// they still need. Matched on username, not role -- Kathy is also a manager,
+// and Danny and Will (manager,sales) are different people from Dan (sales).
+// They get the same link but no deadline and no nagging: pushing someone to
+// leave an app they are not allowed to leave yet is pure friction.
+const STAYING_ON_V1 = ['kathy', 'dan'];
+
+// Resets on page load, which in v1 is the same thing as a fresh login --
+// the session lives in React state only, so a refresh logs you out.
+let shownThisSession = false;
+
 // Dashboard landing pages. Exact matches only, so backing out of a work
 // order (/dashboard/workorder/123 -> /dashboard) re-triggers the notice.
 const DASHBOARD_PATHS = [
@@ -58,21 +69,30 @@ const V2MigrationModal = ({ user }) => {
   const [open, setOpen] = useState(false);
 
   const onDashboard = Boolean(user) && DASHBOARD_PATHS.includes(location.pathname);
+  const staying = STAYING_ON_V1.includes((user?.username || '').trim().toLowerCase());
 
   // Re-opens on every arrival at a dashboard; dismissing only lasts until
-  // they navigate away and come back.
+  // they navigate away and come back. Kathy and Dan see it once per login.
   useEffect(() => {
-    setOpen(onDashboard);
+    if (!onDashboard) {
+      setOpen(false);
+      return;
+    }
+    if (staying) {
+      if (shownThisSession) return;
+      shownThisSession = true;
+    }
+    setOpen(true);
   }, [location.pathname, user]);
 
   // ...and if they never navigate at all, bring it back on a timer. The
   // timer only runs while dismissed on a dashboard, and resets each time
-  // they dismiss it again.
+  // they dismiss it again. Skipped for the people staying here.
   useEffect(() => {
-    if (!onDashboard || open) return undefined;
+    if (staying || !onDashboard || open) return undefined;
     const timer = setTimeout(() => setOpen(true), NAG_INTERVAL_MS);
     return () => clearTimeout(timer);
-  }, [onDashboard, open]);
+  }, [staying, onDashboard, open]);
 
   if (!open) return null;
 
@@ -118,7 +138,7 @@ const V2MigrationModal = ({ user }) => {
             lineHeight: 1.25,
           }}
         >
-          This app has been redesigned
+          {staying ? 'Work orders have moved' : 'This app has been redesigned'}
         </h2>
 
         <p
@@ -129,25 +149,37 @@ const V2MigrationModal = ({ user }) => {
             lineHeight: 1.55,
           }}
         >
-          The work order portal has moved. Everything you do here now lives in
-          the new portal &mdash; same work orders, same history.
+          {staying ? (
+            <>
+              Work orders now live in the new portal &mdash; same jobs, same
+              history. Keep using this app for everything else; Landon will
+              tell you before any of that moves.
+            </>
+          ) : (
+            <>
+              The work order portal has moved. Everything you do here now lives
+              in the new portal &mdash; same work orders, same history.
+            </>
+          )}
         </p>
 
-        <div
-          style={{
-            padding: '12px 16px',
-            background: '#fffbeb',
-            border: '1px solid #fcd34d',
-            borderRadius: '8px',
-            color: '#92400e',
-            fontSize: '16px',
-            fontWeight: 600,
-            lineHeight: 1.45,
-            marginBottom: '22px',
-          }}
-        >
-          This app stops working August 1.
-        </div>
+        {!staying && (
+          <div
+            style={{
+              padding: '12px 16px',
+              background: '#fffbeb',
+              border: '1px solid #fcd34d',
+              borderRadius: '8px',
+              color: '#92400e',
+              fontSize: '16px',
+              fontWeight: 600,
+              lineHeight: 1.45,
+              marginBottom: '22px',
+            }}
+          >
+            This app stops working August 1.
+          </div>
+        )}
 
         <a
           href={portalUrl}
@@ -232,7 +264,7 @@ const V2MigrationModal = ({ user }) => {
               fontWeight: 500,
             }}
           >
-            Not right now
+            {staying ? 'Got it' : 'Not right now'}
           </button>
         </div>
       </div>
