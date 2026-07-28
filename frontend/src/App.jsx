@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import LoadingSpinner from './components/LoadingSpinner';
 import OfflineStatus from './components/OfflineStatus';
 import ErrorBoundary from './components/ErrorBoundary';
+import V2MigrationModal from './components/V2MigrationModal';
 import { register } from './utils/serviceWorker';
 import './utils/debugCache'; // Load debug utilities
 import './utils/swDiagnostics'; // Load service worker diagnostics
@@ -85,6 +86,7 @@ function App() {
         <OfflineStatus />
         <Router>
           <LoginBackgroundWatcher />
+          <V2MigrationModal user={user} />
           <Suspense fallback={<LoadingSpinner message="Loading dashboard..." />}>
             <Routes>
           {/* Login Route */}
