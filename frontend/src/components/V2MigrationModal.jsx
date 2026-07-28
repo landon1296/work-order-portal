@@ -11,6 +11,10 @@ const LANDON_PHONE_HREF = '+18159541453';
 const LANDON_PHONE_DISPLAY = '(815) 954-1453';
 const LANDON_EMAIL = 'landon@greatlakeslifting.com';
 
+// Dismissing only buys quiet for this long. Someone parked on a dashboard
+// all afternoon gets asked again rather than dismissing once and forgetting.
+const NAG_INTERVAL_MS = 15 * 60 * 1000;
+
 // Dashboard landing pages. Exact matches only, so backing out of a work
 // order (/dashboard/workorder/123 -> /dashboard) re-triggers the notice.
 const DASHBOARD_PATHS = [
@@ -53,11 +57,22 @@ const V2MigrationModal = ({ user }) => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
+  const onDashboard = Boolean(user) && DASHBOARD_PATHS.includes(location.pathname);
+
   // Re-opens on every arrival at a dashboard; dismissing only lasts until
   // they navigate away and come back.
   useEffect(() => {
-    setOpen(Boolean(user) && DASHBOARD_PATHS.includes(location.pathname));
+    setOpen(onDashboard);
   }, [location.pathname, user]);
+
+  // ...and if they never navigate at all, bring it back on a timer. The
+  // timer only runs while dismissed on a dashboard, and resets each time
+  // they dismiss it again.
+  useEffect(() => {
+    if (!onDashboard || open) return undefined;
+    const timer = setTimeout(() => setOpen(true), NAG_INTERVAL_MS);
+    return () => clearTimeout(timer);
+  }, [onDashboard, open]);
 
   if (!open) return null;
 
